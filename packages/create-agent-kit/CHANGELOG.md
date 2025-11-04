@@ -1,5 +1,11 @@
 # @lucid-dreams/create-agent-kit
 
+## 0.2.25
+
+### Patch Changes
+
+- bump and namechange
+
 ## 0.2.24
 
 ### Patch Changes

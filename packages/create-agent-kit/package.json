@@ -1,6 +1,6 @@
 {
   "name": "@lucid-agents/create-agent-kit",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "description": "Scaffold a Bun agent app powered by @lucid-agents/agent-kit.",
   "type": "module",
   "bin": {
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@types/node": "^24.3.1",
     "bun-types": "^1.1.16",
-    "tsup": "catalog:",
-    "typescript": "catalog:"
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
   }
 }

@@ -1,5 +1,11 @@
 # @lucid-dreams/agent-kit-identity
 
+## 0.2.25
+
+### Patch Changes
+
+- bump and namechange
+
 ## Unreleased
 
 ### Major - Complete ERC-8004 v1.0 Implementation

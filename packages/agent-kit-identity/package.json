@@ -1,6 +1,6 @@
 {
   "name": "@lucid-agents/agent-kit-identity",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "description": "ERC-8004 identity helpers for Lucid agent kit surfaces",
   "type": "module",
   "main": "./dist/index.js",
@@ -32,7 +32,7 @@
     "viem": "^2.38.1"
   },
   "devDependencies": {
-    "tsup": "catalog:",
-    "typescript": "catalog:"
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
   }
 }

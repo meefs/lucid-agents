@@ -4,31 +4,13 @@
   "commit": false,
   "fixed": [
     [
-      "@lucid-dreams/agent-auth",
-      "@lucid-dreams/agent-kit",
-      "@lucid-dreams/agent-kit-identity",
-      "@lucid-dreams/agent-runtime-cli",
-      "@lucid-dreams/client",
-      "@lucid-dreams/create-agent-kit",
-      "@lucid-dreams/sdk"
+      "@lucid-agents/agent-kit",
+      "@lucid-agents/agent-kit-identity",
+      "@lucid-agents/create-agent-kit"
     ]
   ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": [
-    "@lucid-dreams/search",
-    "best-ax-practices-agent",
-    "concierge-agent",
-    "deal-finder-agent",
-    "double-agent",
-    "echo-agent",
-    "gigaverse",
-    "hono-agents-api",
-    "lucid-client",
-    "trade-agent",
-    "tv-catalog-agent",
-    "twitter-agent"
-  ]
+  "updateInternalDependencies": "patch"
 }

@@ -1,6 +1,6 @@
 {
   "name": "@lucid-agents/agent-kit",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "description": "Build typed agent HTTP apps",
   "type": "module",
   "main": "./dist/index.js",
@@ -58,7 +58,7 @@
     "x402-hono": "^0.7.1",
     "@lucid-dreams/agent-auth": "latest",
     "@lucid-dreams/client": "latest",
-    "@lucid-dreams/agent-kit-identity": "workspace:*",
+    "@lucid-agents/agent-kit-identity": "workspace:*",
     "x402-fetch": "catalog:",
     "x402": "^0.7.1",
     "viem": "^2.38.5",

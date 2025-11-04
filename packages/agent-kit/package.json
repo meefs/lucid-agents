@@ -1,5 +1,5 @@
 {
-  "name": "@lucid-dreams/agent-kit",
+  "name": "@lucid-agents/agent-kit",
   "version": "0.2.24",
   "description": "Build typed agent HTTP apps",
   "type": "module",

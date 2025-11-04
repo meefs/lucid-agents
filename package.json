@@ -1,4 +1,5 @@
 {
+  "name": "@lucid-agents/root",
   "workspaces": {
     "packages": [
       "packages/*"

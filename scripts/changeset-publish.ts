@@ -53,7 +53,9 @@ function listPackages(): PackageInfo[] {
     const manifestPath = path.join(dir, "package.json");
     if (!existsSync(manifestPath)) continue;
     try {
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
+      const manifest = JSON.parse(
+        readFileSync(manifestPath, "utf8")
+      ) as Manifest;
       if (!manifest.name) continue;
       results.push({ dir, manifestPath, manifest });
     } catch (err) {
@@ -104,7 +106,10 @@ function deriveWorkspaceRange(raw: string, version: string): string {
   return `^${version}`;
 }
 
-function sanitiseManifest(info: PackageInfo): { changed: boolean; next: Manifest } {
+function sanitiseManifest(info: PackageInfo): {
+  changed: boolean;
+  next: Manifest;
+} {
   const blocks: DependencyBlocks[] = [
     "dependencies",
     "devDependencies",
@@ -147,7 +152,11 @@ function sanitiseManifest(info: PackageInfo): { changed: boolean; next: Manifest
   return { changed, next };
 }
 
-function writeManifestWithBackup(pathToFile: string, manifest: Manifest, backups: Backup[]) {
+function writeManifestWithBackup(
+  pathToFile: string,
+  manifest: Manifest,
+  backups: Backup[]
+) {
   const original = readFileSync(pathToFile, "utf8");
   backups.push({ path: pathToFile, contents: original });
   writeFileSync(pathToFile, JSON.stringify(manifest, null, 2) + "\n", "utf8");
@@ -187,7 +196,9 @@ async function runPublish() {
   } finally {
     if (backups.length) {
       restoreBackups(backups);
-      console.log("Restored workspace dependency manifest values after publish.");
+      console.log(
+        "Restored workspace dependency manifest values after publish."
+      );
     }
   }
 }

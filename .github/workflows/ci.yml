@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.MD"
+      - "**/*.png"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+      - "**/*.svg"
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck packages
+        run: |
+          bun x tsc -p packages/api/tsconfig.json --noEmit
+          bun x tsc -p packages/agent-kit/tsconfig.json --noEmit
+
+      - name: Typecheck server
+        working-directory: apps/server
+        run: bun run check
+
+      - name: Run server tests
+        working-directory: apps/server
+        env:
+          CI: "true"
+        run: bun run test
+
+      - name: Build client
+        working-directory: apps/client
+        env:
+          CI: "true"
+        run: bun run build
+

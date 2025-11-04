@@ -1,0 +1,139 @@
+name: Preview (GCP)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: gcp-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment: preview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ vars.BUN_VERSION || 'latest' }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Install gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_STAGING }}
+
+      - name: Configure preview settings
+        id: config
+        run: |
+          slug=$(echo "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-+|-+$//g')
+          if [[ -z "$slug" ]]; then
+            slug="pr-${{ github.event.pull_request.number }}"
+          fi
+
+          tag=pr-${{ github.event.pull_request.number }}
+
+          echo "TF_ENV=staging" >> "$GITHUB_ENV"
+          echo "PROJECT_ID=${{ vars.GCP_PROJECT_STAGING }}" >> "$GITHUB_ENV"
+          echo "REGION=${{ vars.GCP_REGION }}" >> "$GITHUB_ENV"
+          if [[ -n "${{ vars.GCP_ARTIFACT_LOCATION }}" ]]; then
+            echo "ARTIFACT_LOCATION=${{ vars.GCP_ARTIFACT_LOCATION }}" >> "$GITHUB_ENV"
+          else
+            echo "ARTIFACT_LOCATION=${{ vars.GCP_REGION }}" >> "$GITHUB_ENV"
+          fi
+          echo "CLOUD_RUN_API_NAME=${{ vars.CLOUD_RUN_API_NAME }}" >> "$GITHUB_ENV"
+          echo "CLIENT_BUCKET=${{ vars.CLIENT_BUCKET_STAGING }}" >> "$GITHUB_ENV"
+          echo "CLIENT_PREFIX=preview/$slug" >> "$GITHUB_ENV"
+          echo "PREVIEW_TAG=$tag" >> "$GITHUB_ENV"
+
+          base_flags="${{ vars.CLOUD_RUN_FLAGS_STAGING }}"
+          echo "CLOUD_RUN_FLAGS=--tag $tag --no-traffic $base_flags" >> "$GITHUB_ENV"
+
+      - name: Validate preview configuration
+        run: |
+          for key in PROJECT_ID REGION CLIENT_BUCKET CLOUD_RUN_API_NAME PREVIEW_TAG; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error ::$key must be set for preview deployments." && exit 1
+            fi
+          done
+
+      - name: Write Makefile environment
+        run: |
+          cat <<ENVVARS > .env.gcloud
+          PROJECT_ID=${PROJECT_ID}
+          REGION=${REGION}
+          ARTIFACT_LOCATION=${ARTIFACT_LOCATION}
+          TF_ENV=${TF_ENV}
+          CLIENT_BUCKET=${CLIENT_BUCKET}
+          CLIENT_PREFIX=${CLIENT_PREFIX}
+          CLOUD_RUN_API_NAME=${CLOUD_RUN_API_NAME}
+          CLOUD_RUN_FLAGS=${CLOUD_RUN_FLAGS}
+          ENVVARS
+
+          cat .env.gcloud
+
+      - name: Build & deploy preview
+        run: make deploy-preview
+
+      - name: Compute preview URLs
+        id: urls
+        run: |
+          service_url=$(gcloud run services describe "$CLOUD_RUN_API_NAME" --region "$REGION" --format='value(status.address.url)')
+          if [[ -z "$service_url" ]]; then
+            echo "::warning ::Unable to determine Cloud Run service URL." >&2
+          else
+            host=${service_url#https://}
+            echo "api_url=https://${PREVIEW_TAG}---${host}" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -n "${{ vars.CLIENT_CDN_DOMAIN_STAGING }}" ]]; then
+            client_url="https://${{ vars.CLIENT_CDN_DOMAIN_STAGING }}/${CLIENT_PREFIX}/"
+          else
+            client_url="https://storage.googleapis.com/${CLIENT_BUCKET}/${CLIENT_PREFIX}/index.html"
+          fi
+          echo "client_url=$client_url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment with preview links
+        uses: actions/github-script@v7
+        env:
+          API_URL: ${{ steps.urls.outputs.api_url }}
+          CLIENT_URL: ${{ steps.urls.outputs.client_url }}
+        with:
+          script: |
+            const apiUrl = process.env.API_URL || 'unavailable';
+            const clientUrl = process.env.CLIENT_URL || 'unavailable';
+            const body = `<!-- preview-deploy -->\n### Preview deployment\n- API: ${apiUrl}\n- Client: ${clientUrl}\n`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((comment) => comment.body && comment.body.includes('<!-- preview-deploy -->'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

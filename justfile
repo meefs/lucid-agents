@@ -76,9 +76,6 @@ typecheck PACKAGE:
 check-all: typecheck-all build-all test-all
     @echo -e $'{{BOLD}}{{GREEN}}✅ All checks passed!{{RESET}}'
 
-# Run CI checks locally
-ci: check-all
-
 # Show package versions
 versions:
     @echo -e $'{{BOLD}}{{CYAN}}Package Versions:{{RESET}}'

@@ -15,7 +15,7 @@
     },
     "packages/agent-kit": {
       "name": "@lucid-agents/agent-kit",
-      "version": "0.2.25",
+      "version": "1.0.0",
       "dependencies": {
         "@ax-llm/ax": "^14.0.37",
         "@ax-llm/ax-tools": "^14.0.37",
@@ -36,7 +36,7 @@
     },
     "packages/agent-kit-identity": {
       "name": "@lucid-agents/agent-kit-identity",
-      "version": "0.2.25",
+      "version": "1.0.0",
       "dependencies": {
         "viem": "^2.38.1",
       },
@@ -47,7 +47,7 @@
     },
     "packages/create-agent-kit": {
       "name": "@lucid-agents/create-agent-kit",
-      "version": "0.2.25",
+      "version": "1.0.0",
       "bin": {
         "create-agent-kit": "dist/index.js",
       },

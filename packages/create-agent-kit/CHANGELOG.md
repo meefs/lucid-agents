@@ -1,5 +1,7 @@
 # @lucid-dreams/create-agent-kit
 
+## 1.0.0
+
 ## 0.2.25
 
 ### Patch Changes

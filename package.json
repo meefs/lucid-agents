@@ -19,11 +19,8 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "bun run scripts/dev.ts",
-    "build": "bun run scripts/build-all.ts",
-    "build:all": "bun run scripts/build-all.ts",
+    "build": "bun run scripts/build-packages.ts",
     "build:packages": "bun run scripts/build-packages.ts",
-    "setup:changesets": "bun run scripts/setup-changesets.ts",
     "changeset": "bunx changeset",
     "release:version": "bunx changeset version",
     "release:publish": "bun run scripts/build-packages.ts && bun run scripts/changeset-publish.ts",

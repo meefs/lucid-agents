@@ -1,5 +1,12 @@
 # @lucid-dreams/agent-kit
 
+## 1.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @lucid-agents/agent-kit-identity@1.0.0
+
 ## 0.2.25
 
 ### Patch Changes

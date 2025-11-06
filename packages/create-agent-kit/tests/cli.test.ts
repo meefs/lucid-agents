@@ -58,10 +58,7 @@ const createTemplateRoot = async (templateIds: string[]) => {
     await cp(getRepoTemplatePath("blank"), target, { recursive: true });
     const templateMetaPath = join(target, "template.json");
     const existingMetaRaw = await readFile(templateMetaPath, "utf8");
-    const existingMeta = JSON.parse(existingMetaRaw) as Record<
-      string,
-      unknown
-    >;
+    const existingMeta = JSON.parse(existingMetaRaw) as Record<string, unknown>;
     const updatedMeta = {
       ...existingMeta,
       id,
@@ -103,14 +100,13 @@ describe("create-agent-kit CLI", () => {
     const pkg = await readJson(join(projectDir, "package.json"));
     const readme = await readFile(join(projectDir, "README.md"), "utf8");
     const agentSrc = await readFile(join(projectDir, "src/agent.ts"), "utf8");
-    const envExample = await readFile(
-      join(projectDir, ".env.example"),
-      "utf8"
-    );
+    const envExample = await readFile(join(projectDir, ".env.example"), "utf8");
 
     expect(pkg.name).toBe("demo-agent");
     expect(readme).toContain("demo-agent");
-    expect(readme).toContain("- `echo` – Returns text that you send to the agent.");
+    expect(readme).toContain(
+      "- `echo` – Returns text that you send to the agent."
+    );
     expect(readme).not.toContain("{{");
     expect(agentSrc).toContain('name: "demo-agent"');
     expect(agentSrc).toContain('version: "0.1.0"');
@@ -144,9 +140,7 @@ describe("create-agent-kit CLI", () => {
     const prompt: PromptApi = {
       select: async ({ choices }) => choices[0]?.value ?? "",
       confirm: async ({ message, defaultValue }) =>
-        message.includes("x402 payments")
-          ? true
-          : defaultValue ?? false,
+        message.includes("x402 payments") ? true : defaultValue ?? false,
       input: async ({ message, defaultValue = "" }) =>
         inputResponses.get(message) ?? defaultValue,
     };
@@ -160,30 +154,21 @@ describe("create-agent-kit CLI", () => {
     const projectDir = join(cwd, "quote-agent");
     const agentSrc = await readFile(join(projectDir, "src/agent.ts"), "utf8");
     const readme = await readFile(join(projectDir, "README.md"), "utf8");
-    const envExample = await readFile(
-      join(projectDir, ".env.example"),
-      "utf8"
-    );
+    const envExample = await readFile(join(projectDir, ".env.example"), "utf8");
 
     expect(agentSrc).toContain('version: "1.0.0"');
-    expect(agentSrc).toContain(
-      'description: "Quote assistant for pricing."'
-    );
+    expect(agentSrc).toContain('description: "Quote assistant for pricing."');
     expect(agentSrc).toContain('key: "quote-price"');
     expect(agentSrc).toContain('price: "4500",');
-    expect(agentSrc).toContain(
-      'facilitatorUrl: "https://facilitator.example"'
-    );
-    expect(agentSrc).toContain(
-      'defaultPrice: "4200",'
-    );
+    expect(agentSrc).toContain('facilitatorUrl: "https://facilitator.example"');
+    expect(agentSrc).toContain('defaultPrice: "4200",');
     expect(readme).toContain("quote-price");
     expect(readme).toContain("(price: 4500 base units)");
     expect(envExample).toContain("NETWORK=base");
+    expect(envExample).toContain("FACILITATOR_URL=https://facilitator.example");
     expect(envExample).toContain(
-      "FACILITATOR_URL=https://facilitator.example"
+      "PAY_TO=0xabc0000000000000000000000000000000000000"
     );
-    expect(envExample).toContain("PAY_TO=0xabc0000000000000000000000000000000000000");
     expect(envExample).toContain("DEFAULT_PRICE=4200");
     expect(envExample).toContain("PRIVATE_KEY=");
   });
@@ -196,9 +181,7 @@ describe("create-agent-kit CLI", () => {
       select: async ({ choices }) => choices[0]?.value ?? "",
       confirm: async () => false,
       input: async ({ message, defaultValue = "" }) =>
-        message === "Project directory name:"
-          ? "prompted-agent"
-          : defaultValue,
+        message === "Project directory name:" ? "prompted-agent" : defaultValue,
     };
 
     await runCli(["--template=blank", "--env=no"], {
@@ -268,34 +251,53 @@ describe("create-agent-kit CLI", () => {
     expect(env).toBe(envExample);
   });
 
-  it("prompts for env values when available", async () => {
+  it("creates .env from .env.example when confirmed", async () => {
     const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(["blank"]);
     const { logger } = createLogger();
-    const responses = new Map<string, string>([
-      ["PORT", "3333"],
-      ["API_BASE_URL", "http://localhost:9999"],
-      ["RPC_URL", "https://example"],
-      ["REGISTER_IDENTITY", "true"],
-      ["NETWORK", "base"],
-      ["FACILITATOR_URL", "https://facilitator"],
-      ["PAY_TO", "0x1234"],
-      ["DEFAULT_PRICE", "5000"],
-    ]);
 
     const prompt: PromptApi = {
       select: async ({ choices }) => choices[0]?.value ?? "",
-      confirm: async () => true,
-      input: async ({ message, defaultValue = "" }) =>
-        responses.get(message) ?? defaultValue,
+      confirm: async () => true, // Confirm .env creation
+      input: async ({ defaultValue = "" }) => defaultValue,
     };
 
-    await runCli(["env-agent"], { cwd, logger, prompt });
+    await runCli(["env-agent"], { cwd, logger, prompt, templateRoot });
 
     const projectDir = join(cwd, "env-agent");
     const env = await readFile(join(projectDir, ".env"), "utf8");
-    expect(env).toContain("PORT=3333");
-    expect(env).toContain("API_BASE_URL=http://localhost:9999");
-    expect(env).toContain("DEFAULT_PRICE=5000");
+    const envExample = await readFile(join(projectDir, ".env.example"), "utf8");
+
+    // Should just be a copy of .env.example
+    expect(env).toBe(envExample);
+    // Should contain default values from template
+    expect(env).toContain("PRIVATE_KEY=");
+  });
+
+  it("skips .env creation when declined", async () => {
+    const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(["blank"]);
+    const { logger } = createLogger();
+
+    const prompt: PromptApi = {
+      select: async ({ choices }) => choices[0]?.value ?? "",
+      confirm: async () => false, // Decline .env creation
+      input: async ({ defaultValue = "" }) => defaultValue,
+    };
+
+    await runCli(["decline-agent"], { cwd, logger, prompt, templateRoot });
+
+    const projectDir = join(cwd, "decline-agent");
+    const envExampleExists = await readFile(
+      join(projectDir, ".env.example"),
+      "utf8"
+    );
+
+    // .env.example should exist
+    expect(envExampleExists).toBeTruthy();
+
+    // .env should NOT exist
+    await expect(readFile(join(projectDir, ".env"), "utf8")).rejects.toThrow();
   });
 
   it("requires --template when multiple templates and no prompt", async () => {

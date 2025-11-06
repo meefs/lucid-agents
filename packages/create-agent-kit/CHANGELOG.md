@@ -1,5 +1,11 @@
 # @lucid-agents/create-agent-kit
 
+## 1.1.0
+
+### Minor Changes
+
+- bumps
+
 ## 1.0.0
 
 ## 0.2.25

@@ -1,5 +1,11 @@
 # @lucid-agents/agent-kit-identity
 
+## 1.1.0
+
+### Minor Changes
+
+- bumps
+
 ## 1.0.0
 
 ### Major Changes

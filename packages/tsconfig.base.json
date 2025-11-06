@@ -13,9 +13,15 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@lucid-agents/agent-kit": ["./agent-kit/src"],
-      "@lucid-agents/agent-kit-identity": ["./agent-kit-identity/src"],
-      "@lucid-agents/create-agent-kit": ["./create-agent-kit/src"]
+      "@lucid-agents/agent-kit": [
+        "./agent-kit/src"
+      ],
+      "@lucid-agents/agent-kit-identity": [
+        "./agent-kit-identity/src"
+      ],
+      "@lucid-agents/create-agent-kit": [
+        "./create-agent-kit/src"
+      ]
     }
   }
 }

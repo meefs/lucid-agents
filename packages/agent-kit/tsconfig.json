@@ -8,6 +8,8 @@
     "src/**/*"
   ],
   "references": [
-    { "path": "../agent-kit-identity" }
+    {
+      "path": "../agent-kit-identity"
+    }
   ]
 }

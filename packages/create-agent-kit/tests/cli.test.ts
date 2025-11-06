@@ -251,53 +251,35 @@ describe("create-agent-kit CLI", () => {
     expect(env).toBe(envExample);
   });
 
-  it("creates .env from .env.example when confirmed", async () => {
+  it("prompts for env values when available", async () => {
     const cwd = await createTempDir();
     const templateRoot = await createTemplateRoot(["blank"]);
     const { logger } = createLogger();
+    const responses = new Map<string, string>([
+      ["PORT", "3333"],
+      ["API_BASE_URL", "http://localhost:9999"],
+      ["RPC_URL", "https://example"],
+      ["REGISTER_IDENTITY", "true"],
+      ["NETWORK", "base"],
+      ["FACILITATOR_URL", "https://facilitator"],
+      ["PAY_TO", "0x1234"],
+      ["DEFAULT_PRICE", "5000"],
+    ]);
 
     const prompt: PromptApi = {
       select: async ({ choices }) => choices[0]?.value ?? "",
-      confirm: async () => true, // Confirm .env creation
-      input: async ({ defaultValue = "" }) => defaultValue,
+      confirm: async () => true,
+      input: async ({ message, defaultValue = "" }) =>
+        responses.get(message) ?? defaultValue,
     };
 
     await runCli(["env-agent"], { cwd, logger, prompt, templateRoot });
 
     const projectDir = join(cwd, "env-agent");
     const env = await readFile(join(projectDir, ".env"), "utf8");
-    const envExample = await readFile(join(projectDir, ".env.example"), "utf8");
-
-    // Should just be a copy of .env.example
-    expect(env).toBe(envExample);
-    // Should contain default values from template
-    expect(env).toContain("PRIVATE_KEY=");
-  });
-
-  it("skips .env creation when declined", async () => {
-    const cwd = await createTempDir();
-    const templateRoot = await createTemplateRoot(["blank"]);
-    const { logger } = createLogger();
-
-    const prompt: PromptApi = {
-      select: async ({ choices }) => choices[0]?.value ?? "",
-      confirm: async () => false, // Decline .env creation
-      input: async ({ defaultValue = "" }) => defaultValue,
-    };
-
-    await runCli(["decline-agent"], { cwd, logger, prompt, templateRoot });
-
-    const projectDir = join(cwd, "decline-agent");
-    const envExampleExists = await readFile(
-      join(projectDir, ".env.example"),
-      "utf8"
-    );
-
-    // .env.example should exist
-    expect(envExampleExists).toBeTruthy();
-
-    // .env should NOT exist
-    await expect(readFile(join(projectDir, ".env"), "utf8")).rejects.toThrow();
+    expect(env).toContain("PORT=3333");
+    expect(env).toContain("API_BASE_URL=http://localhost:9999");
+    expect(env).toContain("DEFAULT_PRICE=5000");
   });
 
   it("requires --template when multiple templates and no prompt", async () => {

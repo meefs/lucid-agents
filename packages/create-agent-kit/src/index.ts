@@ -969,18 +969,31 @@ async function setupEnvironment(params: {
   }
 
   const shouldCreate = await prompt.confirm({
-    message: "Create .env file? (You'll need to add your PRIVATE_KEY manually)",
+    message: "Create a .env file now?",
     defaultValue: true,
   });
 
   if (!shouldCreate) {
-    logger.log("Skipping .env creation. Copy .env.example to .env when ready.");
+    logger.log("Skipping env setup.");
     return;
   }
 
-  // Just copy .env.example to .env - user will add PRIVATE_KEY manually
-  await fs.copyFile(examplePath, envPath);
-  logger.log("Created .env from template. Remember to add your PRIVATE_KEY!");
+  const templateContent = await fs.readFile(examplePath, "utf8");
+  const entries = parseEnvTemplate(templateContent);
+  const answers = new Map<string, string>();
+
+  for (const entry of entries) {
+    if (entry.type !== "entry") continue;
+    const response = await prompt.input({
+      message: `${entry.key}`,
+      defaultValue: entry.value ?? "",
+    });
+    answers.set(entry.key, response);
+  }
+
+  const rendered = renderEnvTemplate(entries, answers);
+  await fs.writeFile(envPath, rendered, "utf8");
+  logger.log("Created .env with your values.");
 }
 
 type EnvTemplateEntry =

@@ -42,7 +42,7 @@ jobs:
         uses: changesets/action@v1
         with:
           version: bun run changeset version
-          publish: bun run changeset publish
+          publish: bun run release:publish
           title: "Version Packages"
           commit: "chore: version packages"
         env:

@@ -31,8 +31,8 @@ const configOverrides: AgentKitConfig = {
     payTo:
       (process.env.PAYMENTS_RECEIVABLE_ADDRESS as `0x${string}`) ??
       "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429",
-    network: (process.env.NETWORK as any) ?? "base",
-    defaultPrice: process.env.DEFAULT_PRICE ?? "0.1",
+    network: (process.env.PAYMENTS_NETWORK as any) ?? "base",
+    defaultPrice: process.env.PAYMENTS_DEFAULT_PRICE ?? "0.1",
   },
 };
 

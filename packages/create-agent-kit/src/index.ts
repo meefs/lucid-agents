@@ -816,12 +816,7 @@ async function setupEnvironment(params: {
       ? prompt.defaultValue
       : wizardAnswers.get(prompt.key);
 
-    // Always write PRIVATE_KEY even if empty
-    if (prompt.key === "PRIVATE_KEY") {
-      lines.push(`PRIVATE_KEY=${value || ""}`);
-    } else if (value !== undefined && value !== "") {
-      lines.push(`${prompt.key}=${value}`);
-    }
+    lines.push(`${prompt.key}=${value || ""}`);
   }
 
   await fs.writeFile(envPath, lines.join("\n") + "\n", "utf8");

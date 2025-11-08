@@ -38,7 +38,7 @@
         "key": "PAYMENTS_RECEIVABLE_ADDRESS",
         "type": "input",
         "message": "Receivable address (address that receives payments)",
-        "defaultValue": "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429"
+        "defaultValue": ""
       },
       {
         "key": "PAYMENTS_DEFAULT_PRICE",

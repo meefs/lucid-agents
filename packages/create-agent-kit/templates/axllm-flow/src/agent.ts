@@ -20,14 +20,10 @@ const axClient = createAxLLMClient({
 
 const configOverrides: AgentKitConfig = {
   payments: {
-    facilitatorUrl:
-      (process.env.PAYMENTS_FACILITATOR_URL as any) ??
-      "https://facilitator.daydreams.systems",
-    payTo:
-      (process.env.PAYMENTS_RECEIVABLE_ADDRESS as `0x${string}`) ??
-      "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429",
-    network: (process.env.PAYMENTS_NETWORK as any) ?? "base",
-    defaultPrice: process.env.PAYMENTS_DEFAULT_PRICE ?? "0.1",
+    facilitatorUrl: process.env.PAYMENTS_FACILITATOR_URL as any,
+    payTo: process.env.PAYMENTS_RECEIVABLE_ADDRESS as `0x${string}`,
+    network: process.env.PAYMENTS_NETWORK as any,
+    defaultPrice: process.env.PAYMENTS_DEFAULT_PRICE,
   },
 };
 

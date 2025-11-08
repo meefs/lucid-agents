@@ -129,7 +129,7 @@ describe("create-agent-kit CLI", () => {
       ["Describe what the default entrypoint does", "Calculates quote totals."],
       ["Facilitator URL", "https://facilitator.example"],
       ["Preferred network (chain identifier)", "base"],
-      ["Pay-to address", "0xabc0000000000000000000000000000000000000"],
+      ["Receivable address (address that receives payments)", "0xabc0000000000000000000000000000000000000"],
       ["Default price in base units", "4200"],
       ["Set a price for the default entrypoint", "4500"],
     ]);

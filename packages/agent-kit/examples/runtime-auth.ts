@@ -3,11 +3,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { z } from 'zod';
 
-import {
-  createAgentApp,
-  configureAgentKit,
-  getAgentKitConfig,
-} from '@lucid-agents/agent-kit';
+import { createAgentApp } from '@lucid-agents/agent-kit-hono';
+import { configureAgentKit, getAgentKitConfig } from '@lucid-agents/agent-kit';
 import {
   AgentRuntime,
   MemoryStorageAdapter,

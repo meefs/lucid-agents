@@ -1,7 +1,7 @@
 # Examples
 
 This directory contains runnable scripts that showcase different integration
-patterns for `@lucid/agent-kit`:
+patterns for `@lucid-agents/agent-kit` and `@lucid-agents/agent-kit-hono`:
 
 ## AxFlow + createAxLLMClient
 
@@ -29,9 +29,9 @@ The agent exposes a single `/entrypoints/brainstorm/invoke` route that accepts a
 ## Full-Stack Agent Example
 
 This script contains a minimal, end-to-end showcase of everything
-`@lucid/agent-kit` offers:
+`@lucid-agents/agent-kit-hono` offers:
 
-- Building an agent server with `createAgentApp`, including streaming entrypoints.
+- Building an agent server with `createAgentApp` (from `@lucid-agents/agent-kit-hono`), including streaming entrypoints.
 - Enabling x402 monetisation and surfacing the AP2 capability extension.
 - Registering on the ERC-8004 Identity Registry, signing domain ownership proofs, and wiring the resulting trust metadata into the manifest.
 - Fetching the generated AgentCard to verify that trust, payments, and schema metadata are emitted correctly.

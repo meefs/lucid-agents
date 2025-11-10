@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     fetchClient = wrapFetchWithPayment(fetch, signer);
   } else {
     console.warn(
-      '⚠️ PRIVATE_KEY not set — paid endpoints will fail with 402 responses.'
+      'PRIVATE_KEY not set — paid endpoints will fail with 402 responses.'
     );
   }
 
@@ -143,7 +143,7 @@ async function main(): Promise<void> {
     }
   >('answer', { session_token: registerResult.session_token, answer });
 
-  console.log('\n📊 Results');
+  console.log('\nResults');
   console.log(`Verdict: ${answerResult.verdict}`);
   console.log(`Explanation: ${answerResult.explanation}`);
   console.log(`Earned ARC: ${answerResult.earned_arc}`);

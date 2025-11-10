@@ -1,4 +1,6 @@
-import type { Network, Resource, SolanaAddress } from 'x402-hono';
+import type { Network, Resource } from 'x402/types';
+
+import type { SolanaAddress } from './types';
 
 export type PaymentDefaultsConfig = {
   facilitatorUrl?: Resource;
@@ -20,9 +22,9 @@ export type AgentKitConfig = {
 
 export type ResolvedAgentKitConfig = {
   payments: {
-    facilitatorUrl: Resource;
-    payTo: `0x${string}` | SolanaAddress;
-    network: Network;
+    facilitatorUrl?: Resource;
+    payTo?: `0x${string}` | SolanaAddress;
+    network?: Network;
     defaultPrice?: string;
   };
   wallet: {
@@ -32,18 +34,15 @@ export type ResolvedAgentKitConfig = {
   };
 };
 
-const DEFAULT_FACILITATOR_URL =
-  'https://facilitator.daydreams.systems' as Resource;
-const DEFAULT_PAYMENT_WALLET_ADDRESS =
-  '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429';
-const DEFAULT_NETWORK = 'base-sepolia' as Network;
+// Security: Payment defaults are NOT set to prevent accidental misconfiguration.
+// Users MUST explicitly set PAYMENTS_RECEIVABLE_ADDRESS, FACILITATOR_URL, and NETWORK.
 const DEFAULT_WALLET_API_URL = 'http://localhost:8787';
 
 const defaultConfig: ResolvedAgentKitConfig = {
   payments: {
-    facilitatorUrl: DEFAULT_FACILITATOR_URL,
-    payTo: DEFAULT_PAYMENT_WALLET_ADDRESS,
-    network: DEFAULT_NETWORK,
+    facilitatorUrl: undefined,
+    payTo: undefined,
+    network: undefined,
     defaultPrice: undefined,
   },
   wallet: {
@@ -64,7 +63,6 @@ function parseBigIntEnv(value: string | undefined): bigint | undefined {
 }
 
 function parseNumberEnv(value: string | undefined): number | undefined {
-  if (!value) return undefined;
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
   return numeric;
@@ -91,6 +89,7 @@ const environmentConfig: AgentKitConfig = {
 };
 
 let runtimeOverrides: AgentKitConfig = {};
+let activeInstanceConfig: AgentKitConfig | undefined;
 
 function assignDefined<T extends Record<string, any>>(
   target: T,
@@ -143,16 +142,26 @@ export function configureAgentKit(overrides: AgentKitConfig) {
 
 export function resetAgentKitConfigForTesting() {
   runtimeOverrides = {};
+  activeInstanceConfig = undefined;
 }
 
-export function getAgentKitConfig(): ResolvedAgentKitConfig {
+export function getAgentKitConfig(
+  instanceConfig?: AgentKitConfig
+): ResolvedAgentKitConfig {
   const withEnv = applyOverrides(defaultConfig, environmentConfig);
-  return applyOverrides(withEnv, runtimeOverrides);
+  const withRuntime = applyOverrides(withEnv, runtimeOverrides);
+  // Instance config takes highest priority, scoped to this specific call
+  return applyOverrides(withRuntime, instanceConfig);
 }
 
 export const defaults = {
-  facilitatorUrl: DEFAULT_FACILITATOR_URL,
-  payTo: DEFAULT_PAYMENT_WALLET_ADDRESS,
-  network: DEFAULT_NETWORK,
   walletApiUrl: DEFAULT_WALLET_API_URL,
 } as const;
+
+export function setActiveInstanceConfig(config?: AgentKitConfig) {
+  activeInstanceConfig = config;
+}
+
+export function getActiveInstanceConfig(): AgentKitConfig | undefined {
+  return activeInstanceConfig;
+}

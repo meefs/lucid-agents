@@ -2,12 +2,9 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "composite": true
+    "composite": false
   },
-  "include": ["src/**/*"],
-  "references": [
-    {
-      "path": "../agent-kit-identity"
-    }
+  "include": [
+    "src/**/*"
   ]
 }

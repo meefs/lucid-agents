@@ -9,9 +9,21 @@ import process, {
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
+import {
+  type AdapterDefinition,
+  type AdapterOptions,
+  type AdapterSnippets,
+  getAdapterDefinition,
+  getAdapterDisplayName,
+  getAdapterLayers,
+  isAdapterSupported,
+} from './adapters.js';
+
 type CliOptions = {
   install: boolean;
   templateId?: string;
+  adapterId?: string;
+  adapterUiPreference?: 'ui' | 'headless';
   skipWizard?: boolean;
   templateArgs?: Map<string, string>;
 };
@@ -80,11 +92,17 @@ type TemplateMeta = {
   id?: string;
   name?: string;
   description?: string;
+  /** Single adapter (backward compatible) */
+  adapter?: string;
+  /** Multiple compatible adapters (takes precedence over adapter) */
+  adapters?: string[];
   wizard?: WizardConfig;
 };
 
 type TemplateDescriptor = {
   id: string;
+  /** Array of compatible adapters */
+  adapters: string[];
   title: string;
   description?: string;
   path: string;
@@ -116,8 +134,6 @@ const LUCID_BANNER = [
   '       L U C I D  DREAMS   ',
   '   Agent scaffolding toolkit  ',
 ];
-
-// DEFAULT_TEMPLATE_VALUES removed - use template.json defaults only
 
 const DEFAULT_PROJECT_NAME = 'agent-app';
 const PROJECT_NAME_PROMPT = 'Project directory name:';
@@ -153,13 +169,42 @@ export async function runCli(
     throw new Error(`No templates found in ${templateRoot}`);
   }
 
-  const template = await resolveTemplate({
+  const { template, adapter: selectedAdapter } = await resolveTemplate({
     templates,
     requestedId: parsed.options.templateId,
+    requestedAdapter: parsed.options.adapterId,
     prompt,
     logger,
   });
 
+  // Validate adapter exists and is compatible with template
+  validateAdapterExists(selectedAdapter);
+  validateAdapterCompatibility(template, selectedAdapter);
+
+  const adapterDefinition = getAdapterDefinition(selectedAdapter);
+  const requestedVariant = parsed.options.adapterUiPreference;
+  if (
+    requestedVariant &&
+    adapterDefinition.supportedVariants &&
+    !adapterDefinition.supportedVariants.includes(requestedVariant)
+  ) {
+    const supported = adapterDefinition.supportedVariants.join(', ');
+    throw new Error(
+      `Adapter "${selectedAdapter}" does not support "--adapter-ui=${requestedVariant}". Supported modes: ${supported}`
+    );
+  }
+  const adapterVariant =
+    requestedVariant ?? adapterDefinition.defaultVariant ?? undefined;
+  const adapterOptions: AdapterOptions = {
+    variant: adapterVariant,
+  };
+
+  logger.log(`Using runtime adapter: ${formatAdapterName(selectedAdapter)}`);
+  if (adapterVariant) {
+    logger.log(
+      `Adapter mode: ${adapterVariant === 'headless' ? 'Headless API' : 'Full UI'}`
+    );
+  }
   logger.log(`Using template: ${template.title}`);
 
   const projectName = await resolveProjectName({
@@ -190,11 +235,28 @@ export async function runCli(
     projectDirName,
     packageName,
     answers: wizardAnswers,
+    adapter: adapterDefinition,
+    templateId: template.id,
+    adapterOptions,
   });
-  await copyTemplate(template.path, targetDir);
+  await copyTemplate(
+    template.path,
+    targetDir,
+    adapterDefinition,
+    adapterOptions
+  );
+
+  // Read template.json metadata
+  const templateJsonPath = join(template.path, 'template.json');
+  const templateJsonRaw = await fs.readFile(templateJsonPath, 'utf8');
+  const templateMeta = JSON.parse(templateJsonRaw);
+
   await applyTemplateTransforms(targetDir, {
     packageName,
     replacements,
+    adapter: adapterDefinition,
+    templateRoot: template.path,
+    templateMeta,
   });
 
   await setupEnvironment({
@@ -217,7 +279,7 @@ export async function runCli(
   ].filter(Boolean);
 
   logger.log('');
-  logger.log(`✨  Created agent app in ${relativeTarget}`);
+  logger.log(`Created agent app in ${relativeTarget}`);
   logger.log('Next steps:');
   nextSteps.forEach((step, index) => {
     logger.log(`  ${index + 1}. ${step}`);
@@ -259,6 +321,27 @@ function parseArgs(args: string[]): ParsedArgs {
       i += 1;
     } else if (arg?.startsWith('--template=')) {
       options.templateId = arg.slice('--template='.length);
+    } else if (arg === '--adapter' || arg === '--framework' || arg === '-a') {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error('Expected value after --adapter');
+      }
+      options.adapterId = value.toLowerCase();
+      i += 1;
+    } else if (arg?.startsWith('--adapter=')) {
+      options.adapterId = arg.slice('--adapter='.length).toLowerCase();
+    } else if (arg?.startsWith('--framework=')) {
+      options.adapterId = arg.slice('--framework='.length).toLowerCase();
+    } else if (arg === '--adapter-ui') {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error('Expected value after --adapter-ui');
+      }
+      options.adapterUiPreference = normalizeAdapterUi(value);
+      i += 1;
+    } else if (arg?.startsWith('--adapter-ui=')) {
+      const value = arg.slice('--adapter-ui='.length);
+      options.adapterUiPreference = normalizeAdapterUi(value);
     } else if (arg?.startsWith('--') && arg.includes('=')) {
       // Capture template arguments like --SOME_KEY=value
       const equalIndex = arg.indexOf('=');
@@ -275,12 +358,36 @@ function parseArgs(args: string[]): ParsedArgs {
   return { options, target: positional[0] ?? null, showHelp };
 }
 
+function normalizeAdapterUi(value: string): 'ui' | 'headless' {
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === 'headless' ||
+    normalized === 'api' ||
+    normalized === 'api-only' ||
+    normalized === 'no-ui'
+  ) {
+    return 'headless';
+  }
+  if (normalized === 'ui' || normalized === 'full' || normalized === 'shell') {
+    return 'ui';
+  }
+  throw new Error(
+    `Unknown adapter UI mode "${value}". Use "ui" or "headless".`
+  );
+}
+
 function printHelp(logger: RunLogger) {
   logger.log('Usage: bunx @lucid-agents/create-agent-kit <app-name> [options]');
   logger.log('');
   logger.log('Options:');
   logger.log(
     '  -t, --template <id>   Select template (blank, axllm, axllm-flow, identity)'
+  );
+  logger.log(
+    '  -a, --adapter <id>    Select runtime adapter/framework (hono, tanstack, etc.)'
+  );
+  logger.log(
+    '      --adapter-ui <mode>  Adapter-specific mode (ui, headless for TanStack)'
   );
   logger.log('  -i, --install         Run bun install after scaffolding');
   logger.log('  --no-install          Skip bun install');
@@ -325,6 +432,7 @@ async function loadTemplates(
     let title = toTitleCase(id);
     let description: string | undefined;
     let wizard: WizardConfig | undefined;
+    let adapters: string[] = ['hono'];
 
     try {
       const raw = await fs.readFile(metaPath, 'utf8');
@@ -332,14 +440,27 @@ async function loadTemplates(
       title = meta.name ?? toTitleCase(id);
       description = meta.description;
       wizard = normalizeWizardConfig(meta.wizard);
+
+      // Support both new adapters array and legacy adapter string
+      if (meta.adapters && Array.isArray(meta.adapters)) {
+        adapters = meta.adapters.map(a => a.toLowerCase());
+      } else if (meta.adapter) {
+        adapters = [meta.adapter.toLowerCase()];
+      }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error;
       }
     }
 
+    adapters = Array.from(new Set(adapters));
+    if (adapters.length === 0) {
+      adapters = ['hono'];
+    }
+
     descriptors.push({
       id,
+      adapters,
       title,
       description,
       path,
@@ -348,6 +469,10 @@ async function loadTemplates(
   }
 
   return descriptors.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function formatAdapterName(adapter: string): string {
+  return getAdapterDisplayName(adapter);
 }
 
 function normalizeWizardConfig(
@@ -381,10 +506,12 @@ function normalizeWizardConfig(
 async function resolveTemplate(params: {
   templates: TemplateDescriptor[];
   requestedId?: string;
+  requestedAdapter?: string;
   prompt?: PromptApi;
   logger: RunLogger;
-}): Promise<TemplateDescriptor> {
-  const { templates, requestedId, prompt, logger } = params;
+}): Promise<{ template: TemplateDescriptor; adapter: string }> {
+  const { templates, requestedId, requestedAdapter, prompt, logger } = params;
+  const normalizedAdapter = requestedAdapter?.toLowerCase();
 
   if (requestedId) {
     const match = templates.find(t => t.id === requestedId);
@@ -394,39 +521,125 @@ async function resolveTemplate(params: {
         `Unknown template "${requestedId}". Available templates: ${available}`
       );
     }
-    return match;
+    const supportedAdapters = match.adapters.filter(isAdapterSupported);
+    if (supportedAdapters.length === 0) {
+      throw new Error(
+        `Template "${requestedId}" does not support any known runtime adapters.`
+      );
+    }
+    if (normalizedAdapter) {
+      if (!isAdapterSupported(normalizedAdapter)) {
+        const supported = supportedAdapters.map(formatAdapterName).join(', ');
+        throw new Error(
+          `Unknown adapter "${normalizedAdapter}". Supported adapters for template "${requestedId}": ${supported}`
+        );
+      }
+      if (!match.adapters.includes(normalizedAdapter)) {
+        const supported = supportedAdapters.map(formatAdapterName).join(', ');
+        throw new Error(
+          `Template "${requestedId}" does not support adapter "${normalizedAdapter}". Supported adapters: ${supported}`
+        );
+      }
+      return { template: match, adapter: normalizedAdapter };
+    }
+    return { template: match, adapter: supportedAdapters[0]! };
   }
 
-  if (templates.length === 1) {
-    return templates[0]!;
+  // Collect all unique adapters from templates, warning about unknown adapters
+  const allAdapters = new Set<string>();
+  const unknownAdapters = new Set<string>();
+  for (const template of templates) {
+    for (const adapter of template.adapters) {
+      if (!isAdapterSupported(adapter)) {
+        if (!unknownAdapters.has(adapter)) {
+          logger.warn(
+            `Template "${template.id}" references unknown adapter "${adapter}".`
+          );
+          unknownAdapters.add(adapter);
+        }
+        continue;
+      }
+      allAdapters.add(adapter);
+    }
+  }
+  const adapters = Array.from(allAdapters);
+
+  if (adapters.length === 0) {
+    throw new Error('No valid adapters found in templates');
   }
 
-  if (!prompt) {
-    const available = templates.map(t => t.id).join(', ');
+  if (normalizedAdapter && !adapters.includes(normalizedAdapter)) {
+    const available = adapters.map(formatAdapterName).join(', ');
     throw new Error(
-      `Multiple templates available (${available}). Re-run with --template <name>.`
+      `Adapter "${normalizedAdapter}" is not available. Supported adapters: ${available}`
     );
   }
 
-  const choices: PromptChoice[] = templates.map(template => ({
+  let selectedAdapter: string = normalizedAdapter ?? adapters[0]!;
+
+  // Always prompt for adapter selection if multiple adapters exist and none was requested
+  if (!normalizedAdapter && adapters.length > 1) {
+    if (!prompt) {
+      const available = adapters.map(formatAdapterName).join(', ');
+      throw new Error(
+        `Multiple runtime adapters available (${available}). Re-run with --template <name> or pass --adapter <adapter>.`
+      );
+    }
+
+    const adapterChoices: PromptChoice[] = adapters.map(adapter => ({
+      value: adapter,
+      title: formatAdapterName(adapter),
+    }));
+
+    selectedAdapter = await prompt.select({
+      message: 'Select a runtime adapter:',
+      choices: adapterChoices,
+    });
+  } else if (prompt) {
+    logger.log(`Using runtime adapter: ${formatAdapterName(selectedAdapter)}`);
+  }
+
+  // Filter templates that are compatible with the selected adapter
+  const candidates = templates.filter(t =>
+    t.adapters.includes(selectedAdapter)
+  );
+  if (candidates.length === 0) {
+    const available = adapters.map(formatAdapterName).join(', ');
+    throw new Error(
+      `No templates found for adapter "${selectedAdapter}". Available adapters: ${available}`
+    );
+  }
+
+  if (candidates.length === 1) {
+    return { template: candidates[0]!, adapter: selectedAdapter };
+  }
+
+  if (!prompt) {
+    const available = candidates.map(t => t.id).join(', ');
+    throw new Error(
+      `Multiple templates available for adapter "${selectedAdapter}" (${available}). Re-run with --template <name>.`
+    );
+  }
+
+  const choices: PromptChoice[] = candidates.map(template => ({
     value: template.id,
     title: template.title,
     description: template.description,
   }));
 
   const selection = await prompt.select({
-    message: 'Select a template:',
+    message: `Select a template for ${formatAdapterName(selectedAdapter)}:`,
     choices,
   });
 
-  const match = templates.find(t => t.id === selection);
+  const match = candidates.find(t => t.id === selection);
   if (!match) {
     logger.warn(
       `Template "${selection}" not found; falling back to first option.`
     );
-    return templates[0]!;
+    return { template: candidates[0]!, adapter: selectedAdapter };
   }
-  return match;
+  return { template: match, adapter: selectedAdapter };
 }
 
 function toTitleCase(value: string) {
@@ -706,53 +919,220 @@ function sanitizeAnswerString(value: string): string {
   return value.replace(/\r/g, '').trim();
 }
 
+class TemplateError extends Error {
+  constructor(
+    message: string,
+    public code: string
+  ) {
+    super(message);
+    this.name = 'TemplateError';
+  }
+}
+
+type PackageJson = {
+  name?: string;
+  version?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  [key: string]: unknown;
+};
+
+type TemplateMetadata = {
+  id?: string;
+  package?: {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  [key: string]: unknown;
+};
+
+function parseTemplateSections(content: string): Record<string, string> {
+  const markers = [
+    '{{ADAPTER_IMPORTS}}',
+    '{{ADAPTER_PRE_SETUP}}',
+    '{{ADAPTER_POST_SETUP}}',
+  ] as const;
+
+  for (const marker of markers) {
+    if (!content.includes(marker)) {
+      throw new TemplateError(
+        `Template missing required marker: ${marker}`,
+        'MISSING_MARKER'
+      );
+    }
+  }
+
+  const sections: Record<string, string> = {};
+  let currentSection = 'before-imports';
+  let currentContent: string[] = [];
+
+  for (const line of content.split('\n')) {
+    const foundMarker = markers.find(m => line.trim() === m);
+
+    if (foundMarker) {
+      sections[currentSection] = currentContent.join('\n').trim();
+      currentSection = foundMarker;
+      currentContent = [];
+    } else {
+      currentContent.push(line);
+    }
+  }
+
+  sections[currentSection] = currentContent.join('\n').trim();
+
+  return sections;
+}
+
+function mergeAdapterAndTemplate(
+  adapterSnippets: AdapterSnippets,
+  templateSections: Record<string, string>
+): string {
+  const parts: string[] = [
+    'import { z } from "zod";',
+    adapterSnippets.imports,
+    templateSections['{{ADAPTER_IMPORTS}}'] || '',
+    '',
+    adapterSnippets.preSetup,
+    templateSections['{{ADAPTER_PRE_SETUP}}'] || '',
+    '',
+    adapterSnippets.appCreation,
+    '',
+    adapterSnippets.entrypointRegistration,
+    '',
+    adapterSnippets.postSetup,
+    templateSections['{{ADAPTER_POST_SETUP}}'] || '',
+    '',
+    adapterSnippets.exports,
+  ];
+
+  return parts.filter(p => p.trim().length > 0).join('\n\n');
+}
+
+function mergePackageJson(
+  adapterPkg: PackageJson,
+  templatePkg: TemplateMetadata
+): PackageJson {
+  if (!adapterPkg || typeof adapterPkg !== 'object') {
+    throw new TemplateError(
+      'Invalid adapter package.json',
+      'INVALID_ADAPTER_PKG'
+    );
+  }
+
+  if (!templatePkg || !templatePkg.package) {
+    return adapterPkg;
+  }
+  const conflicts: string[] = [];
+  const adapterDeps = adapterPkg.dependencies || {};
+  const templateDeps = templatePkg.package.dependencies || {};
+
+  for (const [name, version] of Object.entries(templateDeps)) {
+    if (adapterDeps[name] && adapterDeps[name] !== version) {
+      conflicts.push(
+        `${name}: adapter=${adapterDeps[name]}, template=${version}`
+      );
+    }
+  }
+
+  if (conflicts.length > 0) {
+    console.warn(
+      'Dependency version conflicts detected (template version will be used):'
+    );
+    conflicts.forEach(c => console.warn(`  - ${c}`));
+  }
+
+  return {
+    ...adapterPkg,
+    dependencies: {
+      ...adapterPkg.dependencies,
+      ...templatePkg.package.dependencies,
+    },
+    devDependencies: {
+      ...adapterPkg.devDependencies,
+      ...templatePkg.package.devDependencies,
+    },
+  };
+}
+
+function validateAdapterCompatibility(
+  templateMeta: TemplateDescriptor,
+  adapterId: string
+): void {
+  if (!templateMeta.adapters || templateMeta.adapters.length === 0) {
+    return;
+  }
+
+  if (!templateMeta.adapters.includes(adapterId)) {
+    throw new TemplateError(
+      `Template "${templateMeta.id}" does not support adapter "${adapterId}". ` +
+        `Supported adapters: ${templateMeta.adapters.join(', ')}`,
+      'INCOMPATIBLE_ADAPTER'
+    );
+  }
+}
+
+function validateAdapterExists(adapterId: string): void {
+  if (!isAdapterSupported(adapterId)) {
+    const available = ['hono', 'tanstack'];
+    throw new TemplateError(
+      `Adapter "${adapterId}" does not exist. ` +
+        `Available adapters: ${available.join(', ')}`,
+      'ADAPTER_NOT_FOUND'
+    );
+  }
+}
+
 function buildTemplateReplacements(params: {
   projectDirName: string;
   packageName: string;
   answers: WizardAnswers;
+  adapter: AdapterDefinition;
+  templateId?: string;
+  adapterOptions?: AdapterOptions;
 }): Record<string, string> {
-  const { projectDirName, packageName } = params;
+  const {
+    projectDirName,
+    packageName,
+    adapter,
+    answers,
+    templateId,
+    adapterOptions,
+  } = params;
+  const { snippets } = adapter;
 
-  // Only used for package.json and README.md now
+  const answerEntries: Record<string, string> = {};
+  for (const [key, value] of answers.entries()) {
+    if (typeof value === 'string') {
+      answerEntries[key] = value;
+    } else {
+      answerEntries[key] = value ? 'true' : 'false';
+    }
+  }
+
   return {
+    ...answerEntries,
     AGENT_NAME: projectDirName,
+    APP_NAME: projectDirName,
     PACKAGE_NAME: packageName,
+    ADAPTER_ID: adapter.id,
+    ADAPTER_DISPLAY_NAME: adapter.displayName,
+    ADAPTER_VARIANT:
+      adapterOptions?.variant ?? adapter.defaultVariant ?? 'default',
+    ADAPTER_IMPORTS: snippets.imports,
+    ADAPTER_PRE_SETUP: snippets.preSetup,
+    ADAPTER_APP_CREATION: snippets.appCreation,
+    ADAPTER_ENTRYPOINT_REGISTRATION: snippets.entrypointRegistration,
+    ADAPTER_POST_SETUP: snippets.postSetup,
+    ADAPTER_EXPORTS: snippets.exports,
+    ...(adapter.buildReplacements
+      ? adapter.buildReplacements({
+          answers,
+          templateId,
+          options: adapterOptions,
+        })
+      : {}),
   };
 }
-
-function getStringAnswer(
-  answers: WizardAnswers,
-  key: string,
-  fallback: string = ''
-): string {
-  const value = answers.get(key);
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return sanitizeAnswerString(value);
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
-  }
-  return fallback;
-}
-
-function getBooleanAnswer(
-  answers: WizardAnswers,
-  key: string,
-  fallback: boolean
-): boolean {
-  const value = answers.get(key);
-  if (typeof value === 'boolean') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (['true', 'yes', 'y', '1'].includes(normalized)) return true;
-    if (['false', 'no', 'n', '0'].includes(normalized)) return false;
-  }
-  return fallback;
-}
-
-// toEntrypointKey removed - no longer needed without entrypoint customization
 
 async function assertTemplatePresent(templatePath: string) {
   const exists = existsSync(templatePath);
@@ -779,11 +1159,49 @@ async function assertTargetDirectory(targetDir: string) {
   }
 }
 
-async function copyTemplate(templateRoot: string, targetDir: string) {
-  await fs.cp(templateRoot, targetDir, {
-    recursive: true,
-    errorOnExist: false,
-  });
+async function copyTemplate(
+  templateRoot: string,
+  targetDir: string,
+  adapter: AdapterDefinition,
+  adapterOptions: AdapterOptions
+) {
+  const adapterLayers = getAdapterLayers(adapter, adapterOptions);
+  for (const layer of adapterLayers) {
+    await copyAdapterLayer(layer, targetDir);
+  }
+
+  const entries = await fs.readdir(templateRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) continue;
+    if (entry.name === 'agent.ts.template') continue;
+    if (entry.name === 'package.json' || entry.name === 'tsconfig.json')
+      continue;
+
+    const sourcePath = join(templateRoot, entry.name);
+    const targetPath = join(targetDir, entry.name);
+    await fs.copyFile(sourcePath, targetPath);
+  }
+}
+
+async function copyAdapterLayer(
+  sourceDir: string | undefined,
+  targetDir: string
+) {
+  if (!sourceDir) return;
+  try {
+    await fs.cp(sourceDir, targetDir, {
+      recursive: true,
+      errorOnExist: false,
+      filter: source => {
+        // Skip .template files - they'll be processed separately
+        return !source.endsWith('.template');
+      },
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
 }
 
 async function applyTemplateTransforms(
@@ -791,29 +1209,50 @@ async function applyTemplateTransforms(
   params: {
     packageName: string;
     replacements: Record<string, string>;
+    adapter: AdapterDefinition;
+    templateRoot: string;
+    templateMeta: TemplateMetadata;
   }
 ) {
-  await updatePackageJson(targetDir, params.packageName);
+  const packageJsonPath = join(targetDir, 'package.json');
+  const adapterPkgRaw = await fs.readFile(packageJsonPath, 'utf8');
+  const adapterPkg = JSON.parse(adapterPkgRaw) as PackageJson;
+  const mergedPkg = mergePackageJson(adapterPkg, params.templateMeta);
+  mergedPkg.name = params.packageName;
+  await fs.writeFile(
+    packageJsonPath,
+    `${JSON.stringify(mergedPkg, null, 2)}\n`,
+    'utf8'
+  );
 
-  // Only replace tokens in README.md (agent.ts uses process.env)
+  const templateAgentPath = join(params.templateRoot, 'agent.ts.template');
+  const templateAgentExists = existsSync(templateAgentPath);
+
+  if (templateAgentExists) {
+    const templateAgentContent = await fs.readFile(templateAgentPath, 'utf8');
+    const templateSections = parseTemplateSections(templateAgentContent);
+    const mergedAgentContent = mergeAdapterAndTemplate(
+      params.adapter.snippets,
+      templateSections
+    );
+
+    // Get target path from adapter, but remove .template extension
+    const adapterTarget =
+      params.adapter.placeholderTargets?.[0] || 'src/lib/agent.ts.template';
+    const agentTargetPath = join(
+      targetDir,
+      adapterTarget.replace(/\.template$/, '')
+    );
+
+    await fs.writeFile(agentTargetPath, mergedAgentContent, 'utf8');
+  }
+
   await replaceTemplatePlaceholders(
     join(targetDir, 'README.md'),
     params.replacements
   );
 
   await removeTemplateArtifacts(targetDir);
-}
-
-async function updatePackageJson(targetDir: string, packageName: string) {
-  const packageJsonPath = join(targetDir, 'package.json');
-  const packageJsonRaw = await fs.readFile(packageJsonPath, 'utf8');
-  const packageJson = JSON.parse(packageJsonRaw) as Record<string, unknown>;
-  packageJson.name = packageName;
-  await fs.writeFile(
-    packageJsonPath,
-    `${JSON.stringify(packageJson, null, 2)}\n`,
-    'utf8'
-  );
 }
 
 async function replaceTemplatePlaceholders(
@@ -849,7 +1288,7 @@ async function setupEnvironment(params: {
   agentName: string;
   template: TemplateDescriptor;
 }) {
-  const { targetDir, skipWizard, wizardAnswers, agentName, template } = params;
+  const { targetDir, wizardAnswers, agentName, template } = params;
   const envPath = join(targetDir, '.env');
 
   const lines = [`AGENT_NAME=${agentName}`];
@@ -888,9 +1327,9 @@ async function runInstall(cwd: string, logger: RunLogger) {
         }
       });
     });
-  } catch (error) {
+  } catch {
     logger.warn(
-      '⚠️  Failed to run `bun install`. Please install dependencies manually.'
+      'Failed to run `bun install`. Please install dependencies manually.'
     );
   }
 }

@@ -16,7 +16,7 @@ import { createAgentIdentity, getTrustConfig } from '../src/index.js';
 // import { createAgentApp } from "@lucid-agents/agent-kit";
 
 async function main() {
-  console.log('🤖 Agent Kit + ERC-8004 Integration\n');
+  console.log('Agent Kit + ERC-8004 Integration\n');
 
   // Step 1: Create ERC-8004 identity
   console.log('Step 1: Creating ERC-8004 identity...');
@@ -25,11 +25,11 @@ async function main() {
     trustModels: ['feedback', 'inference-validation'],
   });
 
-  console.log('✅', identity.status);
+  console.log(identity.status);
 
   if (identity.didRegister) {
     console.log('Transaction:', identity.transactionHash);
-    console.log('\n📋 Important: Host your metadata at:');
+    console.log('\nImportant: Host your metadata at:');
     console.log(`  https://${identity.domain}/.well-known/agent-metadata.json`);
     console.log('\nMetadata should include:');
     console.log(
@@ -56,7 +56,7 @@ async function main() {
   const trustConfig = getTrustConfig(identity);
 
   if (trustConfig) {
-    console.log('\n✅ Trust config ready:');
+    console.log('\nTrust config ready:');
     console.log(JSON.stringify(trustConfig, null, 2));
   }
 
@@ -86,7 +86,7 @@ async function main() {
   });
 
   // Step 5: Start the agent
-  console.log("✅ Agent ready with on-chain identity!");
+  console.log("Agent ready with on-chain identity!");
   console.log("Manifest available at: /.well-known/agent.json");
   console.log("Identity verifiable on-chain via ERC-8004 registry");
 
@@ -94,7 +94,7 @@ async function main() {
   // app.listen(3000);
   */
 
-  console.log('\n✨ Integration complete!');
+  console.log('\nIntegration complete!');
   console.log('\nYour agent now has:');
   console.log('  • Verifiable on-chain identity');
   console.log('  • Trust metadata in manifest');

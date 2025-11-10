@@ -141,13 +141,13 @@ bun run dev
 **createAgentApp(meta, options?)**
 
 ```typescript
-import { createAgentApp } from "@lucid-agents/agent-kit";
+import { createAgentApp } from '@lucid-agents/agent-kit';
 
 const { app, addEntrypoint } = createAgentApp(
   {
-    name: "my-agent",
-    version: "0.1.0",
-    description: "Agent description",
+    name: 'my-agent',
+    version: '0.1.0',
+    description: 'Agent description',
   },
   {
     config: {
@@ -159,7 +159,7 @@ const { app, addEntrypoint } = createAgentApp(
       },
     },
     useConfigPayments: true,
-    ap2: { roles: ["merchant"] },
+    ap2: { roles: ['merchant'] },
     trust: {
       /* ERC-8004 config */
     },
@@ -171,12 +171,12 @@ const { app, addEntrypoint } = createAgentApp(
 
 ```typescript
 addEntrypoint({
-  key: "echo",
-  description: "Echo back input",
+  key: 'echo',
+  description: 'Echo back input',
   input: z.object({ text: z.string() }),
   output: z.object({ text: z.string() }),
-  price: "1000", // Optional x402 price
-  handler: async (ctx) => {
+  price: '1000', // Optional x402 price
+  handler: async ctx => {
     return {
       output: { text: ctx.input.text },
       usage: { total_tokens: 0 },
@@ -188,7 +188,7 @@ addEntrypoint({
 **paymentsFromEnv()**
 
 ```typescript
-import { paymentsFromEnv } from "@lucid-agents/agent-kit";
+import { paymentsFromEnv } from '@lucid-agents/agent-kit';
 
 const payments = paymentsFromEnv();
 // Returns PaymentsConfig or undefined
@@ -199,10 +199,10 @@ const payments = paymentsFromEnv();
 **createAgentIdentity(options)**
 
 ```typescript
-import { createAgentIdentity } from "@lucid-agents/agent-kit-identity";
+import { createAgentIdentity } from '@lucid-agents/agent-kit-identity';
 
 const identity = await createAgentIdentity({
-  domain: "agent.example.com",
+  domain: 'agent.example.com',
   autoRegister: true, // Register if not exists
 });
 
@@ -216,7 +216,7 @@ const identity = await createAgentIdentity({
 **getTrustConfig(identity)**
 
 ```typescript
-import { getTrustConfig } from "@lucid-agents/agent-kit-identity";
+import { getTrustConfig } from '@lucid-agents/agent-kit-identity';
 
 const trustConfig = getTrustConfig(identity);
 // Returns TrustConfig for agent manifest
@@ -328,10 +328,10 @@ template-name/
 Located in `src/__tests__/` within each package:
 
 ```typescript
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from 'bun:test';
 
-describe("MyModule", () => {
-  test("should do something", () => {
+describe('MyModule', () => {
+  test('should do something', () => {
     expect(something()).toBe(expected);
   });
 });
@@ -414,6 +414,10 @@ bun run release  # version + publish
 
 ## Coding Standards
 
+### General
+
+- **No emojis** - Do not use emojis in code, comments, or commit messages unless explicitly requested by the user
+
 ### TypeScript
 
 - **ESM only** - Use `import`/`export`, not `require()`
@@ -448,9 +452,9 @@ src/
 
 ```typescript
 // index.ts
-export { mainFunction } from "./feature1";
-export { helperFunction } from "./utils/helpers";
-export type { MyType } from "./types";
+export { mainFunction } from './feature1';
+export { helperFunction } from './utils/helpers';
+export type { MyType } from './types';
 ```
 
 ### Common Patterns
@@ -471,14 +475,14 @@ try {
 ```typescript
 const value = process.env.KEY;
 if (!value) {
-  throw new Error("KEY environment variable required");
+  throw new Error('KEY environment variable required');
 }
 ```
 
 **Zod schemas:**
 
 ```typescript
-import { z } from "zod";
+import { z } from 'zod';
 
 const schema = z.object({
   field: z.string().min(1),
@@ -494,7 +498,7 @@ type Parsed = z.infer<typeof schema>;
 
 ```typescript
 // agent-kit imports identity types
-import type { TrustConfig } from "@lucid-agents/agent-kit-identity";
+import type { TrustConfig } from '@lucid-agents/agent-kit-identity';
 
 // agent-kit accepts trust config
 createAgentApp(meta, {
@@ -508,8 +512,8 @@ Templates reference both packages:
 
 ```typescript
 // In generated agent.ts
-import { createAgentApp } from "@lucid-agents/agent-kit";
-import { createAgentIdentity } from "@lucid-agents/agent-kit-identity";
+import { createAgentApp } from '@lucid-agents/agent-kit';
+import { createAgentIdentity } from '@lucid-agents/agent-kit-identity';
 ```
 
 The CLI doesn't directly import these; it scaffolds code that uses them.

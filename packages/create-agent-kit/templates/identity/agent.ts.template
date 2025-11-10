@@ -1,0 +1,42 @@
+{{ADAPTER_IMPORTS}}
+import {
+  createAgentIdentity,
+  getTrustConfig,
+} from "@lucid-agents/agent-kit-identity";
+
+{{ADAPTER_PRE_SETUP}}
+// Identity feature setup
+const identity = await createAgentIdentity({
+  domain: process.env.AGENT_DOMAIN,
+});
+
+if (identity.didRegister) {
+  console.log("Registered agent on-chain!");
+  console.log("Transaction:", identity.transactionHash);
+} else if (identity.trust) {
+  console.log("Found existing registration");
+  console.log("Agent ID:", identity.record?.agentId);
+}
+
+const trustConfig = getTrustConfig(identity);
+
+// Compose features: payments + trust
+const appOptions = {
+  useConfigPayments: true,
+  trust: trustConfig,
+  config: {
+    payments: {
+      facilitatorUrl: process.env.PAYMENTS_FACILITATOR_URL,
+      payTo: process.env.PAYMENTS_RECEIVABLE_ADDRESS,
+      network: process.env.PAYMENTS_NETWORK,
+      defaultPrice: process.env.PAYMENTS_DEFAULT_PRICE,
+    },
+  },
+};
+
+{{ADAPTER_POST_SETUP}}
+// Export identity feature clients
+export const identityClient = identity.clients?.identity;
+export const reputationClient = identity.clients?.reputation;
+export const validationClient = identity.clients?.validation;
+

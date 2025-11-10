@@ -1,15 +1,34 @@
 export * from './ap2';
-export { createAgentApp, type CreateAgentAppOptions } from './app';
 export {
   type AgentKitConfig,
   configureAgentKit,
+  getActiveInstanceConfig,
   getAgentKitConfig,
   resetAgentKitConfigForTesting,
   type ResolvedAgentKitConfig,
+  setActiveInstanceConfig,
 } from './config';
 export * from './erc8004';
+export {
+  paymentRequiredResponse,
+  type PaymentRequirement,
+  resolvePaymentRequirement,
+} from './http/payments';
+export {
+  type AgentHttpHandlers,
+  type AgentHttpRuntime,
+  type CreateAgentHttpOptions,
+  createAgentHttpRuntime,
+  type RuntimePaymentRequirement,
+} from './http/runtime';
+export {
+  createSSEStream,
+  type SSEStreamRunner,
+  type SSEStreamRunnerContext,
+  type SSEWriteOptions,
+  writeSSE,
+} from './http/sse';
 export { buildManifest } from './manifest';
-export { withPayments, type WithPaymentsParams } from './paywall';
 export { resolveEntrypointPrice } from './pricing';
 export {
   createRuntimePaymentContext,
@@ -24,3 +43,4 @@ export {
   type AxLLMClientOptions,
   createAxLLMClient,
 } from './utils/axllm';
+export { validatePaymentsConfig } from './validation';

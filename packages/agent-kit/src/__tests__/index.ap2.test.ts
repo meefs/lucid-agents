@@ -1,6 +1,7 @@
+import { createAgentApp } from '@lucid-agents/agent-kit-hono';
 import { describe, expect, it } from 'bun:test';
 
-import { AP2_EXTENSION_URI, createAgentApp } from '../index';
+import { AP2_EXTENSION_URI } from '../index';
 
 describe('createAgentApp AP2 extension', () => {
   const meta = {

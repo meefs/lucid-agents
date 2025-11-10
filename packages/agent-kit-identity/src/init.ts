@@ -24,6 +24,7 @@ import {
   type ValidationRegistryClient,
 } from './registries/validation';
 import type { TrustConfig } from './types';
+import { resolveAutoRegister, validateIdentityConfig } from './validation';
 
 export type { BootstrapIdentityResult, TrustConfig };
 
@@ -199,9 +200,11 @@ export type AgentIdentity = BootstrapIdentityResult & {
 export async function createAgentIdentity(
   options: CreateAgentIdentityOptions = {}
 ): Promise<AgentIdentity> {
+  // Validate configuration early
+  validateIdentityConfig(options, options.env);
+
   const {
     domain,
-    autoRegister = true,
     chainId,
     registryAddress,
     rpcUrl,
@@ -212,6 +215,9 @@ export async function createAgentIdentity(
     logger,
     makeClients,
   } = options;
+
+  // Resolve autoRegister with case-insensitive parsing
+  const autoRegister = resolveAutoRegister(options, env);
 
   const viemFactory =
     makeClients ??
@@ -352,7 +358,7 @@ export async function createAgentIdentity(
     const log = logger ?? { info: console.log };
     const metadata = generateAgentMetadata(identity);
 
-    log.info?.('\n📋 Host this metadata at your domain:');
+    log.info?.('\nHost this metadata at your domain:');
     log.info?.(
       `   https://${identity.domain}/.well-known/agent-metadata.json\n`
     );

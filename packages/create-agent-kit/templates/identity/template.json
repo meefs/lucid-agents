@@ -2,6 +2,13 @@
   "id": "identity",
   "name": "Agent with ERC-8004 Identity",
   "description": "Full-featured agent with ERC-8004 identity registration, payments, and trust metadata.",
+  "adapters": ["hono", "tanstack"],
+  "package": {
+    "dependencies": {
+      "@lucid-agents/agent-kit-identity": "latest",
+      "viem": "^2.21.26"
+    }
+  },
   "wizard": {
     "prompts": [
       {

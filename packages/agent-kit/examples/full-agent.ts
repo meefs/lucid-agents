@@ -11,8 +11,8 @@
  */
 
 import { z } from 'zod';
+import { createAgentApp } from '@lucid-agents/agent-kit-hono';
 import {
-  createAgentApp,
   createRuntimePaymentContext,
   type AgentKitConfig,
 } from '@lucid-agents/agent-kit';

@@ -1,4 +1,11 @@
-import type { AgentMeta, PaymentsConfig } from './types';
+import { SupportedEVMNetworks, SupportedSVMNetworks } from 'x402/types';
+
+import type { AgentMeta, Network, PaymentsConfig } from './types';
+
+const SUPPORTED_NETWORKS: Network[] = [
+  ...SupportedEVMNetworks,
+  ...SupportedSVMNetworks,
+];
 
 /**
  * Validates required agent metadata and throws descriptive errors if invalid.
@@ -68,6 +75,19 @@ export function validatePaymentsConfig(
     throw new Error(
       `Payment configuration error: NETWORK is not set. ` +
         `This is required for payment processing.`
+    );
+  }
+
+  if (!SUPPORTED_NETWORKS.includes(network as Network)) {
+    console.error(
+      `[agent-kit] Payment configuration error for entrypoint "${entrypointKey}":`,
+      `Unsupported network: ${network}`,
+      `Supported networks: ${SUPPORTED_NETWORKS.join(', ')}`
+    );
+    throw new Error(
+      `Unsupported payment network: ${network}. ` +
+        `Supported networks: ${SUPPORTED_NETWORKS.join(', ')}. ` +
+        `Please use one of the supported networks in your configuration.`
     );
   }
 }

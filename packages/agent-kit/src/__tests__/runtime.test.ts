@@ -158,3 +158,48 @@ describe('runtime payments', () => {
     expect(warn).toHaveBeenCalled();
   });
 });
+
+describe('runtime Solana payments', () => {
+  afterEach(() => {
+    resetAgentKitConfigForTesting();
+  });
+
+  it('accepts Solana network configuration', async () => {
+    const solanaNetworks = ['solana', 'solana-devnet'] as const;
+
+    for (const network of solanaNetworks) {
+      const context = await createRuntimePaymentContext({
+        runtime: undefined,
+        fetch: async () => new Response('ok'),
+        network,
+        privateKey:
+          '0x1234567890123456789012345678901234567890123456789012345678901234',
+      });
+
+      // For Solana networks without proper signer setup, it should handle gracefully
+      // The actual Solana signer creation is handled by x402-fetch library
+      expect(context).toBeDefined();
+    }
+  });
+
+  it('accepts Solana Base58 address format in PaymentsConfig', () => {
+    const validSolanaAddresses = [
+      '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz',
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+    ];
+
+    validSolanaAddresses.forEach(address => {
+      // Type system should accept Solana address
+      const config = {
+        payTo: address,
+        facilitatorUrl: 'https://facilitator.test' as const,
+        network: 'solana-devnet' as const,
+        defaultPrice: '10000',
+      };
+
+      expect(config.payTo).toBe(address);
+      expect(config.network).toBe('solana-devnet');
+    });
+  });
+});

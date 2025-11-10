@@ -2,7 +2,7 @@
   "id": "identity",
   "name": "Agent with ERC-8004 Identity",
   "description": "Full-featured agent with ERC-8004 identity registration, payments, and trust metadata.",
-  "adapters": ["hono", "tanstack", "next"],
+  "adapters": ["hono", "tanstack-ui", "tanstack-headless", "next"],
   "package": {
     "dependencies": {
       "@lucid-agents/agent-kit-identity": "latest",
@@ -37,14 +37,20 @@
       },
       {
         "key": "PAYMENTS_NETWORK",
-        "type": "input",
-        "message": "Payment network identifier",
+        "type": "select",
+        "message": "Payment network",
+        "choices": [
+          { "value": "base-sepolia", "title": "Base Sepolia (EVM testnet)" },
+          { "value": "base", "title": "Base (EVM mainnet)" },
+          { "value": "solana-devnet", "title": "Solana Devnet" },
+          { "value": "solana", "title": "Solana Mainnet" }
+        ],
         "defaultValue": "base-sepolia"
       },
       {
         "key": "PAYMENTS_RECEIVABLE_ADDRESS",
         "type": "input",
-        "message": "Receivable address (address that receives payments)",
+        "message": "Payment address (0x... for EVM, Base58 for Solana)",
         "defaultValue": ""
       },
       {

@@ -34,14 +34,26 @@
     },
     "PAYMENTS_NETWORK": {
       "type": "string",
-      "description": "Payment network identifier (e.g., base-sepolia, ethereum-mainnet)",
-      "default": "base-sepolia"
+      "description": "Payment network (EVM or Solana)",
+      "default": "base-sepolia",
+      "enum": [
+        "base",
+        "base-sepolia",
+        "ethereum",
+        "sepolia",
+        "solana",
+        "solana-devnet"
+      ]
     },
     "PAYMENTS_RECEIVABLE_ADDRESS": {
       "type": "string",
-      "description": "Ethereum or Solana address that receives payments",
+      "description": "Payment address - Ethereum (0x...) or Solana (Base58) format depending on network. Separate from PRIVATE_KEY which is used for EVM identity registration. Can be shared across multiple agents.",
       "default": "",
-      "examples": ["0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0", ""]
+      "examples": [
+        "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+        "9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz",
+        ""
+      ]
     },
     "PAYMENTS_DEFAULT_PRICE": {
       "type": "string",

@@ -11,19 +11,16 @@ import { fileURLToPath } from 'node:url';
 
 import {
   type AdapterDefinition,
-  type AdapterOptions,
   type AdapterSnippets,
   getAdapterDefinition,
   getAdapterDisplayName,
-  getAdapterLayers,
   isAdapterSupported,
-} from './adapters.js';
+} from './adapters';
 
 type CliOptions = {
   install: boolean;
   templateId?: string;
   adapterId?: string;
-  adapterUiPreference?: 'ui' | 'headless';
   skipWizard?: boolean;
   templateArgs?: Map<string, string>;
 };
@@ -182,29 +179,8 @@ export async function runCli(
   validateAdapterCompatibility(template, selectedAdapter);
 
   const adapterDefinition = getAdapterDefinition(selectedAdapter);
-  const requestedVariant = parsed.options.adapterUiPreference;
-  if (
-    requestedVariant &&
-    adapterDefinition.supportedVariants &&
-    !adapterDefinition.supportedVariants.includes(requestedVariant)
-  ) {
-    const supported = adapterDefinition.supportedVariants.join(', ');
-    throw new Error(
-      `Adapter "${selectedAdapter}" does not support "--adapter-ui=${requestedVariant}". Supported modes: ${supported}`
-    );
-  }
-  const adapterVariant =
-    requestedVariant ?? adapterDefinition.defaultVariant ?? undefined;
-  const adapterOptions: AdapterOptions = {
-    variant: adapterVariant,
-  };
 
   logger.log(`Using runtime adapter: ${formatAdapterName(selectedAdapter)}`);
-  if (adapterVariant) {
-    logger.log(
-      `Adapter mode: ${adapterVariant === 'headless' ? 'Headless API' : 'Full UI'}`
-    );
-  }
   logger.log(`Using template: ${template.title}`);
 
   const projectName = await resolveProjectName({
@@ -237,14 +213,8 @@ export async function runCli(
     answers: wizardAnswers,
     adapter: adapterDefinition,
     templateId: template.id,
-    adapterOptions,
   });
-  await copyTemplate(
-    template.path,
-    targetDir,
-    adapterDefinition,
-    adapterOptions
-  );
+  await copyTemplate(template.path, targetDir, adapterDefinition);
 
   // Read template.json metadata
   const templateJsonPath = join(template.path, 'template.json');
@@ -332,16 +302,10 @@ function parseArgs(args: string[]): ParsedArgs {
       options.adapterId = arg.slice('--adapter='.length).toLowerCase();
     } else if (arg?.startsWith('--framework=')) {
       options.adapterId = arg.slice('--framework='.length).toLowerCase();
-    } else if (arg === '--adapter-ui') {
-      const value = args[i + 1];
-      if (!value) {
-        throw new Error('Expected value after --adapter-ui');
-      }
-      options.adapterUiPreference = normalizeAdapterUi(value);
-      i += 1;
-    } else if (arg?.startsWith('--adapter-ui=')) {
-      const value = arg.slice('--adapter-ui='.length);
-      options.adapterUiPreference = normalizeAdapterUi(value);
+    } else if (arg?.startsWith('--network=')) {
+      // Special handling for --network flag (maps to PAYMENTS_NETWORK)
+      const value = arg.slice('--network='.length);
+      options.templateArgs?.set('PAYMENTS_NETWORK', value);
     } else if (arg?.startsWith('--') && arg.includes('=')) {
       // Capture template arguments like --SOME_KEY=value
       const equalIndex = arg.indexOf('=');
@@ -358,24 +322,6 @@ function parseArgs(args: string[]): ParsedArgs {
   return { options, target: positional[0] ?? null, showHelp };
 }
 
-function normalizeAdapterUi(value: string): 'ui' | 'headless' {
-  const normalized = value.trim().toLowerCase();
-  if (
-    normalized === 'headless' ||
-    normalized === 'api' ||
-    normalized === 'api-only' ||
-    normalized === 'no-ui'
-  ) {
-    return 'headless';
-  }
-  if (normalized === 'ui' || normalized === 'full' || normalized === 'shell') {
-    return 'ui';
-  }
-  throw new Error(
-    `Unknown adapter UI mode "${value}". Use "ui" or "headless".`
-  );
-}
-
 function printHelp(logger: RunLogger) {
   logger.log('Usage: bunx @lucid-agents/create-agent-kit <app-name> [options]');
   logger.log('');
@@ -384,15 +330,15 @@ function printHelp(logger: RunLogger) {
     '  -t, --template <id>   Select template (blank, axllm, axllm-flow, identity)'
   );
   logger.log(
-    '  -a, --adapter <id>    Select runtime adapter/framework (hono, tanstack, etc.)'
-  );
-  logger.log(
-    '      --adapter-ui <mode>  Adapter-specific mode (ui, headless for TanStack)'
+    '  -a, --adapter <id>    Select runtime adapter (hono, tanstack-ui, tanstack-headless)'
   );
   logger.log('  -i, --install         Run bun install after scaffolding');
   logger.log('  --no-install          Skip bun install');
   logger.log('  --wizard=no           Skip wizard, use template defaults');
   logger.log('  --non-interactive     Same as --wizard=no');
+  logger.log(
+    '  --network=<network>   Set payment network (base-sepolia, base, solana-devnet, solana)'
+  );
   logger.log(
     '  --KEY=value           Pass template argument (use with --non-interactive)'
   );
@@ -400,6 +346,9 @@ function printHelp(logger: RunLogger) {
   logger.log('');
   logger.log('Examples:');
   logger.log('  bunx @lucid-agents/create-agent-kit my-agent');
+  logger.log(
+    '  bunx @lucid-agents/create-agent-kit my-agent --network=solana-devnet'
+  );
   logger.log(
     '  bunx @lucid-agents/create-agent-kit my-agent --template=identity --install'
   );
@@ -1088,16 +1037,8 @@ function buildTemplateReplacements(params: {
   answers: WizardAnswers;
   adapter: AdapterDefinition;
   templateId?: string;
-  adapterOptions?: AdapterOptions;
 }): Record<string, string> {
-  const {
-    projectDirName,
-    packageName,
-    adapter,
-    answers,
-    templateId,
-    adapterOptions,
-  } = params;
+  const { projectDirName, packageName, adapter, answers, templateId } = params;
   const { snippets } = adapter;
 
   const answerEntries: Record<string, string> = {};
@@ -1116,8 +1057,6 @@ function buildTemplateReplacements(params: {
     PACKAGE_NAME: packageName,
     ADAPTER_ID: adapter.id,
     ADAPTER_DISPLAY_NAME: adapter.displayName,
-    ADAPTER_VARIANT:
-      adapterOptions?.variant ?? adapter.defaultVariant ?? 'default',
     ADAPTER_IMPORTS: snippets.imports,
     ADAPTER_PRE_SETUP: snippets.preSetup,
     ADAPTER_APP_CREATION: snippets.appCreation,
@@ -1128,7 +1067,6 @@ function buildTemplateReplacements(params: {
       ? adapter.buildReplacements({
           answers,
           templateId,
-          options: adapterOptions,
         })
       : {}),
   };
@@ -1162,13 +1100,10 @@ async function assertTargetDirectory(targetDir: string) {
 async function copyTemplate(
   templateRoot: string,
   targetDir: string,
-  adapter: AdapterDefinition,
-  adapterOptions: AdapterOptions
+  adapter: AdapterDefinition
 ) {
-  const adapterLayers = getAdapterLayers(adapter, adapterOptions);
-  for (const layer of adapterLayers) {
-    await copyAdapterLayer(layer, targetDir);
-  }
+  // Copy adapter files
+  await copyAdapterLayer(adapter.filesDir, targetDir);
 
   const entries = await fs.readdir(templateRoot, { withFileTypes: true });
   for (const entry of entries) {

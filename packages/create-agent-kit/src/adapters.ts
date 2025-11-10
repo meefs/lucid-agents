@@ -13,23 +13,15 @@ export type AdapterSnippets = {
   exports: string;
 };
 
-export type AdapterOptions = {
-  variant?: string;
-};
-
 export type AdapterDefinition = {
   id: string;
   displayName: string;
-  filesDir?: string;
+  filesDir: string;
   placeholderTargets?: string[];
   snippets: AdapterSnippets;
-  supportedVariants?: string[];
-  defaultVariant?: string;
-  resolveLayers?: (params: { options?: AdapterOptions }) => string[];
   buildReplacements?: (params: {
     answers: Map<string, string | boolean>;
     templateId?: string;
-    options?: AdapterOptions;
   }) => Record<string, string>;
 };
 
@@ -68,17 +60,48 @@ const adapterDefinitions: Record<string, AdapterDefinition> = {
       exports: `export { app };`,
     },
   },
-  tanstack: {
-    id: 'tanstack',
-    displayName: 'TanStack Start',
-    defaultVariant: 'ui',
-    supportedVariants: ['ui', 'headless'],
-    resolveLayers: ({ options }) => {
-      if (options?.variant === 'headless') {
-        return [join(ADAPTER_FILES_ROOT, 'tanstack', 'headless')];
-      }
-      return [join(ADAPTER_FILES_ROOT, 'tanstack', 'ui')];
+  'tanstack-ui': {
+    id: 'tanstack-ui',
+    displayName: 'TanStack Start (UI)',
+    filesDir: join(ADAPTER_FILES_ROOT, 'tanstack', 'ui'),
+    placeholderTargets: ['src/lib/agent.ts.template'],
+    snippets: {
+      imports: `import { createTanStackRuntime } from "@lucid-agents/agent-kit-tanstack";`,
+      preSetup: ``,
+      appCreation: `const tanstack = createTanStackRuntime(
+  {
+    name: process.env.AGENT_NAME,
+    version: process.env.AGENT_VERSION,
+    description: process.env.AGENT_DESCRIPTION,
+  },
+  typeof appOptions !== 'undefined' ? appOptions : {}
+);
+
+const { runtime, handlers } = tanstack;`,
+      entrypointRegistration: `runtime.addEntrypoint({
+  key: "echo",
+  description: "Echo input text",
+  input: z.object({
+    text: z.string().min(1, "Please provide some text."),
+  }),
+  handler: async ({ input }) => {
+    return {
+      output: {
+        text: input.text,
+      },
+    };
+  },
+});`,
+      postSetup: ``,
+      exports: `const { agent } = runtime;
+
+export { agent, handlers, runtime };`,
     },
+  },
+  'tanstack-headless': {
+    id: 'tanstack-headless',
+    displayName: 'TanStack Start (Headless)',
+    filesDir: join(ADAPTER_FILES_ROOT, 'tanstack', 'headless'),
     placeholderTargets: ['src/lib/agent.ts.template'],
     snippets: {
       imports: `import { createTanStackRuntime } from "@lucid-agents/agent-kit-tanstack";`,
@@ -165,19 +188,6 @@ export function getAdapterDefinition(id: string): AdapterDefinition {
 
 export function getAdapterDisplayName(id: string): string {
   return adapterDefinitions[id]?.displayName ?? toTitleCase(id);
-}
-
-export function getAdapterLayers(
-  adapter: AdapterDefinition,
-  options?: AdapterOptions
-): string[] {
-  if (adapter.resolveLayers) {
-    return adapter.resolveLayers({ options });
-  }
-  if (adapter.filesDir) {
-    return [adapter.filesDir];
-  }
-  return [];
 }
 
 function toTitleCase(value: string): string {

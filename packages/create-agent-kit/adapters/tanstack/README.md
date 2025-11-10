@@ -55,9 +55,9 @@ The `src/lib/agent.ts` file contains placeholders that are replaced during gener
 ## Usage
 
 ```bash
-# UI variant (default)
-create-agent-kit my-agent --adapter=tanstack
+# UI variant (full dashboard)
+create-agent-kit my-agent --adapter=tanstack-ui
 
-# Headless variant
-create-agent-kit my-agent --adapter=tanstack --variant=headless
+# Headless variant (API only)
+create-agent-kit my-agent --adapter=tanstack-headless
 ```

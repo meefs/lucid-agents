@@ -75,22 +75,19 @@ When you run the CLI:
 
 All configuration goes into `.env` - easy to change later without editing code.
 
-### Adapter Layers & Headless Mode
+### Adapter System
 
-Framework-specific assets live under `packages/create-agent-kit/adapters/<adapter>`.  
-When a template selects an adapter the CLI copies:
+Framework-specific assets live under `packages/create-agent-kit/adapters/<adapter>`.
+When you select an adapter, the CLI copies the corresponding runtime framework files:
 
-1. The template’s own files (agent logic, README, tests, etc.)
-2. The adapter layer (UI, router, build config, etc.)
-3. Optional template overrides in `templates/<id>/adapters/<adapter>`
+**Available Adapters:**
 
-For example, the TanStack adapter ships two variants:
+- `hono` - Traditional HTTP server with Hono framework
+- `tanstack-ui` - TanStack Start with full UI dashboard (wallet integration, entrypoint testing, schema forms)
+- `tanstack-headless` - TanStack Start API-only (no UI components)
+- `next` – Next.js App Router shell with x402-next middleware and the dashboard UI
 
-- `--adapter=tanstack` (default) – copies the full UI shell from `adapters/tanstack/ui`
-- `--adapter=tanstack --adapter-ui=headless` – copies the API-only variant from `adapters/tanstack/headless`
-- `--adapter=next` – Next.js App Router shell with x402-next middleware and the dashboard UI
-
-This keeps the runtime skeleton in one place while templates focus on agent behaviour.
+The adapter provides the runtime skeleton (routing, server setup, build config), while templates provide the agent logic (entrypoints, features, configuration).
 
 ## CLI Options
 
@@ -99,12 +96,12 @@ bunx @lucid-agents/create-agent-kit <app-name> [options]
 
 Options:
   -t, --template <id>   Select template (blank, axllm, axllm-flow, identity)
-  -a, --adapter <id>    Select runtime adapter/framework (hono, tanstack, etc.)
-      --adapter-ui <mode>  Adapter-specific mode (e.g. headless for TanStack)
+  -a, --adapter <id>    Select runtime adapter (hono, tanstack-ui, tanstack-headless)
   -i, --install         Run bun install after scaffolding
   --no-install          Skip bun install (default)
   --wizard=no           Skip wizard, use template defaults
   --non-interactive     Same as --wizard=no
+  --network=<network>   Set payment network (base-sepolia, base, solana-devnet, solana)
   --KEY=value           Pass template argument (use with --non-interactive)
   -h, --help            Show this help
 ```
@@ -118,14 +115,23 @@ bunx @lucid-agents/create-agent-kit@latest my-agent
 # With specific template
 bunx @lucid-agents/create-agent-kit@latest my-agent --template=identity
 
-# Force a specific framework/runtime
-bunx @lucid-agents/create-agent-kit@latest my-agent --adapter=tanstack --template=blank
+# With Solana payment network
+bunx @lucid-agents/create-agent-kit@latest my-agent --network=solana-devnet
 
-# Headless TanStack runtime (API only)
-bunx @lucid-agents/create-agent-kit@latest my-agent \
-  --adapter=tanstack \
-  --adapter-ui=headless \
-  --template=blank
+# With Base mainnet
+bunx @lucid-agents/create-agent-kit@latest my-agent --network=base
+
+# Identity template with Solana payments
+bunx @lucid-agents/create-agent-kit@latest my-agent --template=identity --network=solana
+
+# With Hono adapter
+bunx @lucid-agents/create-agent-kit@latest my-agent --adapter=hono --template=blank
+
+# With TanStack UI (full dashboard)
+bunx @lucid-agents/create-agent-kit@latest my-agent --adapter=tanstack-ui --template=blank
+
+# With TanStack headless (API only, no UI)
+bunx @lucid-agents/create-agent-kit@latest my-agent --adapter=tanstack-headless --template=blank
 
 # Auto-install dependencies
 bunx @lucid-agents/create-agent-kit@latest my-agent --install
@@ -133,6 +139,40 @@ bunx @lucid-agents/create-agent-kit@latest my-agent --install
 # Non-interactive with defaults
 bunx @lucid-agents/create-agent-kit@latest my-agent --template=blank --wizard=no
 ```
+
+### Network Selection
+
+All templates support both EVM and Solana payment networks:
+
+**Interactive Mode:**
+When you run the CLI interactively, you'll see a dropdown menu to select your payment network:
+
+```
+? Payment network
+  ❯ Base Sepolia (EVM testnet)
+    Base (EVM mainnet)
+    Solana Devnet
+    Solana Mainnet
+```
+
+**Non-Interactive Mode:**
+Use the `--network` flag to specify the network:
+
+```bash
+# Solana devnet
+bunx @lucid-agents/create-agent-kit my-agent --network=solana-devnet --non-interactive
+
+# Base mainnet
+bunx @lucid-agents/create-agent-kit my-agent --network=base --non-interactive
+```
+
+**Important Notes:**
+
+- Payment network is independent of identity registration (identity uses EVM chain)
+- For identity template: EVM private key is for identity registration, payment address can be Solana
+- Payment address can be shared across multiple agents
+
+````bash
 
 ### Non-Interactive Mode with Template Arguments
 
@@ -169,7 +209,7 @@ bunx @lucid-agents/create-agent-kit@latest ai-agent \
   --non-interactive \
   --AGENT_DESCRIPTION="AI-powered agent" \
   --PAYMENTS_RECEIVABLE_ADDRESS="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0"
-```
+````
 
 **How it works:**
 

@@ -25,19 +25,33 @@ This is a TypeScript/Bun monorepo for building, monetizing, and verifying AI age
 ```
 create-agent-kit (CLI tool)
     ↓ scaffolds projects using
-agent-kit (core framework)
+agent-kit-hono OR agent-kit-tanstack (adapter frameworks)
+    ↓ both use
+agent-kit (core runtime)
     ↓ optionally uses
 agent-kit-identity (ERC-8004 integration)
 ```
+
+### Adapter System
+
+The framework supports multiple runtime adapters:
+
+- **Hono** (`@lucid-agents/agent-kit-hono`) - Traditional HTTP server
+- **TanStack Start UI** (`@lucid-agents/agent-kit-tanstack`) - Full-stack React with dashboard
+- **TanStack Start Headless** - API-only variant
+
+Templates are adapter-agnostic and work with any compatible adapter.
 
 ### Data Flow
 
 ```
 HTTP Request
     ↓
-Hono Router (agent-kit)
+Adapter Router (Hono or TanStack)
     ↓
 x402 Paywall Middleware (if configured)
+    ↓
+Runtime Handler (agent-kit core)
     ↓
 Entrypoint Handler
     ↓
@@ -46,27 +60,67 @@ Response (JSON or SSE stream)
 
 ### Key Architectural Decisions
 
-1. **Hono-based routing** - Leverages Hono's lightweight HTTP framework
-2. **Zod for validation** - Schema-first approach for input/output
-3. **Server-Sent Events for streaming** - Standard SSE for real-time responses
-4. **ERC-8004 for identity** - On-chain agent identity and reputation
-5. **x402 for payments** - HTTP-native payment protocol
+1. **Multi-adapter support** - Same agent logic works with different frameworks
+2. **Template-based scaffolding** - Templates use `.template` extensions for clean code generation
+3. **Zod for validation** - Schema-first approach for input/output
+4. **Server-Sent Events for streaming** - Standard SSE for real-time responses
+5. **ERC-8004 for identity** - On-chain agent identity and reputation
+6. **x402 for payments** - HTTP-native payment protocol supporting both EVM and Solana networks
+
+### Supported Payment Networks
+
+The framework supports payment receiving on multiple blockchain networks:
+
+**EVM Networks:**
+
+- `base` - Base mainnet (L2, low cost)
+- `base-sepolia` - Base Sepolia testnet
+- `ethereum` - Ethereum mainnet
+- `sepolia` - Ethereum Sepolia testnet
+
+**Solana Networks:**
+
+- `solana` - Solana mainnet (high throughput, low fees)
+- `solana-devnet` - Solana devnet
+
+**Key Differences:**
+
+- **EVM**: EIP-712 signatures, ERC-20 tokens (USDC), 0x-prefixed addresses
+- **Solana**: Ed25519 signatures, SPL tokens (USDC), Base58 addresses
+- **Transaction finality**: Solana (~400ms) vs EVM (12s-12min)
+- **Gas costs**: Solana (~$0.0001) vs EVM ($0.01-$10)
+
+**Identity vs Payments:**
+
+- Identity registration (ERC-8004): EVM-only (smart contract on Ethereum chains)
+- Payment receiving: Any supported network (EVM or Solana)
+- These are independent: register identity on Base, receive payments on Solana
 
 ## Monorepo Structure
 
 ```
 /
 ├── packages/
-│   ├── agent-kit/          # Core agent framework
+│   ├── agent-kit/          # Core runtime (shared)
 │   │   ├── src/
-│   │   │   ├── app.ts            # createAgentApp()
+│   │   │   ├── config.ts         # Config management
 │   │   │   ├── manifest.ts       # Manifest generation
-│   │   │   ├── paywall.ts        # x402 middleware
-│   │   │   ├── runtime.ts        # Runtime utilities
+│   │   │   ├── runtime.ts        # Core runtime logic
 │   │   │   ├── types.ts          # Core types
 │   │   │   └── utils/            # Helper utilities
-│   │   ├── examples/             # Usage examples
 │   │   └── AGENTS.md             # Package-specific guide
+│   │
+│   ├── agent-kit-hono/     # Hono adapter
+│   │   ├── src/
+│   │   │   ├── app.ts            # createAgentApp() for Hono
+│   │   │   └── paywall.ts        # x402 Hono middleware
+│   │   └── examples/
+│   │
+│   ├── agent-kit-tanstack/ # TanStack adapter
+│   │   ├── src/
+│   │   │   ├── runtime.ts        # createTanStackRuntime()
+│   │   │   └── paywall.ts        # x402 TanStack middleware
+│   │   └── examples/
 │   │
 │   ├── agent-kit-identity/ # ERC-8004 identity
 │   │   ├── src/
@@ -77,7 +131,13 @@ Response (JSON or SSE stream)
 │   │
 │   └── create-agent-kit/   # CLI scaffolding tool
 │       ├── src/
-│       │   └── index.ts          # CLI implementation
+│       │   ├── index.ts          # CLI implementation
+│       │   └── adapters.ts       # Adapter definitions
+│       ├── adapters/             # Runtime frameworks
+│       │   ├── hono/             # Hono base files
+│       │   └── tanstack/         # TanStack base files
+│       │       ├── ui/           # Full UI variant
+│       │       └── headless/     # API-only variant
 │       └── templates/            # Project templates
 │           ├── blank/            # Minimal agent
 │           ├── axllm/            # LLM-powered agent
@@ -136,12 +196,12 @@ bun run dev
 
 ## API Quick Reference
 
-### agent-kit Core Functions
+### Hono Adapter
 
 **createAgentApp(meta, options?)**
 
 ```typescript
-import { createAgentApp } from '@lucid-agents/agent-kit';
+import { createAgentApp } from '@lucid-agents/agent-kit-hono';
 
 const { app, addEntrypoint } = createAgentApp(
   {
@@ -165,6 +225,34 @@ const { app, addEntrypoint } = createAgentApp(
     },
   }
 );
+```
+
+### TanStack Adapter
+
+**createTanStackRuntime(meta, options?)**
+
+```typescript
+import { createTanStackRuntime } from '@lucid-agents/agent-kit-tanstack';
+
+const { runtime, handlers } = createTanStackRuntime(
+  {
+    name: 'my-agent',
+    version: '0.1.0',
+    description: 'Agent description',
+  },
+  {
+    config: {
+      payments: { /* x402 config */ },
+    },
+    useConfigPayments: true,
+  }
+);
+
+// Use runtime.addEntrypoint() instead of addEntrypoint()
+runtime.addEntrypoint({ ... });
+
+// Export for TanStack routes
+export { runtime, handlers };
 ```
 
 **addEntrypoint(definition)**
@@ -230,10 +318,24 @@ const trustConfig = getTrustConfig(identity);
 bunx @lucid-agents/create-agent-kit my-agent
 ```
 
-**Non-Interactive Mode (NEW)**
+**With Adapter Selection**
+
+```bash
+# Hono adapter (traditional HTTP server)
+bunx @lucid-agents/create-agent-kit my-agent --adapter=hono
+
+# TanStack UI (full dashboard)
+bunx @lucid-agents/create-agent-kit my-agent --adapter=tanstack-ui
+
+# TanStack Headless (API only)
+bunx @lucid-agents/create-agent-kit my-agent --adapter=tanstack-headless
+```
+
+**Non-Interactive Mode**
 
 ```bash
 bunx @lucid-agents/create-agent-kit my-agent \
+  --adapter=tanstack-ui \
   --template=identity \
   --non-interactive \
   --AGENT_DESCRIPTION="My custom agent" \

@@ -258,7 +258,64 @@ Required env for `paymentsFromEnv`:
 
 - `FACILITATOR_URL` — x402 facilitator endpoint
 - `PAYMENTS_RECEIVABLE_ADDRESS` — receivable address that receives payments (EVM `0x...` or Solana address)
-- `NETWORK` — supported network id (see `x402-hono`)
+- `NETWORK` — supported network id (EVM or Solana)
+
+### Supported Networks
+
+**EVM Networks:**
+
+- `base` - Base mainnet
+- `base-sepolia` - Base Sepolia testnet
+- `ethereum` - Ethereum mainnet
+- `sepolia` - Ethereum Sepolia testnet
+
+**Solana Networks:**
+
+- `solana` - Solana mainnet
+- `solana-devnet` - Solana devnet
+
+### Solana Payment Configuration
+
+Example configuration for accepting Solana payments:
+
+```ts
+const { app, addEntrypoint } = createAgentApp(
+  {
+    name: 'solana-agent',
+    version: '1.0.0',
+    description: 'Agent accepting Solana USDC',
+  },
+  {
+    config: {
+      payments: {
+        payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana Base58 address
+        network: 'solana-devnet',
+        facilitatorUrl: 'https://facilitator.daydreams.systems',
+        defaultPrice: '10000', // 0.01 USDC
+      },
+    },
+    useConfigPayments: true,
+  }
+);
+```
+
+**SPL USDC Token Addresses:**
+
+- Mainnet: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
+- Devnet: `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr`
+
+**Address Formats:**
+
+- EVM: 0x-prefixed hex (42 chars)
+- Solana: Base58 encoding (~44 chars, no prefix)
+
+### Identity vs Payment Networks
+
+Important distinction:
+
+- **Identity registration (ERC-8004)**: Requires EVM private key and EVM chain for on-chain registration
+- **Payment receiving**: Can be any supported network (EVM or Solana)
+- These are independent - you can register identity on Ethereum but receive payments on Solana
 
 ## Notes
 

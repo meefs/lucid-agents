@@ -2,28 +2,28 @@ import type {
   AgentHttpRuntime,
   EntrypointDef,
   PaymentsConfig,
-} from "@lucid-agents/agent-kit";
+} from '@lucid-agents/agent-kit';
 import {
   resolveEntrypointPrice,
   toJsonSchemaOrUndefined,
   validatePaymentsConfig,
-} from "@lucid-agents/agent-kit";
+} from '@lucid-agents/agent-kit';
 import type {
   FacilitatorConfig,
   PaywallConfig,
   RouteConfig,
   RoutesConfig,
-} from "x402/types";
+} from 'x402/types';
 import {
   paymentMiddleware,
   type TanStackRequestMiddleware,
-} from "@lucid-agents/x402-tanstack-start";
+} from '@lucid-agents/x402-tanstack-start';
 
-type RuntimeLike = Pick<AgentHttpRuntime, "snapshotEntrypoints" | "payments">;
+type RuntimeLike = Pick<AgentHttpRuntime, 'snapshotEntrypoints' | 'payments'>;
 
 type PaymentMiddlewareFactory = typeof paymentMiddleware;
 
-type EntrypointPaymentKind = "invoke" | "stream";
+type EntrypointPaymentKind = 'invoke' | 'stream';
 
 export type CreateTanStackPaywallOptions = {
   runtime: RuntimeLike;
@@ -44,11 +44,11 @@ export type TanStackPaywall = {
 };
 
 function normalizeBasePath(path?: string) {
-  if (!path) return "/api/agent";
-  if (!path.startsWith("/")) {
-    return `/${path.replace(/^\/+/, "").replace(/\/+$/, "")}`;
+  if (!path) return '/api/agent';
+  if (!path.startsWith('/')) {
+    return `/${path.replace(/^\/+/, '').replace(/\/+$/, '')}`;
   }
-  return path.replace(/\/+$/, "") || "/";
+  return path.replace(/\/+$/, '') || '/';
 }
 
 type BuildRoutesParams = {
@@ -66,7 +66,7 @@ function buildEntrypointRoutes({
 }: BuildRoutesParams): RoutesConfig {
   const routes: RoutesConfig = {};
   for (const entrypoint of entrypoints) {
-    if (kind === "stream" && !entrypoint.stream) continue;
+    if (kind === 'stream' && !entrypoint.stream) continue;
     const network = entrypoint.network ?? payments.network;
     const price = resolveEntrypointPrice(entrypoint, payments, kind);
 
@@ -76,17 +76,19 @@ function buildEntrypointRoutes({
 
     const requestSchema = toJsonSchemaOrUndefined(entrypoint.input);
     const responseSchema =
-      kind === "invoke" ? toJsonSchemaOrUndefined(entrypoint.output) : undefined;
+      kind === 'invoke'
+        ? toJsonSchemaOrUndefined(entrypoint.output)
+        : undefined;
     const description =
       entrypoint.description ??
-      `${entrypoint.key}${kind === "stream" ? " (stream)" : ""}`;
+      `${entrypoint.key}${kind === 'stream' ? ' (stream)' : ''}`;
     const path = `${basePath}/entrypoints/${entrypoint.key}/${kind}`;
     const inputSchema = {
-      bodyType: "json" as const,
+      bodyType: 'json' as const,
       ...(requestSchema ? { bodyFields: { input: requestSchema } } : {}),
     };
     const outputSchema =
-      kind === "invoke" && responseSchema
+      kind === 'invoke' && responseSchema
         ? { output: responseSchema }
         : undefined;
 
@@ -95,7 +97,7 @@ function buildEntrypointRoutes({
       network,
       config: {
         description,
-        mimeType: kind === "stream" ? "text/event-stream" : "application/json",
+        mimeType: kind === 'stream' ? 'text/event-stream' : 'application/json',
         discoverable: true,
         inputSchema,
         outputSchema,
@@ -107,7 +109,7 @@ function buildEntrypointRoutes({
       network,
       config: {
         description,
-        mimeType: "application/json",
+        mimeType: 'application/json',
         discoverable: true,
         inputSchema,
         outputSchema,
@@ -136,41 +138,32 @@ export function createTanStackPaywall({
   const normalizedBasePath = normalizeBasePath(basePath);
   const entrypoints = runtime.snapshotEntrypoints();
   const resolvedFacilitator: FacilitatorConfig =
-    facilitator ?? ({ url: activePayments.facilitatorUrl } satisfies FacilitatorConfig);
+    facilitator ??
+    ({ url: activePayments.facilitatorUrl } satisfies FacilitatorConfig);
   const payTo = activePayments.payTo as Parameters<PaymentMiddlewareFactory>[0];
 
   const invokeRoutes = buildEntrypointRoutes({
     entrypoints,
     payments: activePayments,
     basePath: normalizedBasePath,
-    kind: "invoke",
+    kind: 'invoke',
   });
 
   const streamRoutes = buildEntrypointRoutes({
     entrypoints,
     payments: activePayments,
     basePath: normalizedBasePath,
-    kind: "stream",
+    kind: 'stream',
   });
 
   const invoke =
     Object.keys(invokeRoutes).length > 0
-      ? middlewareFactory(
-          payTo,
-          invokeRoutes,
-          resolvedFacilitator,
-          paywall
-        )
+      ? middlewareFactory(payTo, invokeRoutes, resolvedFacilitator, paywall)
       : undefined;
 
   const stream =
     Object.keys(streamRoutes).length > 0
-      ? middlewareFactory(
-          payTo,
-          streamRoutes,
-          resolvedFacilitator,
-          paywall
-        )
+      ? middlewareFactory(payTo, streamRoutes, resolvedFacilitator, paywall)
       : undefined;
 
   return { invoke, stream };

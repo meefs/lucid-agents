@@ -2,7 +2,7 @@
   "id": "blank",
   "name": "Blank Bun Agent",
   "description": "Start from a minimal Bun HTTP agent with @lucid-dreams/agent-kit wired up.",
-  "adapters": ["hono", "tanstack", "next"],
+  "adapters": ["hono", "tanstack-ui", "tanstack-headless", "next"],
   "package": {
     "dependencies": {}
   },
@@ -28,8 +28,14 @@
       },
       {
         "key": "PAYMENTS_NETWORK",
-        "type": "input",
-        "message": "Payment network identifier",
+        "type": "select",
+        "message": "Payment network",
+        "choices": [
+          { "value": "base-sepolia", "title": "Base Sepolia (EVM testnet)" },
+          { "value": "base", "title": "Base (EVM mainnet)" },
+          { "value": "solana-devnet", "title": "Solana Devnet" },
+          { "value": "solana", "title": "Solana Mainnet" }
+        ],
         "defaultValue": "base-sepolia"
       },
       {

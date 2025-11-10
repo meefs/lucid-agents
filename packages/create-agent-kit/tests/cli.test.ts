@@ -217,7 +217,7 @@ describe('create-agent-kit CLI', () => {
     const templateRoot = await createTemplateRoot(['blank']);
     const { logger } = createLogger();
 
-    await runCli(['demo-agent', '--adapter=tanstack', '--wizard=no'], {
+    await runCli(['demo-agent', '--adapter=tanstack-ui', '--wizard=no'], {
       cwd,
       logger,
       templateRoot,
@@ -273,7 +273,7 @@ describe('create-agent-kit CLI', () => {
     const templateRoot = await createTemplateRoot(['blank']);
     const { logger } = createLogger();
 
-    await runCli(['demo-agent', '--adapter=tanstack', '--wizard=no'], {
+    await runCli(['demo-agent', '--adapter=tanstack-ui', '--wizard=no'], {
       cwd,
       logger,
       templateRoot,
@@ -305,8 +305,7 @@ describe('create-agent-kit CLI', () => {
       [
         'headless-agent',
         '--template=blank',
-        '--adapter=tanstack',
-        '--adapter-ui=headless',
+        '--adapter=tanstack-headless',
         '--wizard=no',
       ],
       { cwd, logger, templateRoot }
@@ -432,8 +431,13 @@ describe('create-agent-kit CLI', () => {
     const { logger } = createLogger();
 
     const prompt: PromptApi = {
-      select: async ({ choices }) =>
-        choices.find(c => c.value === 'beta')!.value,
+      select: async ({ choices }) => {
+        // Handle template selection (returns 'beta')
+        const betaChoice = choices.find(c => c.value === 'beta');
+        if (betaChoice) return betaChoice.value;
+        // Handle network selection (return first choice - base-sepolia)
+        return choices[0]?.value || '';
+      },
       confirm: async () => false,
       input: async ({ defaultValue = '' }) => defaultValue,
     };

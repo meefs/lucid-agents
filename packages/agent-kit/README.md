@@ -1,6 +1,8 @@
 # @lucid-agents/agent-kit
 
-`@lucid-agents/agent-kit` is a lightweight wrapper around [Hono](https://hono.dev) that turns a plain HTTP server into an agent surface with fully typed entrypoints, discovery endpoints, monetization hooks, and trust metadata. Use it to describe agent capabilities once and let adapters across the monorepo serve them consistently.
+`@lucid-agents/agent-kit` is the core runtime for building AI agents with typed entrypoints, discovery endpoints, monetization hooks, and trust metadata. It provides the shared runtime logic used by adapter packages like `@lucid-agents/agent-kit-hono` and `@lucid-agents/agent-kit-tanstack`.
+
+**Note:** For most use cases, you'll want to use one of the adapter packages (`agent-kit-hono` or `agent-kit-tanstack`) rather than importing from this core package directly.
 
 ## Highlights
 
@@ -14,24 +16,34 @@
 
 ## Install & Import
 
-This package is part of the monorepo. From sibling workspaces import:
+This is the core runtime package. For building agents, use one of the adapter packages:
+
+**Hono Adapter:**
 
 ```ts
-import { createAgentApp, paymentsFromEnv } from '@lucid-agents/agent-kit';
+import { createAgentApp } from '@lucid-agents/agent-kit-hono';
 import type { EntrypointDef, AgentMeta } from '@lucid-agents/agent-kit/types';
 ```
 
-Subpath exports:
+**TanStack Adapter:**
 
-- `@lucid-agents/agent-kit` — main API surface (apps, payments, trust helpers, utilities).
-- `@lucid-agents/agent-kit/types` — public TypeScript interfaces and helper types.
-- `@lucid-agents/agent-kit/utils` — focused helpers (`toJsonSchemaOrUndefined`, `paymentsFromEnv`, address utilities, etc.).
+```ts
+import { createTanStackRuntime } from '@lucid-agents/agent-kit-tanstack';
+import type { EntrypointDef, AgentMeta } from '@lucid-agents/agent-kit/types';
+```
+
+Subpath exports (shared across adapters):
+
+- `@lucid-agents/agent-kit/types` — public TypeScript interfaces and helper types
+- `@lucid-agents/agent-kit/utils` — focused helpers (`toJsonSchemaOrUndefined`, `paymentsFromEnv`, etc.)
 
 ## Core Concepts
 
-### `createAgentApp(meta, options?)`
+### Core Runtime
 
-`createAgentApp` constructs a Hono app, manages an in-memory registry of entrypoints, and resolves configuration before any requests are served.
+This package provides the core runtime logic. Adapter packages like `agent-kit-hono` and `agent-kit-tanstack` wrap this runtime with framework-specific implementations.
+
+The runtime manages:
 
 - `meta` (`AgentMeta`) shapes the health check and manifest.
 - `options.config` applies runtime overrides for payments and wallet defaults. These overrides merge with environment variables and package defaults via `getAgentKitConfig`.
@@ -48,9 +60,11 @@ The return value exposes:
 - `config` — the resolved `ResolvedAgentKitConfig` after env and runtime overrides.
 - `payments` — the active `PaymentsConfig` (if paywalling is enabled) or `undefined`.
 
+**Example with Hono Adapter:**
+
 ```ts
 import { z } from 'zod';
-import { createAgentApp } from '@lucid-agents/agent-kit';
+import { createAgentApp } from '@lucid-agents/agent-kit-hono';
 
 const { app, addEntrypoint } = createAgentApp({
   name: 'hello-agent',
@@ -72,6 +86,97 @@ addEntrypoint({
 
 export default app;
 ```
+
+**Example with TanStack Adapter:**
+
+```ts
+import { z } from 'zod';
+import { createTanStackRuntime } from '@lucid-agents/agent-kit-tanstack';
+
+const { runtime, handlers } = createTanStackRuntime({
+  name: 'hello-agent',
+  version: '0.1.0',
+  description: 'Echoes whatever you pass in',
+});
+
+runtime.addEntrypoint({
+  key: 'echo',
+  description: 'Echo a message',
+  input: z.object({ text: z.string() }),
+  async handler({ input }) {
+    return {
+      output: { text: String(input.text ?? '') },
+      usage: { total_tokens: String(input.text ?? '').length },
+    };
+  },
+});
+
+const { agent } = runtime;
+export { agent, handlers, runtime };
+```
+
+## Supported Networks
+
+Lucid-agents supports payment receiving on multiple blockchain networks:
+
+### EVM Networks
+
+- `base` - Base mainnet (L2)
+- `base-sepolia` - Base Sepolia testnet
+- `ethereum` - Ethereum mainnet
+- `sepolia` - Ethereum Sepolia testnet
+
+### Solana Networks
+
+- `solana` - Solana mainnet
+- `solana-devnet` - Solana devnet
+
+### Address Formats
+
+- **EVM**: 0x-prefixed hex (42 characters) - e.g., `0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0`
+- **Solana**: Base58 encoding (~44 characters, no prefix) - e.g., `9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz`
+
+### Example with Solana
+
+```ts
+const { app, addEntrypoint } = createAgentApp(
+  {
+    name: 'solana-agent',
+    version: '1.0.0',
+    description: 'Agent accepting Solana USDC payments',
+  },
+  {
+    config: {
+      payments: {
+        payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana address
+        network: 'solana-devnet',
+        facilitatorUrl: 'https://facilitator.daydreams.systems',
+        defaultPrice: '10000', // 0.01 USDC (6 decimals)
+      },
+    },
+    useConfigPayments: true,
+  }
+);
+
+addEntrypoint({
+  key: 'translate',
+  description: 'Translate text',
+  input: z.object({ text: z.string(), target: z.string() }),
+  async handler({ input }) {
+    // Your translation logic
+    return {
+      output: { translated: `Translated: ${input.text}` },
+    };
+  },
+});
+```
+
+### SPL Token Addresses
+
+For Solana payments, USDC addresses are:
+
+- **Mainnet USDC**: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
+- **Devnet USDC**: `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr`
 
 ### Entrypoints
 

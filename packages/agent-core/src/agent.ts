@@ -43,7 +43,6 @@ export class AgentCore {
   }
 
   resolveManifest(origin: string, basePath: string = '') {
-    console.log('origin', origin);
     const originBase = origin?.endsWith('/') ? origin.slice(0, -1) : origin;
     const normalizedBasePath = basePath
       ? basePath.startsWith('/')

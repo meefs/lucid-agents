@@ -32,7 +32,7 @@ function serializableClone<T>(obj: T): T {
 export const loadDashboard = createServerFn('GET', async () => {
   'use server';
   // Import agent only inside the server function to avoid serialization
-  const { agent } = await import('@/agent');
+  const { agent } = await import('@/lib/agent');
 
   // Step 1: Get entrypoints list (this might be causing issues)
   let entrypoints: DashboardEntry[] = [];

@@ -45,7 +45,7 @@ function ensureSerializable<T>(obj: T): T {
 export const Route = createFileRoute('/')({
   loader: async () => {
     'use server';
-    const agentModule = await import('@/agent');
+    const agentModule = await import('@/lib/agent');
     const { agent } = agentModule;
 
     // Get manifest to extract schemas

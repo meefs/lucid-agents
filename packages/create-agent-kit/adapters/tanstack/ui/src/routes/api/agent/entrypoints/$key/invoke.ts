@@ -1,7 +1,7 @@
 import { createTanStackPaywall } from '@lucid-agents/agent-kit-tanstack';
 import { createFileRoute } from '@tanstack/react-router';
 
-import { handlers, runtime } from '@/agent';
+import { handlers, runtime } from '@/lib/agent';
 
 const paywall = createTanStackPaywall({
   runtime,

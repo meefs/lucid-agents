@@ -4,7 +4,7 @@ import { getNetworkInfo } from '@/lib/network';
 export const Route = createFileRoute('/')({
   loader: async () => {
     'use server';
-    const { agent } = await import('@/agent');
+    const { agent } = await import('@/lib/agent');
     const manifest = agent.resolveManifest('http://localhost', '/api/agent');
     const entrypoints = agent.listEntrypoints().map(entry => ({
       key: String(entry.key),

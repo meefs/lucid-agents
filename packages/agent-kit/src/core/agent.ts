@@ -29,7 +29,10 @@ export class AgentCore {
 
   constructor(public readonly config: AgentConfig) {}
 
-  addEntrypoint(entrypoint: EntrypointDef): void {
+  addEntrypoint<
+    TInput extends z.ZodTypeAny | undefined = z.ZodTypeAny | undefined,
+    TOutput extends z.ZodTypeAny | undefined = z.ZodTypeAny | undefined,
+  >(entrypoint: EntrypointDef<TInput, TOutput>): void {
     if (!entrypoint.key || typeof entrypoint.key !== 'string') {
       throw new Error('Entrypoint must include a non-empty string key');
     }

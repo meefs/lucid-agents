@@ -98,9 +98,41 @@ import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 - Payment logic belongs in `agent-kit-payments`
 - agent-kit-payments must build before agent-kit
 
+## Bug Fixes
+
+### Type Inference for Entrypoint Handlers
+
+**Fixed:** `addEntrypoint()` now properly infers input/output types from Zod schemas.
+
+**Before:**
+```typescript
+addEntrypoint({
+  input: z.object({ message: z.string() }),
+  handler: async ({ input }) => {
+    // Bug: input has type 'unknown' even with schema
+    const msg = input.message; // ❌ Type error
+  },
+});
+```
+
+**After:**
+```typescript
+addEntrypoint({
+  input: z.object({ message: z.string() }),
+  handler: async ({ input }) => {
+    // Fixed: input has type { message: string }
+    const msg = input.message; // ✅ Works!
+  },
+});
+```
+
+**Technical change:** Made `AgentCore.addEntrypoint()` generic to preserve schema type information.
+
 ## Testing
 
-- All 42 existing tests pass
+- All existing tests pass (114 tests)
+- Added 6 new tests for type inference
+- Total: **120 tests pass, 0 fail**
 - Build succeeds for all packages
 - TypeScript type checking passes
 

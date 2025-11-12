@@ -1,6 +1,6 @@
 ---
-"@lucid-agents/agent-kit-payments": major
-"@lucid-agents/agent-kit": major
+"@lucid-agents/agent-kit-payments": patch
+"@lucid-agents/agent-kit": patch
 ---
 
 Break circular dependency between agent-kit and agent-kit-payments using structural typing

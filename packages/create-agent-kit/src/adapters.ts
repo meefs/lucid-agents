@@ -136,6 +136,42 @@ const { runtime, handlers } = tanstack;`,
 export { agent, handlers, runtime };`,
     },
   },
+  next: {
+    id: 'next',
+    displayName: 'Next.js',
+    filesDir: join(ADAPTER_FILES_ROOT, 'next'),
+    placeholderTargets: ['lib/agent.ts.template'],
+    snippets: {
+      imports: `import { createAgentHttpRuntime } from "@lucid-agents/agent-kit";`,
+      preSetup: ``,
+      appCreation: `const runtime = createAgentHttpRuntime(
+  {
+    name: process.env.AGENT_NAME,
+    version: process.env.AGENT_VERSION,
+    description: process.env.AGENT_DESCRIPTION,
+  },
+  typeof appOptions !== 'undefined' ? appOptions : {}
+);
+
+const { agent, handlers, addEntrypoint } = runtime;`,
+      entrypointRegistration: `addEntrypoint({
+  key: "echo",
+  description: "Echo input text",
+  input: z.object({
+    text: z.string().min(1, "Please provide some text."),
+  }),
+  handler: async ({ input }) => {
+    return {
+      output: {
+        text: input.text,
+      },
+    };
+  },
+});`,
+      postSetup: ``,
+      exports: `export { agent, handlers, runtime };`,
+    },
+  },
 };
 
 export function isAdapterSupported(id: string): boolean {

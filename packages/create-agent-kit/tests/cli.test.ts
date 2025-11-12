@@ -162,7 +162,7 @@ describe('create-agent-kit CLI', () => {
         'Receivable address (address that receives payments)',
         '0xabc0000000000000000000000000000000000000',
       ],
-      ['Default price in base units', '4200'],
+      ['Default price (USDC)', '4200'],
       ['Wallet private key (leave empty to add later)', ''],
     ]);
 
@@ -241,6 +241,34 @@ describe('create-agent-kit CLI', () => {
         '@lucid-agents/agent-kit-tanstack'
       )
     ).toBe(true);
+  });
+
+  it('scaffolds projects with the Next.js adapter', async () => {
+    const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(['blank']);
+    const { logger } = createLogger();
+
+    await runCli(['demo-agent', '--adapter=next', '--wizard=no'], {
+      cwd,
+      logger,
+      templateRoot,
+    });
+
+    const projectDir = join(cwd, 'demo-agent');
+    const agentSrc = await readFile(join(projectDir, 'lib/agent.ts'), 'utf8');
+    const proxySrc = await readFile(join(projectDir, 'proxy.ts'), 'utf8');
+    const envFile = await readFile(join(projectDir, '.env'), 'utf8');
+    const pkg = (await readJson(join(projectDir, 'package.json'))) as Record<
+      string,
+      any
+    >;
+
+    expect(agentSrc).toContain('createAgentHttpRuntime');
+    expect(proxySrc).toContain('createNextPaywall');
+    expect(pkg.dependencies?.next).toBeDefined();
+    expect(pkg.dependencies?.['x402-next']).toBeDefined();
+    expect(envFile).toContain('OPENAI_API_KEY=');
+    expect(envFile).toContain('NEXT_PUBLIC_PROJECT_ID=');
   });
 
   it('generates tanstack projects without leftover template tokens', async () => {

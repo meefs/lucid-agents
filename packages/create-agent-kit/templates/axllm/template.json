@@ -2,7 +2,7 @@
   "id": "axllm",
   "name": "AxLLM Bun Agent",
   "description": "Fully-featured Bun HTTP agent with @lucid-dreams/agent-kit and @ax-llm/ax wired up.",
-  "adapters": ["hono", "tanstack-ui", "tanstack-headless"],
+  "adapters": ["hono", "tanstack-ui", "tanstack-headless", "next"],
   "package": {
     "dependencies": {}
   },
@@ -47,8 +47,8 @@
       {
         "key": "PAYMENTS_DEFAULT_PRICE",
         "type": "input",
-        "message": "Default price in base units",
-        "defaultValue": "1000"
+        "message": "Default price (USDC)",
+        "defaultValue": "0.1"
       },
       {
         "key": "PRIVATE_KEY",

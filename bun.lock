@@ -32,6 +32,7 @@
         "@lucid-agents/agent-kit-payments": "workspace:*",
         "@lucid-dreams/agent-auth": "latest",
         "@lucid-dreams/client": "latest",
+        "hono": "catalog:",
         "viem": "^2.38.5",
         "x402": "^0.7.1",
         "x402-fetch": "catalog:",
@@ -79,7 +80,6 @@
       "dependencies": {
         "@ax-llm/ax": "catalog:",
         "@lucid-agents/agent-kit": "workspace:*",
-        "@lucid-agents/agent-kit-identity": "workspace:*",
         "@lucid-dreams/agent-auth": "latest",
         "viem": "^2.38.5",
         "x402": "^0.7.1",

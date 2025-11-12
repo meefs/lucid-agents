@@ -85,6 +85,7 @@ When you select an adapter, the CLI copies the corresponding runtime framework f
 - `hono` - Traditional HTTP server with Hono framework
 - `tanstack-ui` - TanStack Start with full UI dashboard (wallet integration, entrypoint testing, schema forms)
 - `tanstack-headless` - TanStack Start API-only (no UI components)
+- `next` – Next.js App Router shell with x402-next middleware and the dashboard UI
 
 The adapter provides the runtime skeleton (routing, server setup, build config), while templates provide the agent logic (entrypoints, features, configuration).
 
@@ -197,7 +198,7 @@ bunx @lucid-agents/create-agent-kit@latest verified-agent \
   --PAYMENTS_FACILITATOR_URL="https://facilitator.daydreams.systems" \
   --PAYMENTS_NETWORK="base-sepolia" \
   --PAYMENTS_RECEIVABLE_ADDRESS="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0" \
-  --PAYMENTS_DEFAULT_PRICE="1000" \
+  --PAYMENTS_DEFAULT_PRICE="0.1" \
   --RPC_URL="https://sepolia.base.org" \
   --CHAIN_ID="84532" \
   --IDENTITY_AUTO_REGISTER="true"
@@ -233,7 +234,7 @@ AGENT_DESCRIPTION=Your agent description
 PAYMENTS_FACILITATOR_URL=https://facilitator.daydreams.systems
 PAYMENTS_RECEIVABLE_ADDRESS=0xYourWalletAddress
 PAYMENTS_NETWORK=base-sepolia
-PAYMENTS_DEFAULT_PRICE=1000
+PAYMENTS_DEFAULT_PRICE=0.1
 
 # Wallet for transactions
 PRIVATE_KEY=

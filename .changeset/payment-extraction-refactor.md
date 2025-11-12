@@ -3,11 +3,42 @@
 "@lucid-agents/agent-kit-payments": minor
 "@lucid-agents/agent-kit-hono": minor
 "@lucid-agents/agent-kit-tanstack": minor
+"@lucid-agents/create-agent-kit": minor
 ---
 
-# Payment Logic Extraction and Type Reorganization
+# Payment Logic Extraction and Next.js Adapter
 
-This release completes the extraction of all payment-related logic from `agent-kit` into `agent-kit-payments`, establishes correct package boundaries, and reorganizes types to be co-located with their features.
+This release introduces the Next.js adapter for building full-stack agent applications, completes the extraction of all payment-related logic from `agent-kit` into `agent-kit-payments`, establishes correct package boundaries, and reorganizes types to be co-located with their features.
+
+## New Features
+
+### Next.js Adapter
+
+- **Full-stack React framework** - Build agent applications with Next.js App Router
+- **Client dashboard** - Interactive UI for testing entrypoints with AppKit wallet integration
+- **x402 payment middleware** - Server-side paywall using `x402-next` middleware
+- **SSR-compatible** - Server-Side Rendering support with proper cache management
+- **Multi-network wallet support** - EVM (Base, Ethereum) and Solana via AppKit/WalletConnect
+
+**Key files:**
+- `app/api/agent/*` - HTTP endpoints backed by agent runtime handlers
+- `proxy.ts` - x402 paywall middleware for payment enforcement
+- `components/dashboard.tsx` - Client dashboard for testing entrypoints
+- `lib/paywall.ts` - Dynamic route pricing configuration
+- `components/AppKitProvider.tsx` - Wallet connection provider
+
+**Usage:**
+```bash
+bunx @lucid-agents/create-agent-kit my-agent --adapter=next
+```
+
+**Features:**
+- Interactive entrypoint testing with form validation
+- Real-time SSE streaming support
+- Wallet connection with AppKit (EVM + Solana)
+- Payment flow testing with x402 protocol
+- Manifest and health endpoint viewing
+- Code snippet generation for API calls
 
 ## Breaking Changes
 
@@ -45,20 +76,12 @@ import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 
 ## Architectural Changes
 
-### agent-core Consolidated into agent-kit
+### Files Deleted from agent-kit
 
-The `@lucid-agents/agent-core` package has been merged into `agent-kit`. All functionality is preserved.
-
-### agent-kit Reorganized into Feature Folders
-
-**New structure:**
-- `core/` - Core agent types and execution
-- `http/` - HTTP runtime, handlers, SSE, types
-- `config/` - Configuration management
-- `manifest/` - Manifest generation, A2A
-- `crypto/` - Crypto utilities
-- `ui/` - Landing page
-- `validation.ts` - Validation utilities
+- `src/types.ts` - Central types file deleted; types now co-located with features
+- `src/http/payments.ts` - Payment requirement logic moved to agent-kit-payments
+- `src/runtime.ts` - Runtime payment context moved to agent-kit-payments
+- `src/utils/axllm.ts` - Moved to `src/axllm/index.ts`
 
 ### Package Boundaries Clarified
 
@@ -80,9 +103,31 @@ The `@lucid-agents/agent-core` package has been merged into `agent-kit`. All fun
 - UI landing page
 - Crypto utilities (sanitizeAddress)
 
+### AxLLM Reorganization
+
+- Moved from `src/utils/axllm.ts` to `src/axllm/index.ts`
+- Rationale: Isolated for future extraction into separate package
+- Updated package.json exports: `./axllm` instead of `./utils/axllm`
+
 ## Migration Guide
 
-**No migration needed.** All public APIs remain unchanged. This is an internal refactoring to improve code organization.
+### For Package Consumers
+
+`EntrypointDef` remains in `agent-kit`, so existing imports continue to work:
+
+```typescript
+// EntrypointDef stays in agent-kit
+import type { EntrypointDef } from '@lucid-agents/agent-kit';
+
+// Payment configuration from agent-kit-payments
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
+```
+
+### For Package Contributors
+
+- Types are now co-located with features (no central types file)
+- Payment logic belongs in `agent-kit-payments`
+- agent-kit-payments must build before agent-kit
 
 ## Bug Fixes
 
@@ -111,26 +156,3 @@ addEntrypoint({
   },
 });
 ```
-
-**Technical change:** Made `AgentCore.addEntrypoint()` generic to preserve schema type information.
-
-## Testing
-
-- All existing tests pass (114 tests)
-- Added 6 new tests for type inference
-- Total: **120 tests pass, 0 fail**
-- Build succeeds for all packages
-- TypeScript type checking passes
-
-## Dependency Structure
-
-```
-Independent Extensions:
-  - agent-kit-identity (ERC-8004)
-  - agent-kit-payments (x402)
-         ↓
-agent-kit (core runtime + EntrypointDef)
-         ↓
-agent-kit-hono / agent-kit-tanstack (adapters)
-```
-

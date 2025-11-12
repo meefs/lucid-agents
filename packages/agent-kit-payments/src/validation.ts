@@ -1,12 +1,6 @@
 import { SupportedEVMNetworks, SupportedSVMNetworks, type Network } from 'x402/types';
+import type { AgentMeta } from '@lucid-agents/agent-kit';
 import type { PaymentsConfig } from './types';
-
-// Minimal AgentMeta type for validation
-type AgentMeta = {
-  name: string;
-  version: string;
-  description?: string;
-};
 
 const SUPPORTED_NETWORKS: Network[] = [
   ...SupportedEVMNetworks,

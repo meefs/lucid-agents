@@ -8,33 +8,15 @@ export {
   type StreamContext,
   ZodValidationError,
 } from './core/agent';
-export type { Network, StreamEnvelope, StreamPushEnvelope } from './core/types';
-
-// Re-export from agent-kit-payments
+export type { AgentContext, AgentMeta, Network, Usage } from './core/types';
 export type {
-  AgentContext,
-  AgentMeta,
   EntrypointDef,
   EntrypointHandler,
-  EntrypointPrice,
   EntrypointStreamHandler,
-  PaymentsConfig,
-  SolanaAddress,
+  StreamEnvelope,
+  StreamPushEnvelope,
   StreamResult,
-  Usage,
-} from '@lucid-agents/agent-kit-payments';
-export {
-  createRuntimePaymentContext,
-  paymentRequiredResponse,
-  type PaymentRequirement,
-  paymentsFromEnv,
-  resolveEntrypointPrice,
-  resolvePaymentRequirement,
-  type RuntimePaymentContext,
-  type RuntimePaymentLogger,
-  type RuntimePaymentOptions,
-  validatePaymentsConfig,
-} from '@lucid-agents/agent-kit-payments';
+} from './http/types';
 
 // Config management
 export {
@@ -75,7 +57,7 @@ export type {
   PaymentMethod,
 } from './manifest/types';
 
-// Utilities
+// AX LLM Utilities
 export {
   type AxLLMClient,
   type AxLLMClientOptions,
@@ -83,3 +65,11 @@ export {
 } from './axllm';
 export * from './utils';
 export { validateAgentMetadata } from './validation';
+
+// Crypto utilities
+export {
+  type Hex,
+  normalizeAddress,
+  sanitizeAddress,
+  ZERO_ADDRESS,
+} from './crypto/address';

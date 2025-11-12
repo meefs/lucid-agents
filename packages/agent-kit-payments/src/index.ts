@@ -1,15 +1,4 @@
-export type {
-  PaymentsConfig,
-  EntrypointPrice,
-  SolanaAddress,
-  EntrypointDef,
-  EntrypointHandler,
-  EntrypointStreamHandler,
-  AgentMeta,
-  AgentContext,
-  Usage,
-  StreamResult,
-} from './types';
+export type { PaymentsConfig, EntrypointPrice, SolanaAddress } from './types';
 export type { PaymentRequirement } from './payments';
 export { resolveEntrypointPrice } from './pricing';
 export { validatePaymentsConfig } from './validation';

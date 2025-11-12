@@ -1,12 +1,10 @@
 import { createAgentApp, withPayments } from '@lucid-agents/agent-kit-hono';
-import type {
-  EntrypointDef,
-  PaymentsConfig,
-} from '@lucid-agents/agent-kit-payments';
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 import { resolveEntrypointPrice } from '@lucid-agents/agent-kit-payments';
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 
+import type { EntrypointDef } from '../http/types';
 import { buildManifest } from '../index';
 
 const meta = { name: 'tester', version: '0.0.1', description: 'test agent' };

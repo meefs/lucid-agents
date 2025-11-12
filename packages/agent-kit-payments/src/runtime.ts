@@ -1,10 +1,7 @@
-import {
-  sanitizeAddress,
-  ZERO_ADDRESS,
-} from '@lucid-agents/agent-kit-identity';
 import type { AgentRuntime } from '@lucid-dreams/agent-auth';
 import type { Signer } from 'x402/types';
 import { createSigner, type Hex, wrapFetchWithPayment } from 'x402-fetch';
+import { sanitizeAddress, ZERO_ADDRESS } from '@lucid-agents/agent-kit';
 
 type FetchLike = (
   input: RequestInfo | URL,

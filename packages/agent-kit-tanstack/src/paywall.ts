@@ -1,9 +1,6 @@
-import type { AgentHttpRuntime } from '@lucid-agents/agent-kit';
+import type { AgentHttpRuntime, EntrypointDef } from '@lucid-agents/agent-kit';
 import { toJsonSchemaOrUndefined } from '@lucid-agents/agent-kit';
-import type {
-  EntrypointDef,
-  PaymentsConfig,
-} from '@lucid-agents/agent-kit-payments';
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 import {
   resolveEntrypointPrice,
   validatePaymentsConfig,

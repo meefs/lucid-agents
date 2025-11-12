@@ -1,12 +1,10 @@
-import type {
-  AgentMeta,
-  EntrypointDef,
-  PaymentsConfig,
-} from '@lucid-agents/agent-kit-payments';
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 import { resolveEntrypointPrice } from '@lucid-agents/agent-kit-payments';
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
+import type { AgentMeta } from '../core/types';
+import type { EntrypointDef } from '../http/types';
 import { toJsonSchemaOrUndefined } from '../utils';
 
 type LandingPageOptions = {

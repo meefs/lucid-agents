@@ -1,12 +1,8 @@
-import type {
-  AgentContext,
-  AgentMeta,
-  EntrypointDef,
-  PaymentsConfig,
-  StreamResult,
-  Usage,
-} from '@lucid-agents/agent-kit-payments';
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 import { z } from 'zod';
+
+import type { EntrypointDef, StreamResult } from '../http/types';
+import type { AgentContext, AgentMeta, Usage } from './types';
 
 export type AgentConfig = {
   meta: AgentMeta;

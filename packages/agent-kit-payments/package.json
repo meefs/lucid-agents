@@ -28,8 +28,8 @@
   },
   "dependencies": {
     "@ax-llm/ax": "catalog:",
+    "@lucid-agents/agent-kit": "workspace:*",
     "@lucid-dreams/agent-auth": "latest",
-    "@lucid-agents/agent-kit-identity": "workspace:*",
     "x402-fetch": "catalog:",
     "x402": "^0.7.1",
     "viem": "^2.38.5",

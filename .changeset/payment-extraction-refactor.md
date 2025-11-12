@@ -11,30 +11,36 @@ This release completes the extraction of all payment-related logic from `agent-k
 
 ## Breaking Changes
 
-### Dependency Direction Reversed
+### Dependency Structure Clarified
 
-- `agent-kit` now depends on `agent-kit-payments` (previously the opposite)
-- Build order updated: `agent-kit-payments` must build before `agent-kit`
+- Extensions (`agent-kit-identity`, `agent-kit-payments`) are now independent of each other
+- `agent-kit` depends on both extensions
+- `agent-kit-payments` imports `EntrypointDef` from `agent-kit`
+- Build order: identity → payments → agent-kit → adapters
 
 ### Type Locations Changed
 
-- `EntrypointDef` moved from `agent-kit/src/core/types` to `agent-kit-payments/src/types`
-  - Rationale: EntrypointDef is an x402/payment concept, not a core HTTP type
-- `AgentMeta`, `AgentContext`, `Usage`, `StreamResult` moved to `agent-kit-payments`
+- `EntrypointDef` moved to `agent-kit/src/http/types.ts` - co-located with HTTP types
+- Stream types moved to `http/types.ts` - co-located with HTTP/SSE functionality
 - Deleted `agent-kit/src/types.ts` - types now co-located with features
+- Core types (`AgentMeta`, `AgentContext`, `Usage`) remain in `core/types.ts`
+- Crypto utilities (`sanitizeAddress`, `ZERO_ADDRESS`) added to `crypto/address.ts`
 
 ### Import Path Changes
 
 **Before:**
 ```typescript
-import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/agent-kit';
+import type { EntrypointDef } from '@lucid-agents/agent-kit';
 ```
 
-**After:**
+**After (unchanged):**
 ```typescript
-import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/agent-kit-payments';
-// Or via re-export from agent-kit
-import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/agent-kit';
+import type { EntrypointDef } from '@lucid-agents/agent-kit';
+```
+
+**For payment types:**
+```typescript
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 ```
 
 ## Architectural Changes
@@ -48,8 +54,8 @@ import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/agent-kit';
 
 ### Package Boundaries Clarified
 
-**agent-kit-payments** now contains ALL x402 protocol code:
-- EntrypointDef (the x402 abstraction for priced capabilities)
+**agent-kit-payments** contains ALL x402 protocol code:
+- Payment configuration types
 - Payment requirement resolution
 - 402 response generation
 - x402 client utilities (making payments)
@@ -57,11 +63,14 @@ import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/agent-kit';
 - AxLLM integration with x402
 
 **agent-kit** contains:
+- Core types (AgentMeta, AgentContext, Usage)
+- HTTP types (EntrypointDef, StreamEnvelope, etc.)
 - Core runtime (AgentCore, handlers)
 - HTTP runtime and SSE streaming
 - Manifest generation
 - Config management
 - UI landing page
+- Crypto utilities (sanitizeAddress)
 
 ### AxLLM Reorganization
 
@@ -73,14 +82,14 @@ import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/agent-kit';
 
 ### For Package Consumers
 
-If you import from `agent-kit`, most imports still work due to re-exports. However, for clarity, consider importing payment types directly:
+`EntrypointDef` remains in `agent-kit`, so existing imports continue to work:
 
 ```typescript
-// Recommended
-import type { PaymentsConfig, EntrypointDef } from '@lucid-agents/agent-kit-payments';
+// EntrypointDef stays in agent-kit
+import type { EntrypointDef } from '@lucid-agents/agent-kit';
 
-// Still works (re-exported)
-import type { PaymentsConfig, EntrypointDef } from '@lucid-agents/agent-kit';
+// Payment configuration from agent-kit-payments
+import type { PaymentsConfig } from '@lucid-agents/agent-kit-payments';
 ```
 
 ### For Package Contributors
@@ -98,12 +107,12 @@ import type { PaymentsConfig, EntrypointDef } from '@lucid-agents/agent-kit';
 ## Dependency Structure
 
 ```
-agent-kit-identity (ERC-8004)
-    ↓
-agent-kit-payments (x402 + EntrypointDef)
-    ↓
-agent-kit (core runtime)
-    ↓
+Independent Extensions:
+  - agent-kit-identity (ERC-8004)
+  - agent-kit-payments (x402)
+         ↓
+agent-kit (core runtime + EntrypointDef)
+         ↓
 agent-kit-hono / agent-kit-tanstack (adapters)
 ```
 

@@ -1,4 +1,4 @@
-import type { AgentMeta } from '@lucid-agents/agent-kit-payments';
+import type { AgentMeta } from './core/types';
 
 /**
  * Validates required agent metadata and throws descriptive errors if invalid.

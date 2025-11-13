@@ -24,15 +24,18 @@ describe('AgentKit config management', () => {
     const result1 = createAgentApp(
       { name: 'config-test-1', version: '0.0.0', description: 'Test agent' },
       {
+        payments: {
+          facilitatorUrl: 'https://facilitator.test' as any,
+          payTo: '0x1230000000000000000000000000000000000000',
+          network: 'base' as any,
+        },
         config: {
           payments: {
             facilitatorUrl: 'https://facilitator.test' as any,
             payTo: '0x1230000000000000000000000000000000000000',
             network: 'base' as any,
-            defaultPrice: '42',
           },
         },
-        useConfigPayments: true,
       }
     );
 
@@ -40,7 +43,6 @@ describe('AgentKit config management', () => {
     expect(result1.config.payments.facilitatorUrl).toBe(
       'https://facilitator.test'
     );
-    expect(result1.config.payments.defaultPrice).toBe('42');
 
     // Global config is not affected (preventing leakage)
     const globalConfig = getAgentKitConfig();
@@ -52,15 +54,18 @@ describe('AgentKit config management', () => {
     const result2 = createAgentApp(
       { name: 'config-test-2', version: '0.0.0', description: 'Test agent 2' },
       {
+        payments: {
+          facilitatorUrl: 'https://facilitator2.test' as any,
+          payTo: '0x4560000000000000000000000000000000000000',
+          network: 'optimism' as any,
+        },
         config: {
           payments: {
             facilitatorUrl: 'https://facilitator2.test' as any,
             payTo: '0x4560000000000000000000000000000000000000',
             network: 'optimism' as any,
-            defaultPrice: '100',
           },
         },
-        useConfigPayments: true,
       }
     );
 
@@ -86,7 +91,6 @@ describe('AgentKit config management', () => {
         facilitatorUrl: 'https://facilitator.global' as any,
         payTo: '0x1230000000000000000000000000000000000000',
         network: 'base' as any,
-        defaultPrice: '99',
       },
     });
 
@@ -94,7 +98,7 @@ describe('AgentKit config management', () => {
     expect(config.payments.facilitatorUrl).toBe('https://facilitator.global');
     const payments = paymentsFromEnv(config.payments);
     expect(payments.facilitatorUrl).toBe('https://facilitator.global');
-    expect(payments.defaultPrice).toBe('99');
+    expect(payments.network).toBe('base');
   });
 
   it('instance config overrides global config', () => {

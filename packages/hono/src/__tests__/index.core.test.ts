@@ -14,7 +14,6 @@ describe('resolvePrice', () => {
     payTo: '0xabc0000000000000000000000000000000000000',
     facilitatorUrl: 'https://facilitator.example' as any,
     network: 'base-sepolia' as any,
-    defaultPrice: '99',
   };
 
   it('prefers flat string price on entrypoint', () => {
@@ -22,23 +21,27 @@ describe('resolvePrice', () => {
     expect(resolvePrice(entrypoint, payments, 'invoke')).toBe('10');
   });
 
-  it('prefers per-method price object before default', () => {
+  it('returns both invoke and stream prices from price object', () => {
     const entrypoint: EntrypointDef = {
       key: 'x',
-      price: { invoke: '7' },
+      price: { invoke: '7', stream: '12' },
     };
     expect(resolvePrice(entrypoint, payments, 'invoke')).toBe('7');
-    expect(resolvePrice(entrypoint, payments, 'stream')).toBe('99');
+    expect(resolvePrice(entrypoint, payments, 'stream')).toBe('12');
   });
 
-  it('falls back to global default price', () => {
-    const entrypoint: EntrypointDef = { key: 'x' };
-    expect(resolvePrice(entrypoint, payments, 'invoke')).toBe('99');
+  it('returns null for missing method in price object', () => {
+    const entrypoint: EntrypointDef = {
+      key: 'x',
+      price: { invoke: '7' }, // No stream price
+    };
+    expect(resolvePrice(entrypoint, payments, 'stream')).toBe(null);
   });
 
-  it('returns undefined when no price available', () => {
+  it('returns null when entrypoint has no price', () => {
     const entrypoint: EntrypointDef = { key: 'x' };
-    expect(resolvePrice(entrypoint, undefined, 'invoke')).toBe(undefined);
+    expect(resolvePrice(entrypoint, payments, 'invoke')).toBe(null);
+    expect(resolvePrice(entrypoint, undefined, 'invoke')).toBe(null);
   });
 });
 
@@ -105,15 +108,15 @@ describe('withPayments helper', () => {
     expect(calls.length).toBe(0);
   });
 
-  it('skips registration when price cannot be resolved', () => {
+  it('skips registration when entrypoint has no price', () => {
     const calls: any[] = [];
     const app = { use: (...args: any[]) => calls.push([...args]) };
     const didRegister = withPayments({
       app: app as any,
       path: '/entrypoints/test/invoke',
-      entrypoint: { key: 'test' },
+      entrypoint: { key: 'test' }, // No price defined
       kind: 'invoke',
-      payments: { ...payments, defaultPrice: undefined },
+      payments,
     });
     expect(didRegister).toBe(false);
     expect(calls.length).toBe(0);

@@ -48,11 +48,10 @@ The runtime manages:
 
 - `meta` (`AgentMeta`) shapes the health check and manifest.
 - `options.config` applies runtime overrides for payments and wallet defaults. These overrides merge with environment variables and package defaults via `getAgentKitConfig`.
-- `options.payments` forces a `PaymentsConfig` for all routes. Pass `false` to explicitly disable paywalling even when config/env values exist.
+- `options.payments` sets payment configuration for entrypoints. Pass `false` to explicitly disable paywalling. If omitted and not disabled, entrypoints without explicit prices won't require payment.
 - `options.ap2` promotes an Agent Payments Protocol extension entry into the manifest.
 - `options.trust` pushes ERC-8004 trust metadata into the manifest.
 - `options.entrypoints` pre-registers entrypoints without additional calls.
-- `options.useConfigPayments` instructs the server to reuse resolved config defaults when `options.payments` is omitted.
 
 The return value exposes:
 
@@ -147,15 +146,11 @@ const { app, addEntrypoint } = createAgentApp(
     description: 'Agent accepting Solana USDC payments',
   },
   {
-    config: {
-      payments: {
-        payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana address
-        network: 'solana-devnet',
-        facilitatorUrl: 'https://facilitator.daydreams.systems',
-        defaultPrice: '10000', // 0.01 USDC (6 decimals)
-      },
+    payments: {
+      payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana address
+      network: 'solana-devnet',
+      facilitatorUrl: 'https://facilitator.daydreams.systems',
     },
-    useConfigPayments: true,
   }
 );
 
@@ -224,11 +219,11 @@ Every agent app exposes the following for free:
 `core` keeps configuration centralized so every helper resolves the same values.
 
 - Defaults live in `src/config.ts` (facilitator, pay-to address, network, wallet API).
-- Environment variables override defaults automatically: `FACILITATOR_URL`, `PAYMENTS_RECEIVABLE_ADDRESS`, `NETWORK`, `DEFAULT_PRICE`, `LUCID_API_URL`/`VITE_API_URL`, `AGENT_WALLET_MAX_PAYMENT_BASE_UNITS`, and `AGENT_WALLET_MAX_PAYMENT_USDC`.
+- Environment variables override defaults automatically: `FACILITATOR_URL`, `PAYMENTS_RECEIVABLE_ADDRESS`, `NETWORK`, `LUCID_API_URL`/`VITE_API_URL`, `AGENT_WALLET_MAX_PAYMENT_BASE_UNITS`, and `AGENT_WALLET_MAX_PAYMENT_USDC`.
 - `configureAgentKit(overrides)` merges values at runtime; use it inside tests or before calling `createAgentApp`.
 - `getAgentKitConfig()` returns the resolved values; `resetAgentKitConfigForTesting()` clears overrides.
 
-The helper `paymentsFromEnv({ defaultPrice? })` returns the currently resolved `PaymentsConfig`, honouring inline config and environment values.
+The helper `paymentsFromEnv()` returns the currently resolved `PaymentsConfig`, honouring inline config and environment values.
 
 ```ts
 import {
@@ -238,25 +233,28 @@ import {
 } from '@lucid-agents/core';
 
 configureAgentKit({
-  payments: { defaultPrice: '750' },
+  payments: {
+    facilitatorUrl: 'https://facilitator.example',
+    payTo: '0x...',
+    network: 'base-sepolia',
+  },
   wallet: { walletApiUrl: 'https://wallets.example' },
 });
 
 const config = getAgentKitConfig();
 console.log(config.payments.facilitatorUrl); // resolved facilitator
 console.log(config.wallet.walletApiUrl); // resolved wallet API base URL
-console.log(paymentsFromEnv({ defaultPrice: '1000' })); // reuse inside handlers
+console.log(paymentsFromEnv()); // reuse inside handlers
 ```
 
 ## Payments & Monetization
 
-When a `PaymentsConfig` is active, `createAgentApp` automatically wraps invoke/stream routes with the `x402-hono` middleware via `withPayments`. Pricing resolution order:
+When a `PaymentsConfig` is active, `createAgentApp` automatically wraps invoke/stream routes with the `x402-hono` middleware via `withPayments`. Pricing:
 
-1. `entrypoint.price` (string or object).
-2. `PaymentsConfig.defaultPrice` (from inline config/env).
-3. No paywall if neither is defined.
+- Each entrypoint must explicitly define its `price` (string or `{ invoke?, stream? }` object)
+- If no price is set, the entrypoint is free (no paywall)
 
-`resolvePrice(entrypoint, payments, kind)` (from `@lucid-agents/payments`) encapsulates the merge logic.
+`resolvePrice(entrypoint, payments, kind)` (from `@lucid-agents/payments`) returns the price or `null`.
 
 For authenticated wallet access, pair your agent with
 `@lucid-agents/agent-auth` and reuse the generated SDK surface:

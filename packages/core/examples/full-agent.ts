@@ -263,7 +263,6 @@ async function main() {
           (process.env.PAYMENTS_RECEIVABLE_ADDRESS as `0x${string}`) ??
           '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429',
         network: (process.env.NETWORK as any) ?? 'base-sepolia',
-        defaultPrice: process.env.DEFAULT_PRICE ?? '1000',
       },
       wallet: {
         walletApiUrl: process.env.API_BASE_URL ?? 'https://localhost:8787',
@@ -279,7 +278,7 @@ async function main() {
       },
       {
         config: configOverrides,
-        useConfigPayments: true,
+        payments: configOverrides.payments,
         ap2: {
           roles: ['merchant', 'shopper'],
           description: 'Supports dual-role AP2 interactions',

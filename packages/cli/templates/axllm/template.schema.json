@@ -49,11 +49,6 @@
         ""
       ]
     },
-    "PAYMENTS_DEFAULT_PRICE": {
-      "type": "string",
-      "description": "Default price in USDC (decimal string, e.g., '0.1')",
-      "default": "0.1"
-    },
     "PRIVATE_KEY": {
       "type": "string",
       "description": "Wallet private key for signing transactions (optional, can be added later)",

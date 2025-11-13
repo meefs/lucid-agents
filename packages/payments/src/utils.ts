@@ -11,7 +11,6 @@ export function paymentsFromEnv(configOverrides?: Partial<PaymentsConfig>): Paym
     payTo: configOverrides?.payTo ?? (process.env.PAYMENTS_RECEIVABLE_ADDRESS as any),
     facilitatorUrl: configOverrides?.facilitatorUrl ?? (process.env.FACILITATOR_URL as any),
     network: configOverrides?.network ?? (process.env.NETWORK as any),
-    defaultPrice: configOverrides?.defaultPrice ?? process.env.DEFAULT_PRICE,
   };
 }
 

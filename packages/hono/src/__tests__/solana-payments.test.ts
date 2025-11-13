@@ -8,7 +8,6 @@ describe('Hono Solana Payments', () => {
     payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana Base58 address
     facilitatorUrl: 'https://facilitator.test',
     network: 'solana-devnet',
-    defaultPrice: '10000',
   };
 
   it('creates agent with Solana network configuration', () => {
@@ -19,10 +18,7 @@ describe('Hono Solana Payments', () => {
         description: 'Agent accepting Solana payments',
       },
       {
-        config: {
-          payments: solanaPayments,
-        },
-        useConfigPayments: true,
+        payments: solanaPayments,
       }
     );
 
@@ -54,10 +50,7 @@ describe('Hono Solana Payments', () => {
         version: '1.0.0',
       },
       {
-        config: {
-          payments: solanaPayments,
-        },
-        useConfigPayments: true,
+        payments: solanaPayments,
       }
     );
 
@@ -88,12 +81,11 @@ describe('Hono Solana Payments', () => {
         payTo: address,
         facilitatorUrl: 'https://facilitator.test',
         network: 'solana',
-        defaultPrice: '1000',
       };
 
       const { app } = createAgentApp(
         { name: 'test', version: '1.0.0' },
-        { config: { payments: config }, useConfigPayments: true }
+        { payments: config }
       );
 
       expect(app).toBeDefined();
@@ -113,13 +105,10 @@ describe('Hono Solana Payments', () => {
       const { app, addEntrypoint } = createAgentApp(
         { name: 'test', version: '1.0.0' },
         {
-          config: {
-            payments: {
-              ...solanaPayments,
-              network,
-            },
+          payments: {
+            ...solanaPayments,
+            network,
           },
-          useConfigPayments: true,
         }
       );
 
@@ -142,9 +131,7 @@ describe('Hono Solana Payments', () => {
         description: 'Solana payment agent',
       },
       {
-        config: {
-          payments: solanaPayments,
-        },
+        payments: solanaPayments,
       }
     );
 
@@ -171,14 +158,12 @@ describe('Hono Solana Payments', () => {
       payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz',
       facilitatorUrl: 'https://facilitator.test' as const,
       network: 'solana-mainnet' as any, // Invalid - should be 'solana'
-      defaultPrice: '10000',
     };
 
     const { addEntrypoint } = createAgentApp(
       { name: 'test', version: '1.0.0' },
       {
-        config: { payments: invalidPayments },
-        useConfigPayments: true,
+        payments: invalidPayments,
       }
     );
 

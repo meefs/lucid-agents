@@ -9,7 +9,6 @@ describe("createTanStackPaywall", () => {
     payTo: "0xabc1230000000000000000000000000000000000",
     facilitatorUrl: "https://facilitator.test",
     network: "base-sepolia",
-    defaultPrice: "1000",
   };
 
   const entrypoints = [

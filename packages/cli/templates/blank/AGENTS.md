@@ -38,7 +38,6 @@ This template accepts the following configuration arguments (see `template.schem
 - `PAYMENTS_FACILITATOR_URL` - x402 facilitator endpoint
 - `PAYMENTS_NETWORK` - Network identifier (e.g., "base-sepolia")
 - `PAYMENTS_RECEIVABLE_ADDRESS` - Address that receives payments
-- `PAYMENTS_DEFAULT_PRICE` - Default price in USDC (decimal string, e.g., "0.1")
 - `PRIVATE_KEY` - Wallet private key (optional)
 
 All arguments are stored in `.env` file after generation.
@@ -167,7 +166,6 @@ AGENT_DESCRIPTION=My custom agent
 PAYMENTS_FACILITATOR_URL=https://facilitator.daydreams.systems
 PAYMENTS_NETWORK=base-sepolia
 PAYMENTS_RECEIVABLE_ADDRESS=0x...
-PAYMENTS_DEFAULT_PRICE=0.1
 
 # Optional: Wallet private key for authenticated operations
 PRIVATE_KEY=0x...

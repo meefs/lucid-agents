@@ -82,7 +82,6 @@ const { app, addEntrypoint } = createAgentApp(
         facilitatorUrl: 'https://facilitator.example',
         payTo: '0xabc0000000000000000000000000000000000000',
         network: 'base-sepolia',
-        defaultPrice: '1000',
       },
       wallet: {
         apiBaseUrl: 'https://api.example',
@@ -92,7 +91,6 @@ const { app, addEntrypoint } = createAgentApp(
       payTo: '0xabc0000000000000000000000000000000000000',
       network: 'base-sepolia',
       facilitatorUrl: 'https://facilitator.daydreams.systems',
-      defaultPrice: '1000',
     },
     ap2: { roles: ['merchant', 'shopper'] },
     trust: {
@@ -274,23 +272,23 @@ Key shapes:
 
 - `EntrypointDef`: `{ key, description?, input?, output?, streaming?, price?, network?, handler?, stream? }`
 - `AgentContext`: `{ key, input, signal, headers, runId }`
-- `PaymentsConfig`: `{ payTo, facilitatorUrl, network, defaultPrice? }`
+- `PaymentsConfig`: `{ payTo, facilitatorUrl, network }`
 - `CreateAgentAppOptions`: `{ config?, payments?, ap2?, trust?, entrypoints? }`
 - `CreateAgentAppReturn`: `{ app, addEntrypoint, config, payments }`
 
 ## Utils
 
-- `paymentsFromEnv({ defaultPrice? })` → `PaymentsConfig | undefined`
-  - Mirrors the active agent configuration (overrides + environment + defaults)
+- `paymentsFromEnv()` → `PaymentsConfig | undefined`
+  - Loads payment configuration from environment variables
 - `toJsonSchemaOrUndefined(zodSchema)` → JSON schema or `undefined` on failure
 
 ## Payments (x402)
 
 If payments are enabled, the invoke/stream routes are automatically paywalled:
 
-- Price resolution per entrypoint: `string | { invoke?, stream? }`, fallback to `defaultPrice`.
-- Optional per-entrypoint `network` overrides the global one.
-- Pass `payments` option to enable payment enforcement. Entrypoints can override with explicit `price`/`network` values.
+- Each entrypoint must have an explicit `price`: `string` or `{ invoke?, stream? }`
+- Optional per-entrypoint `network` overrides the global one
+- Pass `payments` option to enable payment infrastructure. Only entrypoints with `price` are paywalled.
 
 Required env for `paymentsFromEnv`:
 
@@ -328,10 +326,17 @@ const { app, addEntrypoint } = createAgentApp(
       payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana Base58 address
       network: 'solana-devnet',
       facilitatorUrl: 'https://facilitator.daydreams.systems',
-      defaultPrice: '10000', // 0.01 USDC
     },
   }
 );
+
+addEntrypoint({
+  key: 'translate',
+  price: '10000', // 0.01 USDC - explicit per entrypoint
+  async handler({ input }) {
+    // ...
+  },
+});
 ```
 
 **SPL USDC Token Addresses:**

@@ -114,7 +114,6 @@ export function buildManifest({
       payee: pm.payTo,
       network: pm.network,
       endpoint: pm.facilitatorUrl,
-      priceModel: pm.defaultPrice ? { default: pm.defaultPrice } : undefined,
       extensions: {
         x402: { facilitatorUrl: pm.facilitatorUrl },
       },

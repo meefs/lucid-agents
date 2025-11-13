@@ -55,11 +55,6 @@
         ""
       ]
     },
-    "PAYMENTS_DEFAULT_PRICE": {
-      "type": "string",
-      "description": "Default price in USDC (decimal string, e.g., '0.1')",
-      "default": "0.1"
-    },
     "RPC_URL": {
       "type": "string",
       "description": "Blockchain RPC endpoint URL for on-chain operations",

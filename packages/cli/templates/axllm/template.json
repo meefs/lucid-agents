@@ -45,12 +45,6 @@
         "defaultValue": ""
       },
       {
-        "key": "PAYMENTS_DEFAULT_PRICE",
-        "type": "input",
-        "message": "Default price (USDC)",
-        "defaultValue": "0.1"
-      },
-      {
         "key": "PRIVATE_KEY",
         "type": "input",
         "message": "Wallet private key (leave empty to add later)",

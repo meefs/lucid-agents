@@ -8,7 +8,6 @@ describe('Hono Solana Payments', () => {
     payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana Base58 address
     facilitatorUrl: 'https://facilitator.test',
     network: 'solana-devnet',
-    defaultPrice: '10000',
   };
 
   it('creates agent with Solana network configuration', () => {
@@ -82,7 +81,6 @@ describe('Hono Solana Payments', () => {
         payTo: address,
         facilitatorUrl: 'https://facilitator.test',
         network: 'solana',
-        defaultPrice: '1000',
       };
 
       const { app } = createAgentApp(
@@ -160,7 +158,6 @@ describe('Hono Solana Payments', () => {
       payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz',
       facilitatorUrl: 'https://facilitator.test' as const,
       network: 'solana-mainnet' as any, // Invalid - should be 'solana'
-      defaultPrice: '10000',
     };
 
     const { addEntrypoint } = createAgentApp(

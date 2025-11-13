@@ -207,7 +207,6 @@ describe('create-agent-kit CLI', () => {
       'PAYMENTS_RECEIVABLE_ADDRESS=0xabc0000000000000000000000000000000000000'
     );
     expect(envFile).toContain('PAYMENTS_NETWORK=base');
-    expect(envFile).toContain('PAYMENTS_DEFAULT_PRICE=4200');
     expect(envFile).toContain('PRIVATE_KEY=');
 
     // README uses agent name
@@ -498,7 +497,6 @@ describe('create-agent-kit CLI', () => {
         '--AGENT_DESCRIPTION=Custom AI agent for testing',
         '--AGENT_VERSION=2.0.0',
         '--PAYMENTS_RECEIVABLE_ADDRESS=0x1234567890123456789012345678901234567890',
-        '--PAYMENTS_DEFAULT_PRICE=5000',
         '--PAYMENTS_NETWORK=ethereum-mainnet',
         '--PRIVATE_KEY=0xabcdef',
       ],
@@ -519,7 +517,6 @@ describe('create-agent-kit CLI', () => {
     expect(envFile).toContain(
       'PAYMENTS_RECEIVABLE_ADDRESS=0x1234567890123456789012345678901234567890'
     );
-    expect(envFile).toContain('PAYMENTS_DEFAULT_PRICE=5000');
     expect(envFile).toContain('PAYMENTS_NETWORK=ethereum-mainnet');
     expect(envFile).toContain('PRIVATE_KEY=0xabcdef');
   });
@@ -534,7 +531,6 @@ describe('create-agent-kit CLI', () => {
         '--template=blank',
         '--non-interactive',
         '--AGENT_VERSION=3.5.1',
-        '--PAYMENTS_DEFAULT_PRICE=9999',
       ],
       {
         cwd,
@@ -547,7 +543,6 @@ describe('create-agent-kit CLI', () => {
 
     // Provided values
     expect(envFile).toContain('AGENT_VERSION=3.5.1');
-    expect(envFile).toContain('PAYMENTS_DEFAULT_PRICE=9999');
 
     // Should still have defaults for non-provided values
     expect(envFile).toContain('AGENT_NAME=override-agent');

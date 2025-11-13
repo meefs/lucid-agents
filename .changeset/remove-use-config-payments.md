@@ -1,38 +1,65 @@
 ---
-'@lucid-agents/core': major
-'@lucid-agents/hono': major
-'@lucid-agents/tanstack': major
+'@lucid-agents/core': patch
+'@lucid-agents/hono': patch
+'@lucid-agents/tanstack': patch
+'@lucid-agents/types': patch
+'@lucid-agents/payments': patch
 '@lucid-agents/cli': patch
 ---
 
-**BREAKING**: Remove `useConfigPayments` option - payments must be explicitly configured
+**BREAKING**: Remove `useConfigPayments` and `defaultPrice` - fully explicit payment configuration
 
-The `useConfigPayments` flag has been removed from `CreateAgentHttpOptions`. Payment configuration is now explicit and clearer.
+Two breaking changes for clearer, more explicit payment handling:
+
+1. **Removed `useConfigPayments` option** - No more automatic payment application
+2. **Removed `defaultPrice` from PaymentsConfig** - Each paid entrypoint must specify its own price
 
 **Migration:**
 
 Before:
 ```typescript
 createAgentApp(meta, {
-  config: { payments: { ... } },
-  useConfigPayments: true
+  config: {
+    payments: {
+      facilitatorUrl: '...',
+      payTo: '0x...',
+      network: 'base-sepolia',
+      defaultPrice: '1000', // ❌ Removed
+    }
+  },
+  useConfigPayments: true, // ❌ Removed
+});
+
+addEntrypoint({
+  key: 'analyze',
+  // Inherited defaultPrice
+  handler: ...
 });
 ```
 
 After:
 ```typescript
+const DEFAULT_PRICE = '1000'; // Optional: define your own constant
+
 createAgentApp(meta, {
   payments: {
-    facilitatorUrl: process.env.PAYMENTS_FACILITATOR_URL,
-    payTo: process.env.PAYMENTS_RECEIVABLE_ADDRESS,
-    network: process.env.PAYMENTS_NETWORK,
-    defaultPrice: process.env.PAYMENTS_DEFAULT_PRICE,
+    facilitatorUrl: '...',
+    payTo: '0x...',
+    network: 'base-sepolia',
+    // ✅ No defaultPrice
   }
+});
+
+addEntrypoint({
+  key: 'analyze',
+  price: DEFAULT_PRICE, // ✅ Explicit per entrypoint
+  handler: ...
 });
 ```
 
 **Benefits:**
-- Clearer payment configuration (explicit, not magic)
-- Better separation of concerns (core doesn't auto-apply payment defaults)
-- Easier to understand what entrypoints have payments
+- **Fully explicit**: Every paid entrypoint has a visible price
+- **No magic defaults**: What you see is what you get
+- **Simpler types**: `PaymentsConfig` only has essential fields
+- **Developer friendly**: Easy to define your own constants if needed
 

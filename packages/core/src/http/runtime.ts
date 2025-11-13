@@ -221,7 +221,6 @@ export function createAgentHttpRuntime(
       payTo: resolvedConfig.payments.payTo,
       facilitatorUrl: resolvedConfig.payments.facilitatorUrl,
       network: resolvedConfig.payments.network,
-      defaultPrice: resolvedConfig.payments.defaultPrice,
     };
     agent.config.payments = activePayments ?? undefined;
   };

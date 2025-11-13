@@ -44,7 +44,6 @@ This template accepts the following configuration arguments (see `template.schem
 - `PAYMENTS_FACILITATOR_URL` - x402 facilitator endpoint
 - `PAYMENTS_NETWORK` - Network identifier
 - `PAYMENTS_RECEIVABLE_ADDRESS` - Address for receiving payments
-- `PAYMENTS_DEFAULT_PRICE` - Default price in USDC (decimal string, e.g., "0.1")
 - `RPC_URL` - Blockchain RPC endpoint (e.g., "https://sepolia.base.org")
 - `CHAIN_ID` - Chain ID (e.g., "84532" for Base Sepolia)
 - `IDENTITY_AUTO_REGISTER` - Auto-register on ERC-8004 registry (boolean: true/false)
@@ -309,7 +308,6 @@ const { app, addEntrypoint } = createAgentApp(
       facilitatorUrl: process.env.PAYMENTS_FACILITATOR_URL,
       payTo: process.env.PAYMENTS_RECEIVABLE_ADDRESS,
       network: process.env.PAYMENTS_NETWORK,
-      defaultPrice: process.env.PAYMENTS_DEFAULT_PRICE,
     },
     trust: trustConfig, // Automatically populated
   }
@@ -346,7 +344,6 @@ IDENTITY_AUTO_REGISTER=true
 PAYMENTS_FACILITATOR_URL=https://facilitator.daydreams.systems
 PAYMENTS_NETWORK=base-sepolia
 PAYMENTS_RECEIVABLE_ADDRESS=0x...
-PAYMENTS_DEFAULT_PRICE=0.1
 ```
 
 ## Testing Your Agent

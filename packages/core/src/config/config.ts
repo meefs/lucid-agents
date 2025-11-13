@@ -5,7 +5,6 @@ export type PaymentDefaultsConfig = {
   facilitatorUrl?: Resource;
   payTo?: `0x${string}` | SolanaAddress;
   network?: Network;
-  defaultPrice?: string;
 };
 
 export type WalletConfig = {
@@ -24,7 +23,6 @@ export type ResolvedAgentKitConfig = {
     facilitatorUrl?: Resource;
     payTo?: `0x${string}` | SolanaAddress;
     network?: Network;
-    defaultPrice?: string;
   };
   wallet: {
     walletApiUrl: string;
@@ -42,7 +40,6 @@ const defaultConfig: ResolvedAgentKitConfig = {
     facilitatorUrl: undefined,
     payTo: undefined,
     network: undefined,
-    defaultPrice: undefined,
   },
   wallet: {
     walletApiUrl: DEFAULT_WALLET_API_URL,
@@ -75,7 +72,6 @@ const environmentConfig: AgentKitConfig = {
       | SolanaAddress
       | undefined,
     network: process.env.NETWORK as Network | undefined,
-    defaultPrice: process.env.DEFAULT_PRICE ?? undefined,
   },
   wallet: {
     walletApiUrl:

@@ -9,7 +9,6 @@ describe('TanStack Solana Payments', () => {
     payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz', // Solana Base58 address
     facilitatorUrl: 'https://facilitator.test',
     network: 'solana-devnet',
-    defaultPrice: '10000',
   };
 
   const entrypoints = [
@@ -117,7 +116,6 @@ describe('TanStack Solana Payments', () => {
         payTo: address,
         facilitatorUrl: 'https://facilitator.test',
         network: 'solana',
-        defaultPrice: '1000',
       };
 
       const runtime = createRuntime(config);
@@ -275,7 +273,6 @@ describe('TanStack Solana Payments', () => {
       payTo: '9yPGxVrYi7C5JLMGjEZhK8qQ4tn7SzMWwQHvz3vGJCKz',
       facilitatorUrl: 'https://facilitator.test',
       network: 'solana-mainnet' as any, // Invalid - should be 'solana'
-      defaultPrice: '10000',
     };
 
     const runtime = createRuntime(invalidPayments);

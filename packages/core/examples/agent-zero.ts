@@ -164,7 +164,6 @@ const config: AgentKitConfig = {
   payments: {
     payTo: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429',
     network: 'base',
-    defaultPrice: process.env.DEFAULT_PRICE ?? '0.03',
   },
 };
 

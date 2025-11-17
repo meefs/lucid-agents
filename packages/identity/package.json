@@ -38,6 +38,9 @@
     "type-check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@lucid-agents/core": "workspace:*",
+    "@lucid-agents/types": "workspace:*",
+    "@lucid-agents/wallet": "workspace:*",
     "viem": "^2.38.1"
   },
   "devDependencies": {

@@ -1,4 +1,7 @@
-import type { RegistrationEntry, TrustModel } from '@lucid-agents/identity';
+import type {
+  RegistrationEntry,
+  TrustModel,
+} from '@lucid-agents/types/identity';
 import type { SolanaAddress } from '@lucid-agents/types/payments';
 import type { Network, Resource } from 'x402/types';
 

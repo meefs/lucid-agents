@@ -2,53 +2,47 @@ import {
   createRuntimePaymentContext,
   type RuntimePaymentOptions,
 } from '@lucid-agents/payments';
-import type { AgentRuntime } from '@lucid-dreams/agent-auth';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 
 import { resetAgentKitConfigForTesting } from '../config/config';
-
-type RuntimeStub = Pick<AgentRuntime, 'ensureAccessToken' | 'api'>;
+import type { AgentRuntime } from '../runtime';
 
 const makeRuntimeStub = (): {
-  runtime: RuntimeStub;
+  runtime: Pick<AgentRuntime, 'wallets'>;
   calls: {
-    ensureAccessToken: ReturnType<typeof mock>;
-    getAgent: ReturnType<typeof mock>;
-    signTypedData: ReturnType<typeof mock>;
-    signMessage: ReturnType<typeof mock>;
+    getWalletMetadata: ReturnType<typeof mock>;
+    signChallenge: ReturnType<typeof mock>;
   };
 } => {
-  const ensureAccessToken = mock(async () => 'token');
-  const getAgent = mock(async () => ({
-    billing: {
-      wallet: { address: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429' },
-    },
+  const getWalletMetadata = mock(async () => ({
+    address: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429',
   }));
-  const signTypedData = mock(async () => ({
-    wallet: { address: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429' },
-    signed: { signature: '0xdeadbeef' },
-  }));
-  const signMessage = mock(async () => ({
-    wallet: { address: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429' },
-    signed: { signature: '0xbeefdead' },
-  }));
+  const signChallenge = mock(async (_challenge: unknown) => '0xdeadbeef');
 
-  const runtime: RuntimeStub = {
-    ensureAccessToken,
-    api: {
-      getAgent,
-      signTypedData,
-      signMessage,
-    } as unknown as RuntimeStub['api'],
+  const runtime: Pick<AgentRuntime, 'wallets'> = {
+    wallets: {
+      agent: {
+        kind: 'local' as const,
+        connector: {
+          async getWalletMetadata() {
+            return await getWalletMetadata();
+          },
+          async signChallenge(challenge) {
+            return await signChallenge(challenge);
+          },
+          async supportsCaip2() {
+            return true;
+          },
+        },
+      },
+    },
   };
 
   return {
     runtime,
     calls: {
-      ensureAccessToken,
-      getAgent,
-      signTypedData,
-      signMessage,
+      getWalletMetadata,
+      signChallenge,
     },
   };
 };
@@ -108,10 +102,10 @@ describe('runtime payments', () => {
     );
 
     const context = await createRuntimePaymentContext({
-      runtime: runtime as AgentRuntime,
+      runtime: runtime as unknown as AgentRuntime,
       fetch: baseFetch,
       network: 'base-sepolia',
-    } satisfies RuntimePaymentOptions);
+    } as unknown as RuntimePaymentOptions);
 
     expect(context.fetchWithPayment).toBeDefined();
     expect(context.signer).toBeDefined();
@@ -127,10 +121,9 @@ describe('runtime payments', () => {
     expect(await response?.json()).toEqual({ ok: true });
 
     expect(fetchCalls).toHaveLength(2);
-    expect(calls.ensureAccessToken).toHaveBeenCalledTimes(1);
-    expect(calls.getAgent).toHaveBeenCalledTimes(1);
-    expect(calls.signTypedData).toHaveBeenCalledTimes(1);
-    expect(calls.signMessage).toHaveBeenCalledTimes(0);
+    // getWalletMetadata is called once initially and may be called again during signing
+    expect(calls.getWalletMetadata).toHaveBeenCalled();
+    expect(calls.signChallenge).toHaveBeenCalledTimes(1);
   });
 
   it('returns null fetch when no runtime or private key provided', async () => {
@@ -148,14 +141,17 @@ describe('runtime payments', () => {
 
     const warn = mock(() => {});
     const context = await createRuntimePaymentContext({
-      runtime: runtime as AgentRuntime,
+      runtime: runtime as unknown as AgentRuntime,
       fetch: async () => new Response('ok'),
       network: 'unsupported-network',
       logger: { warn },
-    });
+    } as unknown as RuntimePaymentOptions);
 
     expect(context.fetchWithPayment).toBeNull();
     expect(warn).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Unable to derive chainId')
+    );
   });
 });
 

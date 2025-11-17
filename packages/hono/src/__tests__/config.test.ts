@@ -100,14 +100,18 @@ describe('AgentKit config management', () => {
   });
 
   it('supports wallet overrides at global and instance scope', () => {
+    // Use valid 64-character hex private keys
+    const globalPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
+    const instancePrivateKey = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+
     configureAgentKit({
       wallets: {
-        agent: { type: 'local', privateKey: '0xglobal' },
+        agent: { type: 'local', privateKey: globalPrivateKey },
       },
     });
 
     const globalConfig = getAgentKitConfig();
-    expect(globalConfig.wallets?.agent?.privateKey).toBe('0xglobal');
+    expect(globalConfig.wallets?.agent?.privateKey).toBe(globalPrivateKey);
 
     const { config } = createAgentApp(
       {
@@ -118,15 +122,16 @@ describe('AgentKit config management', () => {
       {
         config: {
           wallets: {
-            agent: { type: 'local', privateKey: '0xinstance' },
+            agent: { type: 'local', privateKey: instancePrivateKey },
           },
         },
       }
     );
 
-    expect(config.wallets?.agent?.privateKey).toBe('0xinstance');
+    // The config should have the wallet configuration
+    expect(config.wallets?.agent?.privateKey).toBe(instancePrivateKey);
 
     const globalAfter = getAgentKitConfig();
-    expect(globalAfter.wallets?.agent?.privateKey).toBe('0xglobal');
+    expect(globalAfter.wallets?.agent?.privateKey).toBe(globalPrivateKey);
   });
 });

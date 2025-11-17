@@ -14,6 +14,26 @@ const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000dEaD' as const;
 const REGISTERED_EVENT_SIG =
   '0xca52e62c367d81bb2e328eb795f7c7ba24afb478408a26c0e201d155c449bc4a' as const;
 
+function createMockRuntime(
+  address = '0x0000000000000000000000000000000000000007'
+) {
+  return {
+    wallets: {
+      agent: {
+        kind: 'local' as const,
+        connector: {
+          async getWalletMetadata() {
+            return { address };
+          },
+          async signChallenge() {
+            return '0xsignature';
+          },
+        },
+      },
+    },
+  } as any;
+}
+
 describe('createAgentIdentity', () => {
   it('registers and returns trust config when autoRegister is true', async () => {
     const mockWalletClient = {
@@ -56,7 +76,25 @@ describe('createAgentIdentity', () => {
       signer: mockWalletClient,
     });
 
+    // Create a mock runtime with wallet
+    const mockRuntime = {
+      wallets: {
+        agent: {
+          kind: 'local' as const,
+          connector: {
+            async getWalletMetadata() {
+              return { address: '0x0000000000000000000000000000000000000007' };
+            },
+            async signChallenge() {
+              return '0xsignature';
+            },
+          },
+        },
+      },
+    } as any;
+
     const result = await createAgentIdentity({
+      runtime: mockRuntime,
       domain: 'example.com',
       registryAddress: REGISTRY_ADDRESS,
       chainId: 84532,
@@ -87,7 +125,25 @@ describe('createAgentIdentity', () => {
       signer: undefined,
     });
 
+    // Create a mock runtime with wallet
+    const mockRuntime = {
+      wallets: {
+        agent: {
+          kind: 'local' as const,
+          connector: {
+            async getWalletMetadata() {
+              return { address: '0x0000000000000000000000000000000000000007' };
+            },
+            async signChallenge() {
+              return '0xsignature';
+            },
+          },
+        },
+      },
+    } as any;
+
     const result = await createAgentIdentity({
+      runtime: mockRuntime,
       domain: 'fallback.example',
       registryAddress: REGISTRY_ADDRESS,
       rpcUrl: 'http://localhost:8545',
@@ -144,6 +200,7 @@ describe('createAgentIdentity', () => {
     });
 
     const result = await createAgentIdentity({
+      runtime: createMockRuntime(),
       domain: 'new-agent.example.com',
       registryAddress: REGISTRY_ADDRESS,
       chainId: 84532,
@@ -201,6 +258,7 @@ describe('createAgentIdentity', () => {
     });
 
     const result = await createAgentIdentity({
+      runtime: createMockRuntime('0x000000000000000000000000000000000000000a'),
       chainId: 84532,
       registryAddress: REGISTRY_ADDRESS,
       rpcUrl: 'http://localhost:8545',
@@ -258,6 +316,7 @@ describe('createAgentIdentity', () => {
     });
 
     const result = await createAgentIdentity({
+      runtime: createMockRuntime('0x000000000000000000000000000000000000000b'),
       domain: 'custom.example.com',
       registryAddress: REGISTRY_ADDRESS,
       chainId: 84532,
@@ -317,6 +376,7 @@ describe('createAgentIdentity', () => {
     });
 
     const result = await createAgentIdentity({
+      runtime: createMockRuntime('0x000000000000000000000000000000000000000c'),
       domain: 'override.example.com',
       registryAddress: REGISTRY_ADDRESS,
       chainId: 84532,
@@ -390,6 +450,7 @@ describe('registerAgent', () => {
     });
 
     const result = await registerAgent({
+      runtime: createMockRuntime('0x000000000000000000000000000000000000000d'),
       domain: 'register.example.com',
       registryAddress: REGISTRY_ADDRESS,
       chainId: 84532,

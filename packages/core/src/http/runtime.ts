@@ -1,24 +1,18 @@
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 
-import type { TrustConfig } from '@lucid-agents/identity';
-import type { RuntimePaymentRequirement } from '@lucid-agents/payments';
-import {
-  evaluatePaymentRequirement as evaluatePaymentRequirementFromPayments,
-  resolveActivePayments,
-} from '@lucid-agents/payments';
 import type { AgentKitConfig } from '@lucid-agents/types/core';
+import type { TrustConfig } from '@lucid-agents/types/identity';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
-import { getAgentKitConfig, setActiveInstanceConfig } from '../config/config';
+import { ZodValidationError } from '../core/agent';
+import type { AgentMeta } from '../core/types';
+import type { AP2Config } from '../manifest/types';
 import {
-  type AgentCore,
-  createAgentCore,
-  ZodValidationError,
-} from '../core/agent';
-import type { AgentMeta, Network } from '../core/types';
-import { buildManifest } from '../manifest/manifest';
-import type { AgentCardWithEntrypoints, AP2Config } from '../manifest/types';
+  type AgentRuntime,
+  createAgentRuntime,
+  type CreateAgentRuntimeOptions,
+} from '../runtime';
 import { renderLandingPage } from '../ui/landing-page';
 import { createSSEStream, type SSEStreamRunnerContext } from './sse';
 import type {
@@ -47,24 +41,8 @@ export type AgentHttpHandlers = {
   stream: (req: Request, params: { key: string }) => Promise<Response>;
 };
 
-export type AgentHttpRuntime = {
-  agent: AgentCore;
-  config: AgentKitConfig;
-  payments: PaymentsConfig | undefined;
+export type AgentHttpRuntime = AgentRuntime & {
   handlers: AgentHttpHandlers;
-  addEntrypoint: (def: EntrypointDef) => void;
-  listEntrypoints: () => Array<{
-    key: string;
-    description?: string;
-    streaming: boolean;
-  }>;
-  snapshotEntrypoints: () => EntrypointDef[];
-  buildManifestForOrigin: (origin: string) => AgentCardWithEntrypoints;
-  invalidateManifestCache: () => void;
-  evaluatePaymentRequirement: (
-    entrypoint: EntrypointDef,
-    kind: 'invoke' | 'stream'
-  ) => RuntimePaymentRequirement;
 };
 
 const jsonResponse = (
@@ -129,59 +107,10 @@ export function createAgentHttpRuntime(
   meta: AgentMeta,
   opts: CreateAgentHttpOptions = {}
 ): AgentHttpRuntime {
-  setActiveInstanceConfig(opts?.config);
-  const resolvedConfig: AgentKitConfig = getAgentKitConfig(opts?.config);
+  // Create core runtime first
+  const runtime = createAgentRuntime(meta, opts as CreateAgentRuntimeOptions);
 
-  const paymentsOption = opts?.payments;
-  const resolvedPayments: PaymentsConfig | undefined =
-    paymentsOption === false
-      ? undefined
-      : (paymentsOption ?? resolvedConfig.payments);
-
-  let activePayments: PaymentsConfig | undefined = resolvedPayments;
-
-  const agent = createAgentCore({
-    meta,
-    payments: paymentsOption === false ? false : (activePayments ?? undefined),
-  });
-
-  const manifestCache = new Map<string, AgentCardWithEntrypoints>();
-
-  const snapshotEntrypoints = (): EntrypointDef[] =>
-    agent.listEntrypoints().map(entry => ({
-      ...entry,
-      network: entry.network as Network | undefined,
-    })) as EntrypointDef[];
-
-  const listEntrypoints = () =>
-    snapshotEntrypoints().map(entry => ({
-      key: entry.key,
-      description: entry.description,
-      streaming: Boolean(entry.stream ?? entry.streaming),
-    }));
-
-  const buildManifestForOrigin = (origin: string) => {
-    const cached = manifestCache.get(origin);
-    if (cached) {
-      return cached;
-    }
-
-    const manifest = buildManifest({
-      meta,
-      registry: snapshotEntrypoints(),
-      origin,
-      payments: activePayments,
-      ap2: opts?.ap2,
-      trust: opts?.trust,
-    });
-
-    manifestCache.set(origin, manifest);
-    return manifest;
-  };
-
-  const invalidateManifestCache = () => {
-    manifestCache.clear();
-  };
+  const activePayments = runtime.payments;
 
   const faviconSvg = resolveFaviconSvg(meta);
   const faviconDataUrl = `data:image/svg+xml;base64,${Buffer.from(
@@ -245,16 +174,16 @@ export function createAgentHttpRuntime(
       return jsonResponse({ ok: true, version: meta.version });
     },
     entrypoints: async () => {
-      return jsonResponse({ items: listEntrypoints() });
+      return jsonResponse({ items: runtime.listEntrypoints() });
     },
     manifest: async req => {
       const origin = new URL(req.url).origin;
-      return jsonResponse(buildManifestForOrigin(origin));
+      return jsonResponse(runtime.buildManifestForOrigin(origin));
     },
     landing: landingEnabled
       ? async req => {
           const origin = new URL(req.url).origin;
-          const entrypoints = snapshotEntrypoints();
+          const entrypoints = runtime.snapshotEntrypoints();
           const html = renderLandingPage({
             meta,
             origin,
@@ -277,7 +206,7 @@ export function createAgentHttpRuntime(
       });
     },
     invoke: async (req, params) => {
-      const entrypoint = agent.getEntrypoint(params.key);
+      const entrypoint = runtime.agent.getEntrypoint(params.key);
       if (!entrypoint) {
         return errorResponse('entrypoint_not_found', 404);
       }
@@ -294,7 +223,7 @@ export function createAgentHttpRuntime(
         `runId=${runId}`
       );
       try {
-        const result = await agent.invoke(entrypoint.key, rawInput, {
+        const result = await runtime.agent.invoke(entrypoint.key, rawInput, {
           signal: req.signal,
           headers: req.headers,
           runId,
@@ -336,7 +265,7 @@ export function createAgentHttpRuntime(
       }
     },
     stream: async (req, params) => {
-      const entrypoint = agent.getEntrypoint(params.key);
+      const entrypoint = runtime.agent.getEntrypoint(params.key);
       if (!entrypoint) {
         return errorResponse('entrypoint_not_found', 404);
       }
@@ -403,7 +332,7 @@ export function createAgentHttpRuntime(
           };
 
           try {
-            const result: StreamResult = await agent.stream(
+            const result: StreamResult = await runtime.agent.stream(
               entrypoint.key,
               input,
               emit,
@@ -460,47 +389,9 @@ export function createAgentHttpRuntime(
     },
   };
 
-  const addEntrypoint = (def: EntrypointDef) => {
-    if (!def.key) throw new Error('entrypoint.key required');
-    const newActivePayments = resolveActivePayments(
-      def,
-      paymentsOption,
-      resolvedPayments,
-      activePayments
-    );
-    if (newActivePayments !== activePayments) {
-      activePayments = newActivePayments;
-      agent.config.payments =
-        paymentsOption === false ? false : (activePayments ?? undefined);
-    }
-    agent.addEntrypoint(def);
-    invalidateManifestCache();
-  };
-
-  if (opts?.entrypoints) {
-    for (const entrypoint of opts.entrypoints) {
-      addEntrypoint(entrypoint);
-    }
-  }
-
+  // Return combined runtime with HTTP handlers
   return {
-    agent,
-    config: resolvedConfig,
+    ...runtime,
     handlers,
-    addEntrypoint,
-    listEntrypoints,
-    snapshotEntrypoints,
-    buildManifestForOrigin,
-    invalidateManifestCache,
-    evaluatePaymentRequirement: (entrypoint, kind) => {
-      return evaluatePaymentRequirementFromPayments(
-        entrypoint,
-        kind,
-        activePayments
-      );
-    },
-    get payments() {
-      return activePayments;
-    },
   };
 }

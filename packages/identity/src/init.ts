@@ -3,6 +3,9 @@
  * These functions provide a streamlined API for common use cases.
  */
 
+import type { AgentRuntime } from '@lucid-agents/core';
+import type { TrustConfig } from '@lucid-agents/types/identity';
+
 import { DEFAULT_CHAIN_ID, getRegistryAddresses } from './config';
 import {
   bootstrapIdentity,
@@ -11,7 +14,7 @@ import {
   type BootstrapIdentityResult,
   createIdentityRegistryClient,
   type IdentityRegistryClient,
-  makeViemClientsFromEnv,
+  makeViemClientsFromWallet,
   type PublicClientLike,
   type WalletClientLike,
 } from './registries/identity';
@@ -23,7 +26,6 @@ import {
   createValidationRegistryClient,
   type ValidationRegistryClient,
 } from './registries/validation';
-import type { TrustConfig } from './types';
 import { resolveAutoRegister, validateIdentityConfig } from './validation';
 
 export type { BootstrapIdentityResult, TrustConfig };
@@ -32,6 +34,12 @@ export type { BootstrapIdentityResult, TrustConfig };
  * Options for creating agent identity with automatic registration.
  */
 export type CreateAgentIdentityOptions = {
+  /**
+   * Agent runtime instance (required).
+   * Must have wallets.agent configured for identity operations.
+   */
+  runtime: AgentRuntime;
+
   /**
    * Agent domain (e.g., "agent.example.com").
    * Falls back to AGENT_DOMAIN env var if not provided.
@@ -63,13 +71,6 @@ export type CreateAgentIdentityOptions = {
   rpcUrl?: string;
 
   /**
-   * Private key for wallet operations.
-   * Falls back to PRIVATE_KEY env var.
-   * Required for registration operations.
-   */
-  privateKey?: `0x${string}` | string;
-
-  /**
    * Trust models to advertise (e.g., ["feedback", "inference-validation"]).
    * Defaults to ["feedback", "inference-validation"].
    */
@@ -92,7 +93,7 @@ export type CreateAgentIdentityOptions = {
 
   /**
    * Optional client factory (useful for testing).
-   * If provided, this will be used instead of makeViemClientsFromEnv.
+   * If provided, this will be used instead of makeViemClientsFromWallet.
    */
   makeClients?: BootstrapIdentityClientFactory;
 
@@ -198,17 +199,31 @@ export type AgentIdentity = BootstrapIdentityResult & {
  * ```
  */
 export async function createAgentIdentity(
-  options: CreateAgentIdentityOptions = {}
+  options: CreateAgentIdentityOptions
 ): Promise<AgentIdentity> {
+  // Validate runtime is provided
+  if (!options.runtime) {
+    throw new Error(
+      'runtime is required for createAgentIdentity. Pass the AgentRuntime instance from createAgentHttpRuntime or createAgentRuntime.'
+    );
+  }
+
+  // Validate wallet is configured
+  if (!options.runtime.wallets?.agent) {
+    throw new Error(
+      'runtime.wallets.agent is required for identity operations. Configure a wallet in the runtime config.'
+    );
+  }
+
   // Validate configuration early
   validateIdentityConfig(options, options.env);
 
   const {
+    runtime,
     domain,
     chainId,
     registryAddress,
     rpcUrl,
-    privateKey,
     trustModels = ['feedback', 'inference-validation'],
     trustOverrides,
     env,
@@ -221,10 +236,10 @@ export async function createAgentIdentity(
 
   const viemFactory =
     makeClients ??
-    (await makeViemClientsFromEnv({
+    (await makeViemClientsFromWallet({
       env,
       rpcUrl,
-      privateKey,
+      walletHandle: runtime.wallets.agent,
     }));
 
   const resolvedChainId =

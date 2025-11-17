@@ -33,8 +33,9 @@
   },
   "dependencies": {
     "@ax-llm/ax": "catalog:",
+    "@lucid-agents/core": "workspace:*",
     "@lucid-agents/types": "workspace:*",
-    "@lucid-dreams/agent-auth": "latest",
+    "@lucid-agents/wallet": "workspace:*",
     "x402-fetch": "catalog:",
     "x402": "^0.7.1",
     "viem": "^2.38.5",

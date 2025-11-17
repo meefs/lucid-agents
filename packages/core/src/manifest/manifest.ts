@@ -1,5 +1,5 @@
-import type { TrustConfig } from '@lucid-agents/identity';
 import { resolvePrice } from '@lucid-agents/payments';
+import type { TrustConfig } from '@lucid-agents/types/identity';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
 import type { AgentMeta } from '../core/types';

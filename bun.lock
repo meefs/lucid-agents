@@ -107,6 +107,9 @@
       "name": "@lucid-agents/identity",
       "version": "1.5.2",
       "dependencies": {
+        "@lucid-agents/core": "workspace:*",
+        "@lucid-agents/types": "workspace:*",
+        "@lucid-agents/wallet": "workspace:*",
         "viem": "^2.38.1",
       },
       "devDependencies": {
@@ -121,8 +124,9 @@
       "version": "1.5.2",
       "dependencies": {
         "@ax-llm/ax": "catalog:",
+        "@lucid-agents/core": "workspace:*",
         "@lucid-agents/types": "workspace:*",
-        "@lucid-dreams/agent-auth": "latest",
+        "@lucid-agents/wallet": "workspace:*",
         "viem": "^2.38.5",
         "x402": "^0.7.1",
         "x402-fetch": "catalog:",

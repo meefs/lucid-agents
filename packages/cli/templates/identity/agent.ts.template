@@ -5,8 +5,13 @@ import {
 } from "@lucid-agents/identity";
 
 {{ADAPTER_PRE_SETUP}}
+
+{{ADAPTER_APP_CREATION}}
+
 // Identity feature setup
+// Note: Requires runtime.wallets.agent to be configured
 const identity = await createAgentIdentity({
+  runtime,
   domain: process.env.AGENT_DOMAIN,
 });
 
@@ -20,15 +25,9 @@ if (identity.didRegister) {
 
 const trustConfig = getTrustConfig(identity);
 
-// Compose features: payments + trust
-const appOptions = {
-  trust: trustConfig,
-  payments: {
-    facilitatorUrl: process.env.PAYMENTS_FACILITATOR_URL as `${string}://${string}`,
-    payTo: process.env.PAYMENTS_RECEIVABLE_ADDRESS as `0x${string}`,
-    network: process.env.PAYMENTS_NETWORK as any,
-  },
-};
+// Update app options with trust config
+// Note: For adapters that use appOptions, merge trust config
+{{ADAPTER_ENTRYPOINT_REGISTRATION}}
 
 {{ADAPTER_POST_SETUP}}
 // Export identity feature clients

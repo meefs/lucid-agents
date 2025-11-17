@@ -28,6 +28,13 @@ export {
 } from './config/config';
 export type { AgentKitConfig } from '@lucid-agents/types/core';
 
+// Core runtime
+export {
+  type AgentRuntime,
+  createAgentRuntime,
+  type CreateAgentRuntimeOptions,
+} from './runtime';
+
 // HTTP runtime
 export {
   type AgentHttpHandlers,

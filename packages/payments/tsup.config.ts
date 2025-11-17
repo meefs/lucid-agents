@@ -6,7 +6,7 @@ export default definePackageConfig({
   external: [
     '@lucid-agents/core',
     '@lucid-agents/identity',
-    '@lucid-dreams/agent-auth',
+    '@lucid-agents/wallet',
     'x402-fetch',
     'x402',
     'viem',

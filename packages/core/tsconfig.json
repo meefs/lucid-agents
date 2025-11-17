@@ -2,16 +2,8 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "composite": false,
-    "baseUrl": ".",
-    "paths": {
-      "@lucid-agents/wallet": [
-        "../wallet/src/index.ts"
-      ],
-      "@lucid-agents/wallet/*": [
-        "../wallet/src/*"
-      ]
-    }
+    "rootDir": "src",
+    "composite": false
   },
   "include": [
     "src/**/*"

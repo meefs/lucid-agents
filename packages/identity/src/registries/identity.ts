@@ -921,27 +921,15 @@ export async function makeViemClientsFromWallet(
               // For transaction signing (needed for contract writes)
               // Viem calls this when writeContract is used
               async signTransaction(transaction: any) {
-                // Try to check if the signer has access to the underlying viem account
-                // If the signer was created from privateKey, it might have account methods
-                const signerAny = localSigner as any;
-
-                // Check if signer has signTransaction (unlikely, but possible)
-                if (typeof signerAny.signTransaction === 'function') {
-                  return await signerAny.signTransaction(transaction);
+                // Use the signer's signTransaction if available (e.g., from private key signer)
+                if (localSigner.signTransaction) {
+                  return await localSigner.signTransaction(transaction);
                 }
 
-                // Check if signer has the underlying account
-                if (
-                  signerAny.account &&
-                  typeof signerAny.account.signTransaction === 'function'
-                ) {
-                  return await signerAny.account.signTransaction(transaction);
-                }
-
-                // For now, contract writes require a viem account
-                // This is a limitation we'll need to address
+                // Transaction signing is required for contract writes
+                // If the signer doesn't support it, we can't proceed
                 throw new Error(
-                  '[agent-kit-identity] Contract writes (writeContract) are not yet fully supported with wallet connector. The wallet connector needs transaction signing support.'
+                  '[agent-kit-identity] Contract writes (writeContract) require transaction signing support. The wallet signer must implement signTransaction(). Local wallets created from private keys support this automatically.'
                 );
               },
             };

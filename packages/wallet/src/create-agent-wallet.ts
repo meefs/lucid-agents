@@ -1,12 +1,12 @@
 import {
   LocalEoaWalletConnector,
   type LocalEoaWalletConnectorOptions,
-} from "./local-eoa-connector.js";
-import { createPrivateKeySigner } from "./private-key-signer.js";
+} from './local-eoa-connector';
+import { createPrivateKeySigner } from './private-key-signer';
 import {
   ServerOrchestratorWalletConnector,
   type ServerOrchestratorWalletConnectorOptions,
-} from "./server-orchestrator-connector.js";
+} from './server-orchestrator-connector';
 import type {
   AgentWalletFactoryOptions,
   AgentWalletHandle,

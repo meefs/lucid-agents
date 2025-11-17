@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 
-import { LocalEoaWalletConnector } from "../../local-eoa-connector.js";
-import { ServerOrchestratorWalletConnector } from "../../server-orchestrator-connector.js";
-import { createAgentWallet } from "../../create-agent-wallet.js";
+import { LocalEoaWalletConnector } from '../../local-eoa-connector';
+import { ServerOrchestratorWalletConnector } from '../../server-orchestrator-connector';
+import { createAgentWallet } from '../../create-agent-wallet';
 
 describe("createAgentWallet", () => {
   afterEach(() => {

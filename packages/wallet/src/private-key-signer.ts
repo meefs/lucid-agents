@@ -34,6 +34,9 @@ export const createPrivateKeySigner = (privateKey: string): LocalEoaSigner => {
         primaryType: payload.primaryType,
       });
     },
+    async signTransaction(transaction) {
+      return account.signTransaction(transaction);
+    },
     async getAddress() {
       return account.address;
     },

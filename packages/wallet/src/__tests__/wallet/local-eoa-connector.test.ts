@@ -5,7 +5,7 @@ import type {
   LocalEoaSigner,
 } from '@lucid-agents/types/wallets';
 
-import { LocalEoaWalletConnector } from '../../local-eoa-connector.js';
+import { LocalEoaWalletConnector } from '../../local-eoa-connector';
 
 const baseChallenge: AgentChallengeResponse['challenge'] = {
   id: 'challenge-1',

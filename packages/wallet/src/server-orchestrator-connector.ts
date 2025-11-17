@@ -1,13 +1,16 @@
-import type { AgentChallengeResponse, FetchExecutor } from '@lucid-agents/types/wallets';
+import type {
+  AgentChallengeResponse,
+  FetchExecutor,
+  WalletConnector,
+  WalletMetadata,
+} from '@lucid-agents/types/wallets';
 
 import {
   detectMessageEncoding,
   extractSignature,
   extractWalletMetadata,
   normalizeChallenge,
-  type WalletConnector,
-  type WalletMetadata,
-} from "./base-connector.js";
+} from './base-connector';
 
 export interface ServerOrchestratorWalletConnectorOptions {
   baseUrl: string;

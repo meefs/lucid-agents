@@ -13,10 +13,10 @@ export interface ChallengeSigner {
   signChallenge(challenge: {
     id: string;
     credential_id?: string | null;
-    payload: unknown;
+    payload?: unknown;
     payload_hash?: string | null;
     nonce: string;
-    scopes: string[];
+    scopes?: string[];
     issued_at: string | Date;
     expires_at: string | Date;
     server_signature?: string | null;
@@ -85,6 +85,15 @@ export interface LocalEoaSigner {
     types: Record<string, Array<{ name: string; type: string }>>;
     message: Record<string, unknown>;
   }): Promise<string>;
+  signTransaction?(transaction: {
+    to?: `0x${string}` | null;
+    value?: bigint;
+    data?: `0x${string}`;
+    gas?: bigint;
+    gasPrice?: bigint;
+    nonce?: number;
+    chainId?: number;
+  }): Promise<`0x${string}`>;
   getAddress?(): Promise<string | null>;
 }
 

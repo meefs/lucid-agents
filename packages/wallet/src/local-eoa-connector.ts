@@ -2,14 +2,14 @@ import type {
   AgentChallengeResponse,
   LocalEoaSigner,
   TypedDataPayload,
+  WalletConnector,
+  WalletMetadata,
 } from '@lucid-agents/types/wallets';
 
 import {
   detectMessageEncoding,
   normalizeChallenge,
-  type WalletConnector,
-  type WalletMetadata,
-} from "./base-connector.js";
+} from './base-connector';
 
 export interface LocalEoaWalletConnectorOptions {
   signer: LocalEoaSigner;

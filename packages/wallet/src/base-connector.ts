@@ -5,8 +5,6 @@ import type {
   WalletMetadata,
 } from '@lucid-agents/types/wallets';
 
-export type { ChallengeSigner, WalletConnector, WalletMetadata };
-
 export interface NormalizedChallenge {
   id: string;
   credentialId: string | null;
@@ -20,23 +18,16 @@ export interface NormalizedChallenge {
   message: string | null;
 }
 
-export interface ChallengeNormalizationOptions {
-  stableStringify?: boolean;
-}
-
-const DEFAULT_NORMALIZATION_OPTIONS: Required<ChallengeNormalizationOptions> = {
-  stableStringify: true,
-};
-
 export const normalizeChallenge = (
-  challenge: AgentChallengeResponse["challenge"],
-  options: ChallengeNormalizationOptions = DEFAULT_NORMALIZATION_OPTIONS,
+  challenge: AgentChallengeResponse['challenge']
 ): NormalizedChallenge => {
   const issuedAt = toDate(challenge.issued_at);
   const expiresAt = toDate(challenge.expires_at);
 
   const scopes = Array.isArray(challenge.scopes)
-    ? challenge.scopes.filter((value): value is string => typeof value === "string")
+    ? challenge.scopes.filter(
+        (value): value is string => typeof value === 'string'
+      )
     : [];
 
   return {
@@ -49,95 +40,53 @@ export const normalizeChallenge = (
     issuedAt,
     expiresAt,
     serverSignature: challenge.server_signature ?? null,
-    message: resolveChallengeMessage(challenge.payload, options),
+    message: resolveChallengeMessage(challenge.payload),
   };
 };
 
 const toDate = (value: string | Date): Date =>
   value instanceof Date ? value : new Date(value);
 
-const resolveChallengeMessage = (
-  payload: unknown,
-  options: ChallengeNormalizationOptions,
-): string | null => {
+const resolveChallengeMessage = (payload: unknown): string | null => {
   if (!payload) {
     return null;
   }
 
-  if (typeof payload === "string") {
+  if (typeof payload === 'string') {
     return payload;
   }
 
-  if (typeof payload !== "object") {
+  if (typeof payload !== 'object') {
     return null;
   }
 
   const record = payload as Record<string, unknown>;
 
-  if (typeof record.message === "string") {
+  if (typeof record.message === 'string') {
     return record.message;
   }
 
-  if (typeof record.payload === "string") {
+  if (typeof record.payload === 'string') {
     return record.payload;
   }
 
   if (Array.isArray(record.parts)) {
     const joined = record.parts
-      .map((item) =>
-        typeof item === "string"
+      .map(item =>
+        typeof item === 'string'
           ? item
-          : typeof item === "object" && item && "text" in item
-            ? String((item as { text: unknown }).text ?? "")
-            : "",
+          : typeof item === 'object' && item && 'text' in item
+            ? String((item as { text: unknown }).text ?? '')
+            : ''
       )
-      .join("");
+      .join('');
     if (joined) {
       return joined;
     }
   }
 
-  try {
-    return options.stableStringify !== false
-      ? stableJsonStringify(record)
-      : JSON.stringify(record);
-  } catch {
-    return null;
-  }
-};
-
-export const stableJsonStringify = (value: unknown): string => {
-  if (value === undefined) {
-    return "null";
-  }
-
-  if (value === null || typeof value !== "object") {
-    if (typeof value === "bigint") {
-      return JSON.stringify(value.toString());
-    }
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) {
-    const mapped = value.map((item) =>
-      item === undefined ? "null" : stableJsonStringify(item)
-    );
-    return `[${mapped.join(",")}]`;
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entryValue]) => entryValue !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-
-  const serialized = entries
-    .map(([key, entryValue]) => {
-      const normalizedEntry =
-        typeof entryValue === "bigint" ? entryValue.toString() : entryValue;
-      return `${JSON.stringify(key)}:${stableJsonStringify(normalizedEntry)}`;
-    })
-    .join(",");
-
-  return `{${serialized}}`;
+  // No signable message found - return null to trigger error
+  return null;
 };
 
 export const extractSignature = (payload: unknown): string | null => {
@@ -145,26 +94,26 @@ export const extractSignature = (payload: unknown): string | null => {
     return null;
   }
 
-  if (typeof payload === "string") {
+  if (typeof payload === 'string') {
     return payload;
   }
 
-  if (typeof payload !== "object") {
+  if (typeof payload !== 'object') {
     return null;
   }
 
   const record = payload as Record<string, unknown>;
   const signed = record.signed ?? record.signature ?? payload;
 
-  if (typeof signed === "string") {
+  if (typeof signed === 'string') {
     return signed;
   }
 
   if (
     signed &&
-    typeof signed === "object" &&
-    "signature" in signed &&
-    typeof (signed as { signature: unknown }).signature === "string"
+    typeof signed === 'object' &&
+    'signature' in signed &&
+    typeof (signed as { signature: unknown }).signature === 'string'
   ) {
     return (signed as { signature: string }).signature;
   }
@@ -173,48 +122,47 @@ export const extractSignature = (payload: unknown): string | null => {
 };
 
 export const extractWalletMetadata = (
-  payload: unknown,
+  payload: unknown
 ): WalletMetadata | null => {
-  if (!payload || typeof payload !== "object") {
+  if (!payload || typeof payload !== 'object') {
     return null;
   }
 
   const record = payload as Record<string, unknown>;
-  if (!record.wallet || typeof record.wallet !== "object") {
+  if (!record.wallet || typeof record.wallet !== 'object') {
     return null;
   }
 
   const wallet = record.wallet as Record<string, unknown>;
   const account =
-    record.account && typeof record.account === "object"
+    record.account && typeof record.account === 'object'
       ? (record.account as Record<string, unknown>)
       : undefined;
 
   return {
-    id: typeof wallet.id === "string" ? wallet.id : null,
-    address: typeof wallet.address === "string" ? wallet.address : null,
-    chain: typeof wallet.chain === "string" ? wallet.chain : null,
-    chainType: typeof wallet.chainType === "string" ? wallet.chainType : null,
-    provider: typeof wallet.provider === "string" ? wallet.provider : null,
-    caip2: typeof wallet.caip2 === "string" ? wallet.caip2 : null,
-    accountId: typeof account?.id === "string" ? account.id : null,
+    id: typeof wallet.id === 'string' ? wallet.id : null,
+    address: typeof wallet.address === 'string' ? wallet.address : null,
+    chain: typeof wallet.chain === 'string' ? wallet.chain : null,
+    chainType: typeof wallet.chainType === 'string' ? wallet.chainType : null,
+    provider: typeof wallet.provider === 'string' ? wallet.provider : null,
+    caip2: typeof wallet.caip2 === 'string' ? wallet.caip2 : null,
+    accountId: typeof account?.id === 'string' ? account.id : null,
     label:
-      typeof account?.displayName === "string"
+      typeof account?.displayName === 'string'
         ? account.displayName
-        : typeof wallet.label === "string"
+        : typeof wallet.label === 'string'
           ? wallet.label
           : null,
   };
 };
 
-export type ChallengeMessageEncoding = "utf-8" | "hex";
+export type ChallengeMessageEncoding = 'utf-8' | 'hex';
 
 export const detectMessageEncoding = (
-  message: string,
+  message: string
 ): ChallengeMessageEncoding => {
   if (/^0x[0-9a-fA-F]*$/.test(message.trim())) {
-    return "hex";
+    return 'hex';
   }
-  return "utf-8";
+  return 'utf-8';
 };
-

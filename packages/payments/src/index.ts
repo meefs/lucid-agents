@@ -1,7 +1,3 @@
-export type {
-  PaymentRequirement,
-  RuntimePaymentRequirement,
-} from './payments';
 export { resolvePrice } from './pricing';
 export { validatePaymentsConfig } from './validation';
 export {

@@ -2,10 +2,10 @@ import {
   createRuntimePaymentContext,
   type RuntimePaymentOptions,
 } from '@lucid-agents/payments';
+import type { AgentRuntime } from '@lucid-agents/types/core';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 
 import { resetAgentKitConfigForTesting } from '../config/config';
-import type { AgentRuntime } from '../runtime';
 
 const makeRuntimeStub = (): {
   runtime: Pick<AgentRuntime, 'wallets'>;

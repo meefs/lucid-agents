@@ -57,6 +57,21 @@ async function exec(argv: string[], cwd: string) {
   }
 }
 
+async function cleanPackages() {
+  const packages = collectPackages();
+
+  for (const { manifest, dir, name } of packages) {
+    const cleanScript = manifest.scripts?.clean;
+
+    if (!cleanScript) {
+      continue;
+    }
+
+    console.log(`Cleaning ${name}...`);
+    await exec(['bun', 'run', 'clean'], dir);
+  }
+}
+
 async function buildPackages() {
   const packages = collectPackages();
 
@@ -116,6 +131,13 @@ async function buildPackages() {
     console.log(`Building ${name}...`);
     await exec(['bun', 'run', 'build'], dir);
   }
+}
+
+const shouldClean =
+  process.argv.includes('--clean') || process.argv.includes('-c');
+
+if (shouldClean) {
+  await cleanPackages();
 }
 
 await buildPackages().catch(err => {

@@ -1,34 +1,17 @@
 import type { Network } from 'x402/types';
 import type { EntrypointDef } from '@lucid-agents/types/core';
 import type { EntrypointPrice } from '@lucid-agents/types/payments';
-import type { PaymentsConfig } from '@lucid-agents/types/payments';
+import type {
+  PaymentsConfig,
+  PaymentRequirement,
+  RuntimePaymentRequirement,
+} from '@lucid-agents/types/payments';
 import { resolvePrice } from './pricing';
-
-export type PaymentRequirement =
-  | { required: false }
-  | {
-      required: true;
-      payTo: string;
-      price: string;
-      network: Network;
-      facilitatorUrl?: string;
-    };
-
-/**
- * HTTP-specific payment requirement that includes the Response object.
- */
-export type RuntimePaymentRequirement =
-  | { required: false }
-  | (Extract<PaymentRequirement, { required: true }> & {
-      response: Response;
-    });
 
 /**
  * Checks if an entrypoint has an explicit price set.
  */
-export function entrypointHasExplicitPrice(
-  entrypoint: EntrypointDef
-): boolean {
+export function entrypointHasExplicitPrice(entrypoint: EntrypointDef): boolean {
   const { price } = entrypoint;
   if (typeof price === 'string') {
     return price.trim().length > 0;

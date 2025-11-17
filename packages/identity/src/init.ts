@@ -3,7 +3,7 @@
  * These functions provide a streamlined API for common use cases.
  */
 
-import type { AgentRuntime } from '@lucid-agents/core';
+import type { AgentRuntime } from '@lucid-agents/types/core';
 import type { TrustConfig } from '@lucid-agents/types/identity';
 
 import { DEFAULT_CHAIN_ID, getRegistryAddresses } from './config';

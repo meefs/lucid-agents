@@ -20,3 +20,25 @@ export type PaymentsConfig = {
  */
 export type EntrypointPrice = string | { invoke?: string; stream?: string };
 
+/**
+ * Payment requirement for an entrypoint.
+ */
+export type PaymentRequirement =
+  | { required: false }
+  | {
+      required: true;
+      payTo: string;
+      price: string;
+      network: Network;
+      facilitatorUrl?: string;
+    };
+
+/**
+ * HTTP-specific payment requirement that includes the Response object.
+ */
+export type RuntimePaymentRequirement =
+  | { required: false }
+  | (Extract<PaymentRequirement, { required: true }> & {
+      response: Response;
+    });
+

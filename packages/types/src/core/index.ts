@@ -1,9 +1,10 @@
-import type { Network } from 'x402/types';
+import type { Network, Resource } from 'x402/types';
 import type { z } from 'zod';
 
-import type { EntrypointPrice } from '../payments';
+import type { EntrypointPrice, SolanaAddress } from '../payments';
 import type { WalletsConfig } from '../wallets';
 import type { PaymentsConfig } from '../payments';
+import type { RegistrationEntry, TrustModel } from '../identity';
 
 /**
  * Usage metrics for agent execution.
@@ -201,3 +202,128 @@ export type AgentKitConfig = {
   wallets?: WalletsConfig;
 };
 
+// AP2 (Agent Payments Protocol) types
+export type AP2Role =
+  | 'merchant'
+  | 'shopper'
+  | 'credentials-provider'
+  | 'payment-processor';
+
+export type AP2ExtensionParams = {
+  roles: [AP2Role, ...AP2Role[]];
+  [key: string]: unknown;
+};
+
+export type AP2ExtensionDescriptor = {
+  uri: 'https://github.com/google-agentic-commerce/ap2/tree/v0.1';
+  description?: string;
+  required?: boolean;
+  params: AP2ExtensionParams;
+};
+
+export type AP2Config = {
+  roles: AP2Role[];
+  description?: string;
+  required?: boolean;
+};
+
+// Manifest and Agent Card types
+export type Manifest = {
+  name: string;
+  version: string;
+  description?: string;
+  entrypoints: Record<
+    string,
+    {
+      description?: string;
+      streaming: boolean;
+      input_schema?: any;
+      output_schema?: any;
+      pricing?: { invoke?: string; stream?: string };
+    }
+  >;
+};
+
+export type PaymentMethod = {
+  method: 'x402';
+  payee: `0x${string}` | SolanaAddress;
+  network: Network;
+  endpoint?: Resource;
+  priceModel?: { default?: string };
+  extensions?: { [vendor: string]: unknown };
+};
+
+export type AgentCapabilities = {
+  streaming?: boolean;
+  pushNotifications?: boolean;
+  stateTransitionHistory?: boolean;
+  extensions?: Array<AP2ExtensionDescriptor | Record<string, unknown>>;
+};
+
+export type AgentCard = {
+  name: string;
+  description?: string;
+  url?: string;
+  provider?: { organization?: string; url?: string };
+  version?: string;
+  capabilities?: AgentCapabilities;
+  defaultInputModes?: string[];
+  defaultOutputModes?: string[];
+  skills?: Array<{
+    id: string;
+    name?: string;
+    description?: string;
+    tags?: string[];
+    examples?: string[];
+    inputModes?: string[];
+    outputModes?: string[];
+    [key: string]: unknown;
+  }>;
+  supportsAuthenticatedExtendedCard?: boolean;
+  payments?: PaymentMethod[];
+  registrations?: RegistrationEntry[];
+  trustModels?: TrustModel[];
+  ValidationRequestsURI?: string;
+  ValidationResponsesURI?: string;
+  FeedbackDataURI?: string;
+  [key: string]: unknown;
+};
+
+export type AgentCardWithEntrypoints = AgentCard & {
+  entrypoints: Manifest['entrypoints'];
+};
+
+/**
+ * Agent runtime interface.
+ * This type is defined in the types package to avoid circular dependencies
+ * between @lucid-agents/core and @lucid-agents/payments.
+ *
+ * The actual implementation is in @lucid-agents/core.
+ */
+export type AgentRuntime = {
+  /**
+   * Agent core instance. The actual type is AgentCore from @lucid-agents/core.
+   * Using `any` here to avoid circular dependency - the type will be properly
+   * inferred when used with the actual runtime implementation.
+   */
+  agent: any;
+  config: AgentKitConfig;
+  wallets?: {
+    agent?: any; // AgentWalletHandle from @lucid-agents/wallet
+    developer?: any; // AgentWalletHandle from @lucid-agents/wallet
+  };
+  payments: PaymentsConfig | undefined;
+  addEntrypoint: (def: EntrypointDef) => void;
+  listEntrypoints: () => Array<{
+    key: string;
+    description?: string;
+    streaming: boolean;
+  }>;
+  snapshotEntrypoints: () => EntrypointDef[];
+  buildManifestForOrigin: (origin: string) => AgentCardWithEntrypoints;
+  invalidateManifestCache: () => void;
+  evaluatePaymentRequirement: (
+    entrypoint: EntrypointDef,
+    kind: 'invoke' | 'stream'
+  ) => import('../payments').RuntimePaymentRequirement;
+};

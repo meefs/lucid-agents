@@ -26,16 +26,16 @@ export {
   resetAgentKitConfigForTesting,
   setActiveInstanceConfig,
 } from './config/config';
-export type { AgentKitConfig } from '@lucid-agents/types/core';
 
 // Core runtime
-export {
-  type AgentRuntime,
-  createAgentRuntime,
-  type CreateAgentRuntimeOptions,
-} from './runtime';
+export { createAgentRuntime, type CreateAgentRuntimeOptions } from './runtime';
 
 // HTTP runtime
+export {
+  type AxLLMClient,
+  type AxLLMClientOptions,
+  createAxLLMClient,
+} from './axllm';
 export {
   type AgentHttpHandlers,
   type AgentHttpRuntime,
@@ -49,24 +49,7 @@ export {
   type SSEWriteOptions,
   writeSSE,
 } from './http/sse';
-
-// Manifest and A2A types
 export * from './manifest/ap2';
 export { buildManifest } from './manifest/manifest';
-export type {
-  AgentCapabilities,
-  AgentCard,
-  AgentCardWithEntrypoints,
-  AP2Config,
-  Manifest,
-  PaymentMethod,
-} from './manifest/types';
-
-// AX LLM Utilities
-export {
-  type AxLLMClient,
-  type AxLLMClientOptions,
-  createAxLLMClient,
-} from './axllm';
 export * from './utils';
 export { validateAgentMetadata } from './validation';

@@ -1,19 +1,20 @@
 import { resolvePrice } from '@lucid-agents/payments';
+import type {
+  AgentCapabilities,
+  AgentCardWithEntrypoints,
+  AP2Config,
+  AP2ExtensionDescriptor,
+  AP2Role,
+  Manifest,
+  PaymentMethod,
+} from '@lucid-agents/types/core';
 import type { TrustConfig } from '@lucid-agents/types/identity';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
 import type { AgentMeta } from '../core/types';
 import type { EntrypointDef } from '../http/types';
 import { toJsonSchemaOrUndefined } from '../utils';
-import type { AP2ExtensionDescriptor, AP2Role } from './ap2';
 import { AP2_EXTENSION_URI } from './ap2';
-import type {
-  AgentCapabilities,
-  AgentCardWithEntrypoints,
-  AP2Config,
-  Manifest,
-  PaymentMethod,
-} from './types';
 
 export function buildManifest({
   meta,

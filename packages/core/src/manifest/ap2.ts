@@ -128,21 +128,3 @@ export type PaymentMandate = {
 
 export const AP2_EXTENSION_URI =
   'https://github.com/google-agentic-commerce/ap2/tree/v0.1' as const;
-
-export type AP2Role =
-  | 'merchant'
-  | 'shopper'
-  | 'credentials-provider'
-  | 'payment-processor';
-
-export type AP2ExtensionParams = {
-  roles: [AP2Role, ...AP2Role[]];
-  [key: string]: unknown;
-};
-
-export type AP2ExtensionDescriptor = {
-  uri: typeof AP2_EXTENSION_URI;
-  description?: string;
-  required?: boolean;
-  params: AP2ExtensionParams;
-};

@@ -1,20 +1,22 @@
-import type { RuntimePaymentRequirement } from '@lucid-agents/payments';
 import {
   evaluatePaymentRequirement as evaluatePaymentRequirementFromPayments,
   resolveActivePayments,
 } from '@lucid-agents/payments';
-import type { AgentKitConfig } from '@lucid-agents/types/core';
+import type {
+  AgentCardWithEntrypoints,
+  AgentKitConfig,
+  AgentRuntime,
+  AP2Config,
+} from '@lucid-agents/types/core';
 import type { TrustConfig } from '@lucid-agents/types/identity';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
-import type { AgentWalletHandle } from '@lucid-agents/wallet';
 import { createAgentWallet } from '@lucid-agents/wallet';
 
 import { getAgentKitConfig, setActiveInstanceConfig } from './config/config';
-import { type AgentCore, createAgentCore } from './core/agent';
+import { createAgentCore } from './core/agent';
 import type { AgentMeta, Network } from './core/types';
 import type { EntrypointDef } from './http/types';
 import { buildManifest } from './manifest/manifest';
-import type { AgentCardWithEntrypoints, AP2Config } from './manifest/types';
 
 export type CreateAgentRuntimeOptions = {
   payments?: PaymentsConfig | false;
@@ -22,29 +24,6 @@ export type CreateAgentRuntimeOptions = {
   trust?: TrustConfig;
   entrypoints?: Iterable<EntrypointDef>;
   config?: AgentKitConfig;
-};
-
-export type AgentRuntime = {
-  agent: AgentCore;
-  config: AgentKitConfig;
-  wallets?: {
-    agent?: AgentWalletHandle;
-    developer?: AgentWalletHandle;
-  };
-  payments: PaymentsConfig | undefined;
-  addEntrypoint: (def: EntrypointDef) => void;
-  listEntrypoints: () => Array<{
-    key: string;
-    description?: string;
-    streaming: boolean;
-  }>;
-  snapshotEntrypoints: () => EntrypointDef[];
-  buildManifestForOrigin: (origin: string) => AgentCardWithEntrypoints;
-  invalidateManifestCache: () => void;
-  evaluatePaymentRequirement: (
-    entrypoint: EntrypointDef,
-    kind: 'invoke' | 'stream'
-  ) => RuntimePaymentRequirement;
 };
 
 export function createAgentRuntime(
@@ -160,5 +139,5 @@ export function createAgentRuntime(
         activePayments
       );
     },
-  };
+  } satisfies AgentRuntime;
 }

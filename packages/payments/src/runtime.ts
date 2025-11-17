@@ -1,4 +1,4 @@
-import type { AgentRuntime } from '@lucid-agents/core';
+import type { AgentRuntime } from '@lucid-agents/types/core';
 import type { WalletConnector } from '@lucid-agents/wallet';
 import type { Signer } from 'x402/types';
 import { createSigner, type Hex, wrapFetchWithPayment } from 'x402-fetch';

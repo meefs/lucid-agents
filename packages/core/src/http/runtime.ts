@@ -1,18 +1,17 @@
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 
-import type { AgentKitConfig } from '@lucid-agents/types/core';
+import type {
+  AgentKitConfig,
+  AgentRuntime,
+  AP2Config,
+} from '@lucid-agents/types/core';
 import type { TrustConfig } from '@lucid-agents/types/identity';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
 import { ZodValidationError } from '../core/agent';
 import type { AgentMeta } from '../core/types';
-import type { AP2Config } from '../manifest/types';
-import {
-  type AgentRuntime,
-  createAgentRuntime,
-  type CreateAgentRuntimeOptions,
-} from '../runtime';
+import { createAgentRuntime, type CreateAgentRuntimeOptions } from '../runtime';
 import { renderLandingPage } from '../ui/landing-page';
 import { createSSEStream, type SSEStreamRunnerContext } from './sse';
 import type {

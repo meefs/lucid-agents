@@ -19,6 +19,12 @@ NEWLINE := '\n'
 default:
     @just --list --unsorted --list-heading $'{{BOLD}}{{GREEN}}Available commands:{{NEWLINE}}{{RESET}}'
 
+# Build all packages (clean first)
+build-all-clean:
+    @echo -e $'{{BOLD}}{{CYAN}}Cleaning and building all packages...{{RESET}}'
+    bun run build:clean
+    @echo -e $'{{BOLD}}{{GREEN}}All packages built successfully!{{RESET}}'
+
 # Build all packages
 build-all:
     @echo -e $'{{BOLD}}{{CYAN}}Building all packages...{{RESET}}'

@@ -1,4 +1,8 @@
-import type { AgentChallengeResponse, LocalEoaSigner, TypedDataPayload } from "./types.js";
+import type {
+  AgentChallengeResponse,
+  LocalEoaSigner,
+  TypedDataPayload,
+} from '@lucid-agents/types/wallets';
 
 import {
   detectMessageEncoding,

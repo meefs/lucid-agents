@@ -1,4 +1,4 @@
-import type { AgentChallengeResponse, FetchExecutor } from "./types.js";
+import type { AgentChallengeResponse, FetchExecutor } from '@lucid-agents/types/wallets';
 
 import {
   detectMessageEncoding,

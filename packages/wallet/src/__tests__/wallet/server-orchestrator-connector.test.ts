@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 
-import type { AgentChallengeResponse } from "../../types.js";
+import type { AgentChallengeResponse } from '@lucid-agents/types/wallets';
 
 import { ServerOrchestratorWalletConnector } from "../../server-orchestrator-connector.js";
 

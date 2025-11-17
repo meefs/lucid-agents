@@ -3,7 +3,7 @@ import type {
   DeveloperWalletConfig,
   LocalWalletWithPrivateKeyOptions,
   WalletsConfig,
-} from './types.js';
+} from '@lucid-agents/types/wallets';
 
 type EnvRecord = Record<string, string | undefined>;
 

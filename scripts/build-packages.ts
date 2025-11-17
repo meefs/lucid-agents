@@ -81,19 +81,18 @@ async function buildPackages() {
   }
 
   // Build order: base packages → extensions → core → adapters → CLI
-  // Extensions (wallet, payments, identity) can build
-  // before core because they only import types from core, not runtime code.
-  // Core imports actual functions from extensions, so extensions must build first.
+  // Extensions (wallet, payments, identity) only depend on types and wallet.
+  // Core depends on all extensions, so extensions must build first.
   const preferredOrder = [
     // Base layer - no internal dependencies
     '@lucid-agents/types',
 
-    // Extensions - build before core (only type imports from core, if any)
+    // Extensions - only depend on types
     '@lucid-agents/wallet', // Depends on types
-    '@lucid-agents/payments', // Depends on types, wallet, and type-only from core
-    '@lucid-agents/identity', // Depends on types, wallet, and type-only from core
+    '@lucid-agents/payments', // Depends on types only
+    '@lucid-agents/identity', // Depends on types only
 
-    // Core - depends on extensions
+    // Core - depends on all extensions
     '@lucid-agents/core', // Depends on payments, identity, types, wallet
 
     // Adapters - depend on core and extensions

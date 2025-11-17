@@ -1,15 +1,11 @@
-import type { AgentChallengeResponse } from "./types.js";
+import type {
+  AgentChallengeResponse,
+  ChallengeSigner,
+  WalletConnector,
+  WalletMetadata,
+} from '@lucid-agents/types/wallets';
 
-export interface WalletMetadata {
-  id?: string | null;
-  address?: string | null;
-  chain?: string | null;
-  chainType?: string | null;
-  provider?: string | null;
-  accountId?: string | null;
-  label?: string | null;
-  caip2?: string | null;
-}
+export type { ChallengeSigner, WalletConnector, WalletMetadata };
 
 export interface NormalizedChallenge {
   id: string;
@@ -22,18 +18,6 @@ export interface NormalizedChallenge {
   expiresAt: Date;
   serverSignature: string | null;
   message: string | null;
-}
-
-export interface ChallengeSigner {
-  signChallenge(
-    challenge: AgentChallengeResponse["challenge"],
-  ): Promise<string>;
-}
-
-export interface WalletConnector extends ChallengeSigner {
-  getWalletMetadata(): Promise<WalletMetadata | null>;
-  supportsCaip2?(caip2: string): boolean | Promise<boolean>;
-  getAddress?(): Promise<string | null>;
 }
 
 export interface ChallengeNormalizationOptions {

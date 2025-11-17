@@ -41,4 +41,3 @@ export type RuntimePaymentRequirement =
   | (Extract<PaymentRequirement, { required: true }> & {
       response: Response;
     });
-

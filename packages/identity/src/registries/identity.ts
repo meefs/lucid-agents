@@ -2,6 +2,10 @@ import type {
   RegistrationEntry,
   TrustConfig,
 } from '@lucid-agents/types/identity';
+import type {
+  AgentWalletHandle,
+  LocalEoaSigner,
+} from '@lucid-agents/types/wallets';
 
 import type { Hex } from '../utils';
 import {
@@ -752,7 +756,7 @@ export async function bootstrapIdentity(
 export type MakeViemClientsFromWalletOptions = {
   env?: Record<string, string | undefined>;
   rpcUrl?: string;
-  walletHandle: import('@lucid-agents/wallet').AgentWalletHandle;
+  walletHandle: AgentWalletHandle;
 };
 
 export type MakeViemClientsFromEnvOptions = {
@@ -836,9 +840,7 @@ export async function makeViemClientsFromWallet(
       // For local wallets, try to access the signer from the connector
       // This is a type assertion because the signer is private
       const localConnector = connector as any;
-      const localSigner = localConnector.signer as
-        | import('@lucid-agents/wallet').LocalEoaSigner
-        | undefined;
+      const localSigner = localConnector.signer as LocalEoaSigner | undefined;
 
       if (localSigner) {
         // Create a viem account wrapper that uses the connector's signer

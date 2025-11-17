@@ -9,18 +9,14 @@ import {
 } from "./server-orchestrator-connector.js";
 import type {
   AgentWalletFactoryOptions,
+  AgentWalletHandle,
+  AgentWalletKind,
   LocalWalletOptions,
   LucidWalletOptions,
-} from "./types.js";
-import type { WalletConnector } from "./base-connector.js";
+  WalletConnector,
+} from '@lucid-agents/types/wallets';
 
-export type AgentWalletKind = "local" | "lucid";
-
-export interface AgentWalletHandle {
-  kind: AgentWalletKind;
-  connector: WalletConnector;
-  setAccessToken?(token: string | null): void;
-}
+export type { AgentWalletHandle, AgentWalletKind };
 
 export const createAgentWallet = (
   options: AgentWalletFactoryOptions,

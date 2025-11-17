@@ -2,6 +2,8 @@ export type {
   WalletConnector,
   WalletMetadata,
   ChallengeSigner,
+} from '@lucid-agents/types/wallets';
+export type {
   NormalizedChallenge,
   ChallengeMessageEncoding,
   ChallengeNormalizationOptions,
@@ -24,15 +26,17 @@ export {
   type ServerOrchestratorWalletConnectorOptions,
 } from './server-orchestrator-connector.js';
 export { createPrivateKeySigner } from './private-key-signer.js';
-export {
-  createAgentWallet,
-  type AgentWalletHandle,
-  type AgentWalletKind,
-} from './create-agent-wallet.js';
+export { createAgentWallet } from './create-agent-wallet.js';
+export type {
+  AgentWalletHandle,
+  AgentWalletKind,
+} from '@lucid-agents/types/wallets';
 export type {
   AgentChallenge,
   AgentChallengeResponse,
+  AgentWalletConfig,
   AgentWalletFactoryOptions,
+  DeveloperWalletConfig,
   FetchExecutor,
   LocalEoaSigner,
   LocalWalletOptions,
@@ -40,8 +44,6 @@ export type {
   LocalWalletWithSignerOptions,
   LucidWalletOptions,
   TypedDataPayload,
-  AgentWalletConfig,
-  DeveloperWalletConfig,
   WalletsConfig,
-} from './types.js';
+} from '@lucid-agents/types/wallets';
 export { walletsFromEnv } from './env.js';

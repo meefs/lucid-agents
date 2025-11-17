@@ -1,6 +1,6 @@
 import { privateKeyToAccount } from "viem/accounts";
 
-import type { LocalEoaSigner, TypedDataPayload } from "./types.js";
+import type { LocalEoaSigner, TypedDataPayload } from '@lucid-agents/types/wallets';
 
 const normalizePrivateKey = (key: string): `0x${string}` => {
   const trimmed = key.trim();

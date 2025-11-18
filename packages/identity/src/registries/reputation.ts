@@ -31,8 +31,6 @@ export type FeedbackEntry = {
   score: number; // 0-100
   tag1: Hex;
   tag2: Hex;
-  fileUri: string;
-  fileHash: Hex;
   isRevoked: boolean;
   responseCount?: bigint;
 };
@@ -45,8 +43,8 @@ export type GiveFeedbackInput = {
   score: number; // 0-100
   tag1?: string | Hex;
   tag2?: string | Hex;
-  fileUri?: string;
-  fileHash?: Hex;
+  feedbackUri?: string;
+  feedbackHash?: Hex;
   feedbackAuth?: Hex; // Pre-signed authorization, or we'll sign it
   expiry?: number; // Unix timestamp for signature expiry
   indexLimit?: bigint; // Max feedback index this signature is valid for
@@ -229,8 +227,8 @@ export function createReputationRegistryClient<
           input.score,
           tag1,
           tag2,
-          input.fileUri ?? '',
-          input.fileHash ??
+          input.feedbackUri ?? '',
+          input.feedbackHash ??
             ('0x0000000000000000000000000000000000000000000000000000000000000000' as Hex),
           feedbackAuth,
         ],
@@ -289,12 +287,9 @@ export function createReputationRegistryClient<
           score,
           tag1,
           tag2,
-          fileUri: '', // Not returned by readFeedback
-          fileHash:
-            '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex,
           isRevoked,
         };
-      } catch (error) {
+      } catch {
         return null;
       }
     },
@@ -325,9 +320,6 @@ export function createReputationRegistryClient<
         score: scores[i],
         tag1: tag1s[i],
         tag2: tag2s[i],
-        fileUri: '',
-        fileHash:
-          '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex,
         isRevoked: revokedStatuses[i],
       }));
     },

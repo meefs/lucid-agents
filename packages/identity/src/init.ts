@@ -176,7 +176,7 @@ export type AgentIdentity = BootstrapIdentityResult & {
  *   await identity.clients.validation.createRequest({
  *     validatorAddress: "0x...",
  *     agentId: identity.record!.agentId,
- *     requestURI: "ipfs://...",
+ *     requestUri: "ipfs://...",
  *     requestHash: "0x...",
  *   });
  * }

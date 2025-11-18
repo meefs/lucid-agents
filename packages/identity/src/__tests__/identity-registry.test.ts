@@ -46,9 +46,6 @@ describe('createIdentityRegistryClient', () => {
       async readContract(args: any) {
         calls.push({ functionName: args.functionName, args: args.args ?? [] });
 
-        if (args.functionName === 'agentExists') {
-          return true;
-        }
         if (args.functionName === 'ownerOf') {
           return '0xAaAA000000000000000000000000000000000001';
         }
@@ -73,10 +70,6 @@ describe('createIdentityRegistryClient', () => {
     );
 
     expect(calls).toContainEqual({
-      functionName: 'agentExists',
-      args: [1n],
-    });
-    expect(calls).toContainEqual({
       functionName: 'ownerOf',
       args: [1n],
     });
@@ -89,8 +82,8 @@ describe('createIdentityRegistryClient', () => {
   it("returns null when agent doesn't exist", async () => {
     const mockPublicClient = {
       async readContract(args: any) {
-        if (args.functionName === 'agentExists') {
-          return false;
+        if (args.functionName === 'ownerOf') {
+          throw new Error('ERC721NonexistentToken');
         }
         throw new Error('Should not be called');
       },

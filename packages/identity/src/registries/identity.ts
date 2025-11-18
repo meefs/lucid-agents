@@ -123,6 +123,15 @@ export type IdentityRegistryClient = {
   readonly chainId?: number;
   get(agentId: bigint | number | string): Promise<IdentityRecord | null>;
   register(input: RegisterAgentInput): Promise<RegisterAgentResult>;
+  getMetadata(
+    agentId: bigint | number | string,
+    key: string
+  ): Promise<Uint8Array | null>;
+  setMetadata(
+    agentId: bigint | number | string,
+    key: string,
+    value: Uint8Array
+  ): Promise<Hex>;
   toRegistrationEntry(
     record: IdentityRecord,
     signature?: string
@@ -211,31 +220,24 @@ export function createIdentityRegistryClient<
     async get(agentId) {
       const id = BigInt(agentId);
 
-      const exists = (await publicClient.readContract({
-        address,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: 'agentExists',
-        args: [id],
-      })) as boolean;
-
-      if (!exists) {
-        return null;
-      }
-
-      const [owner, uri] = await Promise.all([
-        publicClient.readContract({
+      let owner: string;
+      try {
+        owner = (await publicClient.readContract({
           address,
           abi: IDENTITY_REGISTRY_ABI,
           functionName: 'ownerOf',
           args: [id],
-        }) as Promise<string>,
-        publicClient.readContract({
-          address,
-          abi: IDENTITY_REGISTRY_ABI,
-          functionName: 'tokenURI',
-          args: [id],
-        }) as Promise<string>,
-      ]);
+        })) as string;
+      } catch {
+        return null;
+      }
+
+      const uri = (await publicClient.readContract({
+        address,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: 'tokenURI',
+        args: [id],
+      })) as string;
 
       return {
         agentId: id,
@@ -311,6 +313,47 @@ export function createIdentityRegistryClient<
         agentAddress,
         agentId,
       };
+    },
+
+    async getMetadata(agentId, key) {
+      const id = BigInt(agentId);
+
+      try {
+        const metadata = (await publicClient.readContract({
+          address,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: 'getMetadata',
+          args: [id, key],
+        })) as Hex;
+
+        if (!metadata || metadata === '0x') {
+          return null;
+        }
+
+        const hexWithoutPrefix = metadata.slice(2);
+        const bytes = new Uint8Array(hexWithoutPrefix.length / 2);
+        for (let i = 0; i < hexWithoutPrefix.length; i += 2) {
+          bytes[i / 2] = parseInt(hexWithoutPrefix.slice(i, i + 2), 16);
+        }
+
+        return bytes;
+      } catch {
+        return null;
+      }
+    },
+
+    async setMetadata(agentId, key, value) {
+      const wallet = ensureWalletClient();
+      const id = BigInt(agentId);
+
+      const txHash = await wallet.writeContract({
+        address,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: 'setMetadata',
+        args: [id, key, value],
+      });
+
+      return txHash;
     },
 
     toRegistrationEntry(record, signature) {

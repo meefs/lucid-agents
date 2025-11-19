@@ -9,5 +9,5 @@ export default definePackageConfig({
       index: "src/index.ts",
     },
   },
-  external: ["viem"],
+  external: ["viem", "@lucid-agents/core", "@lucid-agents/types", "@lucid-agents/wallet"],
 });

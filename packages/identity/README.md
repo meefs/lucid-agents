@@ -141,6 +141,27 @@ identity.clients.reputation; // Peer feedback system
 identity.clients.validation; // Work validation
 ```
 
+### How to Manage Identity Metadata
+
+Read and update agent metadata:
+
+```typescript
+const { identity: identityClient } = identity.clients;
+
+// Read metadata
+const metadata = await identityClient.getMetadata(myAgentId, 'version');
+if (metadata) {
+  console.log('Version:', new TextDecoder().decode(metadata));
+}
+
+// Update metadata
+await identityClient.setMetadata(
+  myAgentId,
+  'version',
+  new TextEncoder().encode('1.0.0')
+);
+```
+
 ### How to Manage Reputation
 
 Give and receive feedback on agent interactions:
@@ -154,7 +175,7 @@ await reputation.giveFeedback({
   score: 90, // 0-100
   tag1: 'reliable',
   tag2: 'fast',
-  fileUri: 'ipfs://QmFeedbackDetails',
+  feedbackUri: 'ipfs://QmFeedbackDetails',
 });
 
 // Query reputation
@@ -193,7 +214,7 @@ const { validation } = identity.clients;
 await validation.createRequest({
   validatorAddress: '0x...',
   agentId: myAgentId,
-  requestURI: 'ipfs://QmMyWork',
+  requestUri: 'ipfs://QmMyWork',
   requestHash: keccak256(toHex('work-data')),
 });
 
@@ -201,7 +222,7 @@ await validation.createRequest({
 await validation.submitResponse({
   requestHash: '0xabc...',
   response: 1, // 1 = valid, 0 = invalid
-  responseURI: 'ipfs://QmValidationReport',
+  responseUri: 'ipfs://QmValidationReport',
   responseHash: '0x...',
 });
 

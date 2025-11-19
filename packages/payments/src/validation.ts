@@ -3,7 +3,7 @@ import {
   SupportedSVMNetworks,
   type Network,
 } from 'x402/types';
-import type { PaymentsConfig } from '@lucid-agents/types';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
 const SUPPORTED_NETWORKS: Network[] = [
   ...SupportedEVMNetworks,

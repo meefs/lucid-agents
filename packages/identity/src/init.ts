@@ -3,7 +3,10 @@
  * These functions provide a streamlined API for common use cases.
  */
 
-import { DEFAULT_CHAIN_ID, getRegistryAddresses } from './config';
+import type { AgentRuntime } from '@lucid-agents/types/core';
+import type { TrustConfig } from '@lucid-agents/types/identity';
+
+import { getRegistryAddresses } from './config';
 import {
   bootstrapIdentity,
   type BootstrapIdentityClientFactory,
@@ -11,7 +14,7 @@ import {
   type BootstrapIdentityResult,
   createIdentityRegistryClient,
   type IdentityRegistryClient,
-  makeViemClientsFromEnv,
+  makeViemClientsFromWallet,
   type PublicClientLike,
   type WalletClientLike,
 } from './registries/identity';
@@ -23,15 +26,47 @@ import {
   createValidationRegistryClient,
   type ValidationRegistryClient,
 } from './registries/validation';
-import type { TrustConfig } from './types';
 import { resolveAutoRegister, validateIdentityConfig } from './validation';
 
-export type { BootstrapIdentityResult, TrustConfig };
+export type { BootstrapIdentityResult };
+
+/**
+ * Resolves chainId from parameter, env object, or process.env.
+ * Throws if chainId cannot be resolved.
+ */
+function resolveRequiredChainId(
+  chainId: number | undefined,
+  env: Record<string, string | undefined> | undefined,
+  context?: string
+): number {
+  const resolvedChainId =
+    chainId ??
+    (typeof env === 'object' && env?.CHAIN_ID
+      ? parseInt(env.CHAIN_ID)
+      : typeof process !== 'undefined' && process.env?.CHAIN_ID
+        ? parseInt(process.env.CHAIN_ID)
+        : undefined);
+
+  if (!resolvedChainId) {
+    const contextSuffix = context ? ` ${context}` : '';
+    throw new Error(
+      `[agent-kit-identity] CHAIN_ID is required${contextSuffix}. Provide it via chainId parameter or CHAIN_ID environment variable.`
+    );
+  }
+
+  return resolvedChainId;
+}
 
 /**
  * Options for creating agent identity with automatic registration.
  */
 export type CreateAgentIdentityOptions = {
+  /**
+   * Agent runtime instance (required).
+   * Must have wallets.agent configured for identity operations.
+   */
+  runtime: AgentRuntime;
+
   /**
    * Agent domain (e.g., "agent.example.com").
    * Falls back to AGENT_DOMAIN env var if not provided.
@@ -63,13 +98,6 @@ export type CreateAgentIdentityOptions = {
   rpcUrl?: string;
 
   /**
-   * Private key for wallet operations.
-   * Falls back to PRIVATE_KEY env var.
-   * Required for registration operations.
-   */
-  privateKey?: `0x${string}` | string;
-
-  /**
    * Trust models to advertise (e.g., ["feedback", "inference-validation"]).
    * Defaults to ["feedback", "inference-validation"].
    */
@@ -92,7 +120,7 @@ export type CreateAgentIdentityOptions = {
 
   /**
    * Optional client factory (useful for testing).
-   * If provided, this will be used instead of makeViemClientsFromEnv.
+   * If provided, this will be used instead of makeViemClientsFromWallet.
    */
   makeClients?: BootstrapIdentityClientFactory;
 
@@ -175,7 +203,7 @@ export type AgentIdentity = BootstrapIdentityResult & {
  *   await identity.clients.validation.createRequest({
  *     validatorAddress: "0x...",
  *     agentId: identity.record!.agentId,
- *     requestURI: "ipfs://...",
+ *     requestUri: "ipfs://...",
  *     requestHash: "0x...",
  *   });
  * }
@@ -198,17 +226,28 @@ export type AgentIdentity = BootstrapIdentityResult & {
  * ```
  */
 export async function createAgentIdentity(
-  options: CreateAgentIdentityOptions = {}
+  options: CreateAgentIdentityOptions
 ): Promise<AgentIdentity> {
-  // Validate configuration early
+  if (!options.runtime) {
+    throw new Error(
+      'runtime is required for createAgentIdentity. Pass the AgentRuntime instance from createAgentHttpRuntime or createAgentRuntime.'
+    );
+  }
+
+  if (!options.runtime.wallets?.agent) {
+    throw new Error(
+      'runtime.wallets.agent is required for identity operations. Configure a wallet in the runtime config.'
+    );
+  }
+
   validateIdentityConfig(options, options.env);
 
   const {
+    runtime,
     domain,
     chainId,
     registryAddress,
     rpcUrl,
-    privateKey,
     trustModels = ['feedback', 'inference-validation'],
     trustOverrides,
     env,
@@ -216,23 +255,17 @@ export async function createAgentIdentity(
     makeClients,
   } = options;
 
-  // Resolve autoRegister with case-insensitive parsing
   const autoRegister = resolveAutoRegister(options, env);
 
   const viemFactory =
     makeClients ??
-    (await makeViemClientsFromEnv({
+    (await makeViemClientsFromWallet({
       env,
       rpcUrl,
-      privateKey,
+      walletHandle: runtime.wallets.agent,
     }));
 
-  const resolvedChainId =
-    chainId ??
-    (typeof env === 'object' && env?.CHAIN_ID
-      ? parseInt(env.CHAIN_ID)
-      : undefined) ??
-    DEFAULT_CHAIN_ID;
+  const resolvedChainId = resolveRequiredChainId(chainId, env);
   const resolvedRegistryAddress =
     registryAddress ??
     (typeof env === 'object' && env?.IDENTITY_REGISTRY_ADDRESS
@@ -280,60 +313,63 @@ export async function createAgentIdentity(
   const resolvedDomain =
     domain ?? (typeof env === 'object' ? env?.AGENT_DOMAIN : undefined);
 
-  // Create registry clients if we have the necessary components
   let clients: RegistryClients | undefined;
 
   if (viemFactory) {
     try {
-      const resolvedChainId =
-        chainId ??
-        (env && typeof env === 'object'
-          ? parseInt(env.CHAIN_ID || '84532')
-          : 84532);
+      const resolvedChainId = resolveRequiredChainId(
+        chainId,
+        env,
+        'for registry clients'
+      );
+
       const resolvedRpcUrl =
-        rpcUrl ?? (env && typeof env === 'object' ? env.RPC_URL : undefined);
+        rpcUrl ??
+        (typeof env === 'object' && env?.RPC_URL
+          ? env.RPC_URL
+          : typeof process !== 'undefined' && process.env?.RPC_URL
+            ? process.env.RPC_URL
+            : undefined);
 
-      if (resolvedRpcUrl) {
-        const vClients = await viemFactory({
-          chainId: resolvedChainId,
-          rpcUrl: resolvedRpcUrl,
-          env: env ?? {},
-        });
+      if (!resolvedRpcUrl) {
+        throw new Error(
+          '[agent-kit-identity] RPC_URL is required for registry clients. Provide it via rpcUrl parameter or RPC_URL environment variable.'
+        );
+      }
 
-        if (vClients?.publicClient) {
-          const registryAddresses = getRegistryAddresses(resolvedChainId);
-          const identityAddress =
-            registryAddress ?? registryAddresses.IDENTITY_REGISTRY;
+      const vClients = await viemFactory({
+        chainId: resolvedChainId,
+        rpcUrl: resolvedRpcUrl,
+        env: env ?? {},
+      });
 
-          clients = {
-            identity: createIdentityRegistryClient({
-              address: identityAddress,
-              chainId: resolvedChainId,
-              publicClient: vClients.publicClient as PublicClientLike,
-              walletClient: vClients.walletClient as
-                | WalletClientLike
-                | undefined,
-            }),
-            reputation: createReputationRegistryClient({
-              address: registryAddresses.REPUTATION_REGISTRY,
-              chainId: resolvedChainId,
-              publicClient: vClients.publicClient as PublicClientLike,
-              walletClient: vClients.walletClient as
-                | WalletClientLike
-                | undefined,
-              identityRegistryAddress: identityAddress,
-            }),
-            validation: createValidationRegistryClient({
-              address: registryAddresses.VALIDATION_REGISTRY,
-              chainId: resolvedChainId,
-              publicClient: vClients.publicClient as PublicClientLike,
-              walletClient: vClients.walletClient as
-                | WalletClientLike
-                | undefined,
-              identityRegistryAddress: identityAddress,
-            }),
-          };
-        }
+      if (vClients?.publicClient) {
+        const registryAddresses = getRegistryAddresses(resolvedChainId);
+        const identityAddress =
+          registryAddress ?? registryAddresses.IDENTITY_REGISTRY;
+
+        clients = {
+          identity: createIdentityRegistryClient({
+            address: identityAddress,
+            chainId: resolvedChainId,
+            publicClient: vClients.publicClient as PublicClientLike,
+            walletClient: vClients.walletClient as WalletClientLike | undefined,
+          }),
+          reputation: createReputationRegistryClient({
+            address: registryAddresses.REPUTATION_REGISTRY,
+            chainId: resolvedChainId,
+            publicClient: vClients.publicClient as PublicClientLike,
+            walletClient: vClients.walletClient as WalletClientLike | undefined,
+            identityRegistryAddress: identityAddress,
+          }),
+          validation: createValidationRegistryClient({
+            address: registryAddresses.VALIDATION_REGISTRY,
+            chainId: resolvedChainId,
+            publicClient: vClients.publicClient as PublicClientLike,
+            walletClient: vClients.walletClient as WalletClientLike | undefined,
+            identityRegistryAddress: identityAddress,
+          }),
+        };
       }
     } catch (error) {
       // Failed to create clients, but that's okay - agent can still work without them
@@ -353,7 +389,6 @@ export async function createAgentIdentity(
     clients,
   };
 
-  // Log metadata JSON after successful registration
   if (identity.didRegister && identity.domain) {
     const log = logger ?? { info: console.log };
     const metadata = generateAgentMetadata(identity);

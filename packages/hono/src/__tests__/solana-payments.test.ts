@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import { createAgentApp } from '@lucid-agents/hono';
-import type { PaymentsConfig } from '@lucid-agents/types';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
 describe('Hono Solana Payments', () => {
   const solanaPayments: PaymentsConfig = {

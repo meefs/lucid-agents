@@ -1,11 +1,13 @@
 import {
   createAgentHttpRuntime,
   type AgentHttpRuntime,
-  type AgentMeta,
   type CreateAgentHttpOptions,
-} from "@lucid-agents/core";
+} from '@lucid-agents/core';
+import type { AgentMeta } from '@lucid-agents/types/core';
 
-export type TanStackRequestHandler = (ctx: { request: Request }) => Promise<Response>;
+export type TanStackRequestHandler = (ctx: {
+  request: Request;
+}) => Promise<Response>;
 
 export type TanStackRouteHandler<P extends Record<string, string>> = (ctx: {
   request: Request;

@@ -264,9 +264,6 @@ async function main() {
           '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429',
         network: (process.env.NETWORK as any) ?? 'base-sepolia',
       },
-      wallet: {
-        walletApiUrl: process.env.API_BASE_URL ?? 'https://localhost:8787',
-      },
     };
 
     const { app, addEntrypoint } = createAgentApp(

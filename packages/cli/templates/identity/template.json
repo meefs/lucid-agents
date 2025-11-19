@@ -6,6 +6,7 @@
   "package": {
     "dependencies": {
       "@lucid-agents/identity": "latest",
+      "@lucid-agents/wallet": "latest",
       "viem": "^2.21.26"
     }
   },
@@ -72,9 +73,15 @@
         "defaultValue": true
       },
       {
-        "key": "PRIVATE_KEY",
+        "key": "AGENT_WALLET_PRIVATE_KEY",
         "type": "input",
-        "message": "Wallet private key (leave empty to add later)",
+        "message": "Agent wallet private key (required for identity registration)",
+        "defaultValue": ""
+      },
+      {
+        "key": "DEVELOPER_WALLET_PRIVATE_KEY",
+        "type": "input",
+        "message": "Developer wallet private key (optional, for contract interactions)",
         "defaultValue": ""
       }
     ]

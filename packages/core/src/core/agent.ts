@@ -1,14 +1,11 @@
-import type { PaymentsConfig } from '@lucid-agents/types';
+import type {
+  AgentConfig,
+  AgentContext,
+  Usage,
+} from '@lucid-agents/types/core';
 import { z } from 'zod';
 
 import type { EntrypointDef, StreamResult } from '../http/types';
-import type { AgentContext, AgentMeta, Usage } from './types';
-
-export type AgentConfig = {
-  meta: AgentMeta;
-  payments?: PaymentsConfig | false;
-  walletConnectProjectId?: string;
-};
 
 export type InvokeContext = {
   signal: AbortSignal;

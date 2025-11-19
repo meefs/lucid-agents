@@ -274,7 +274,7 @@ Key shapes:
 - `AgentContext`: `{ key, input, signal, headers, runId }`
 - `PaymentsConfig`: `{ payTo, facilitatorUrl, network }`
 - `CreateAgentAppOptions`: `{ config?, payments?, ap2?, trust?, entrypoints? }`
-- `CreateAgentAppReturn`: `{ app, addEntrypoint, config, payments }`
+- `CreateAgentAppReturn<TApp>`: `{ app: TApp, runtime, agent, addEntrypoint, config }` (generic type in `@lucid-agents/types/core`)
 
 ## Utils
 

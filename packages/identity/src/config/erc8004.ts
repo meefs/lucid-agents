@@ -3,63 +3,81 @@
  * Contract addresses and constants
  */
 
-import type { Hex } from '../utils';
+import type { Hex } from '@lucid-agents/wallet';
 
 /**
- * Default ERC-8004 registry addresses (CREATE2 deterministic)
+ * Official ERC-8004 registry addresses by chain
  *
- * These addresses are deployed via CREATE2, ensuring the same address across chains.
- * They are deterministic and can be verified on any EVM-compatible network.
- *
- * Reference: https://github.com/ChaosChain/trustless-agents-erc-ri
+ * Reference: https://github.com/erc-8004/erc-8004-contracts
  */
-const DEFAULT_ADDRESSES = {
-  /**
-   * Identity Registry - ERC-721 NFTs representing agent identities
-   * Functions: register(), ownerOf(), tokenURI(), agentExists()
-   */
-  IDENTITY_REGISTRY: '0x7177a6867296406881E20d6647232314736Dd09A' as Hex,
+type RegistryAddresses = {
+  IDENTITY_REGISTRY: Hex;
+  REPUTATION_REGISTRY: Hex;
+  VALIDATION_REGISTRY: Hex;
+};
 
-  /**
-   * Reputation Registry - Peer feedback and reputation system
-   * Functions: giveFeedback(), revokeFeedback(), getSummary(), getAllFeedback()
-   */
-  REPUTATION_REGISTRY: '0xB5048e3ef1DA4E04deB6f7d0423D06F63869e322' as Hex,
-
-  /**
-   * Validation Registry - Validation requests and responses
-   * Functions: validationRequest(), validationResponse(), getRequest(), getSummary()
-   */
-  VALIDATION_REGISTRY: '0x662b40A526cb4017d947e71eAF6753BF3eeE66d8' as Hex,
-} as const;
-
-/**
- * Chain-specific overrides for registries with different addresses
- *
- * Only add entries here if a specific chain has different addresses
- * than the deterministic CREATE2 defaults above.
- */
-const CHAIN_OVERRIDES: Partial<
-  Record<number, Partial<typeof DEFAULT_ADDRESSES>>
-> = {
-  // Example: If a chain has different registry addresses
-  // 42161: {
-  //   IDENTITY_REGISTRY: "0xDifferentAddress..." as Hex,
-  // },
+const CHAIN_ADDRESSES: Record<number, RegistryAddresses> = {
+  // ETH Sepolia (11155111)
+  11155111: {
+    IDENTITY_REGISTRY: '0x8004a6090Cd10A7288092483047B097295Fb8847' as Hex,
+    REPUTATION_REGISTRY: '0x8004B8FD1A363aa02fDC07635C0c5F94f6Af5B7E' as Hex,
+    VALIDATION_REGISTRY: '0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5' as Hex,
+  },
+  // Base Sepolia (84532)
+  84532: {
+    IDENTITY_REGISTRY: '0x8004AA63c570c570eBF15376c0dB199918BFe9Fb' as Hex,
+    REPUTATION_REGISTRY: '0x8004bd8daB57f14Ed299135749a5CB5c42d341BF' as Hex,
+    VALIDATION_REGISTRY: '0x8004C269D0A5647E51E121FeB226200ECE932d55' as Hex,
+  },
+  // Linea Sepolia (59141)
+  59141: {
+    IDENTITY_REGISTRY: '0x8004aa7C931bCE1233973a0C6A667f73F66282e7' as Hex,
+    REPUTATION_REGISTRY: '0x8004bd8483b99310df121c46ED8858616b2Bba02' as Hex,
+    VALIDATION_REGISTRY: '0x8004c44d1EFdd699B2A26e781eF7F77c56A9a4EB' as Hex,
+  },
+  // Polygon Amoy (80002)
+  80002: {
+    IDENTITY_REGISTRY: '0x8004ad19E14B9e0654f73353e8a0B600D46C2898' as Hex,
+    REPUTATION_REGISTRY: '0x8004B12F4C2B42d00c46479e859C92e39044C930' as Hex,
+    VALIDATION_REGISTRY: '0x8004C11C213ff7BaD36489bcBDF947ba5eee289B' as Hex,
+  },
+  // Hedera Testnet (296)
+  296: {
+    IDENTITY_REGISTRY: '0x4c74ebd72921d537159ed2053f46c12a7d8e5923' as Hex,
+    REPUTATION_REGISTRY: '0xc565edcba77e3abeade40bfd6cf6bf583b3293e0' as Hex,
+    VALIDATION_REGISTRY: '0x18df085d85c586e9241e0cd121ca422f571c2da6' as Hex,
+  },
+  // HyperEVM Testnet (998)
+  998: {
+    IDENTITY_REGISTRY: '0x8004A9560C0edce880cbD24Ba19646470851C986' as Hex,
+    REPUTATION_REGISTRY: '0x8004b490779A65D3290a31fD96471122050dF671' as Hex,
+    VALIDATION_REGISTRY: '0x8004C86198fdB8d8169c0405D510EC86cc7B0551' as Hex,
+  },
+  // SKALE Base Sepolia Testnet (202402221200)
+  202402221200: {
+    IDENTITY_REGISTRY: '0x4fa7900596c9830664406d3796952c59ec4133d9' as Hex,
+    REPUTATION_REGISTRY: '0x9b9d23a47697691ef1016906d1f8ddfc009e6a69' as Hex,
+    VALIDATION_REGISTRY: '0x34ae1196b1609e01ebc90b75c802b2ea87203f13' as Hex,
+  },
 } as const;
 
 /**
  * Supported chain IDs for ERC-8004 registries
+ * Based on official deployments: https://github.com/erc-8004/erc-8004-contracts
  */
 export const SUPPORTED_CHAINS = {
   BASE_SEPOLIA: 84532,
+  ETHEREUM_SEPOLIA: 11155111,
+  LINEA_SEPOLIA: 59141,
+  POLYGON_AMOY: 80002,
+  HEDERA_TESTNET: 296,
+  HYPEREVM_TESTNET: 998,
+  SKALE_BASE_SEPOLIA: 202402221200,
   ETHEREUM_MAINNET: 1,
-  SEPOLIA: 11155111,
   BASE_MAINNET: 8453,
   ARBITRUM: 42161,
   OPTIMISM: 10,
   POLYGON: 137,
-  POLYGON_AMOY: 80002,
 } as const;
 
 export type SupportedChainId =
@@ -68,7 +86,6 @@ export type SupportedChainId =
 /**
  * Default network configuration
  */
-export const DEFAULT_CHAIN_ID = 84532; // Base Sepolia
 export const DEFAULT_NAMESPACE = 'eip155'; // EVM chains
 
 /**
@@ -81,13 +98,20 @@ export const DEFAULT_TRUST_MODELS: string[] = [
 
 /**
  * Get all registry addresses for a specific chain
- * Returns default addresses with any chain-specific overrides applied
+ * Throws an error if the chain is not supported
  */
-export function getRegistryAddresses(
-  chainId: number
-): typeof DEFAULT_ADDRESSES {
-  const overrides = CHAIN_OVERRIDES[chainId] ?? {};
-  return { ...DEFAULT_ADDRESSES, ...overrides };
+export function getRegistryAddresses(chainId: number): RegistryAddresses {
+  const addresses = CHAIN_ADDRESSES[chainId];
+  if (!addresses) {
+    const supportedChains = Object.keys(CHAIN_ADDRESSES)
+      .map(id => `${id}`)
+      .join(', ');
+    throw new Error(
+      `Chain ID ${chainId} is not supported. Supported chains: ${supportedChains}. ` +
+        `See https://github.com/erc-8004/erc-8004-contracts for official deployments.`
+    );
+  }
+  return addresses;
 }
 
 /**
@@ -113,7 +137,7 @@ export function getRegistryAddress(
  * Check if a chain ID is supported by the ERC-8004 registries
  */
 export function isChainSupported(chainId: number): boolean {
-  return Object.values(SUPPORTED_CHAINS).includes(chainId as SupportedChainId);
+  return chainId in CHAIN_ADDRESSES;
 }
 
 /**
@@ -123,6 +147,10 @@ export function isERC8004Registry(address: Hex, chainId?: number): boolean {
   const normalized = address.toLowerCase();
 
   if (chainId !== undefined) {
+    // Check if chain is supported first
+    if (!isChainSupported(chainId)) {
+      return false;
+    }
     // Check specific chain
     const addresses = getRegistryAddresses(chainId);
     return Object.values(addresses).some(
@@ -131,8 +159,8 @@ export function isERC8004Registry(address: Hex, chainId?: number): boolean {
   }
 
   // Check all supported chains
-  const chains = Object.values(SUPPORTED_CHAINS);
-  return chains.some(cid => {
+  const supportedChainIds = Object.keys(CHAIN_ADDRESSES).map(Number);
+  return supportedChainIds.some(cid => {
     const addresses = getRegistryAddresses(cid);
     return Object.values(addresses).some(
       addr => addr.toLowerCase() === normalized

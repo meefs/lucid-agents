@@ -2,7 +2,8 @@ import type { Hono } from 'hono';
 import { paymentMiddleware } from 'x402-hono';
 import type { FacilitatorConfig } from 'x402/types';
 import { toJsonSchemaOrUndefined } from './utils';
-import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/types';
+import type { EntrypointDef } from '@lucid-agents/types/core';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import {
   resolvePrice,
   validatePaymentsConfig,

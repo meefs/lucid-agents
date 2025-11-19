@@ -63,7 +63,9 @@ The template automatically sets up identity when the agent starts:
 
 ```typescript
 // From src/agent.ts
+// Runtime is created in ADAPTER_APP_CREATION
 const identity = await createAgentIdentity({
+  runtime,
   domain: process.env.AGENT_DOMAIN,
   autoRegister: process.env.IDENTITY_AUTO_REGISTER === "true",
 });
@@ -87,12 +89,30 @@ This:
 ### Manual Registration
 
 ```typescript
+import { createAgentHttpRuntime } from "@lucid-agents/core";
 import {
   createAgentIdentity,
   getTrustConfig,
 } from "@lucid-agents/identity";
 
+// Create runtime first (must have wallets.agent configured)
+const runtime = createAgentHttpRuntime(
+  { name: "my-agent", version: "0.1.0" },
+  {
+    config: {
+      wallets: {
+        agent: {
+          type: "local",
+          privateKey: process.env.PRIVATE_KEY,
+        },
+      },
+    },
+  }
+);
+
+// Then create identity using the runtime
 const identity = await createAgentIdentity({
+  runtime,
   domain: "agent.example.com",
   autoRegister: true, // Will register if not already registered
 });

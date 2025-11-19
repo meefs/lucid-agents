@@ -3,8 +3,10 @@
  * Handles validation requests and responses for agent work verification
  */
 
+import type { Hex } from '@lucid-agents/wallet';
+
 import { VALIDATION_REGISTRY_ABI } from '../abi/types';
-import type { Hex } from '../utils';
+import { hashValidationRequest } from './erc8004-signatures';
 import type { PublicClientLike, WalletClientLike } from './identity';
 
 /**
@@ -42,6 +44,7 @@ export type ValidationStatus = {
   validatorAddress: Hex;
   agentId: bigint;
   response: number; // Validation result code
+  responseHash: Hex;
   tag: Hex;
   lastUpdate: bigint;
 };
@@ -53,7 +56,7 @@ export type CreateValidationRequestInput = {
   validatorAddress: Hex;
   agentId: bigint;
   requestUri: string;
-  requestHash: Hex;
+  requestHash?: Hex; // Optional - will be computed from requestUri if not provided
 };
 
 /**
@@ -84,9 +87,7 @@ export type ValidationRegistryClient = {
   submitResponse(input: SubmitValidationResponseInput): Promise<Hex>;
 
   // Read operations
-  getRequest(requestHash: Hex): Promise<ValidationRequest | null>;
   getValidationStatus(requestHash: Hex): Promise<ValidationStatus | null>;
-  requestExists(requestHash: Hex): Promise<boolean>;
 
   getAgentValidations(agentId: bigint): Promise<Hex[]>;
   getValidatorRequests(validatorAddress: Hex): Promise<Hex[]>;
@@ -109,13 +110,7 @@ export function createValidationRegistryClient<
 >(
   options: ValidationRegistryClientOptions<PublicClient, WalletClient>
 ): ValidationRegistryClient {
-  const {
-    address,
-    chainId,
-    publicClient,
-    walletClient,
-    identityRegistryAddress,
-  } = options;
+  const { address, chainId, publicClient, walletClient } = options;
 
   function ensureWalletClient(): WalletClientLike {
     if (!walletClient) {
@@ -133,6 +128,10 @@ export function createValidationRegistryClient<
     async createRequest(input) {
       const wallet = ensureWalletClient();
 
+      // Compute request hash from URI if not provided
+      const requestHash =
+        input.requestHash ?? hashValidationRequest(input.requestUri);
+
       const txHash = await wallet.writeContract({
         address,
         abi: VALIDATION_REGISTRY_ABI,
@@ -141,7 +140,7 @@ export function createValidationRegistryClient<
           input.validatorAddress,
           input.agentId,
           input.requestUri,
-          input.requestHash,
+          requestHash,
         ],
       });
 
@@ -169,29 +168,6 @@ export function createValidationRegistryClient<
       return txHash;
     },
 
-    async getRequest(requestHash) {
-      try {
-        const result = (await publicClient.readContract({
-          address,
-          abi: VALIDATION_REGISTRY_ABI,
-          functionName: 'getRequest',
-          args: [requestHash],
-        })) as [Hex, bigint, string, bigint];
-
-        const [validatorAddress, agentId, requestUri, timestamp] = result;
-
-        return {
-          validatorAddress,
-          agentId,
-          requestUri,
-          requestHash,
-          timestamp,
-        };
-      } catch (error) {
-        return null;
-      }
-    },
-
     async getValidationStatus(requestHash) {
       try {
         const result = (await publicClient.readContract({
@@ -199,31 +175,28 @@ export function createValidationRegistryClient<
           abi: VALIDATION_REGISTRY_ABI,
           functionName: 'getValidationStatus',
           args: [requestHash],
-        })) as [Hex, bigint, number, Hex, bigint];
+        })) as [Hex, bigint, number, Hex, Hex, bigint];
 
-        const [validatorAddress, agentId, response, tag, lastUpdate] = result;
+        const [
+          validatorAddress,
+          agentId,
+          response,
+          responseHash,
+          tag,
+          lastUpdate,
+        ] = result;
 
         return {
           validatorAddress,
           agentId,
           response,
+          responseHash,
           tag,
           lastUpdate,
         };
-      } catch (error) {
+      } catch {
         return null;
       }
-    },
-
-    async requestExists(requestHash) {
-      const exists = (await publicClient.readContract({
-        address,
-        abi: VALIDATION_REGISTRY_ABI,
-        functionName: 'requestExists',
-        args: [requestHash],
-      })) as boolean;
-
-      return exists;
     },
 
     async getAgentValidations(agentId) {

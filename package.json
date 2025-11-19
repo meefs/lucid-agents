@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "bun run scripts/build-packages.ts",
+    "build:clean": "bun run scripts/build-packages.ts --clean",
     "build:packages": "bun run scripts/build-packages.ts",
     "changeset": "bunx changeset",
     "release:version": "bunx changeset version",

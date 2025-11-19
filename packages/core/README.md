@@ -64,7 +64,7 @@ The return value exposes:
 
 - `app` — the underlying server instance (Hono or Express) you can serve with Bun/Node platforms.
 - `addEntrypoint(def)` — register more entrypoints at runtime.
-- `config` — the resolved `ResolvedAgentKitConfig` after env and runtime overrides.
+- `config` — the resolved `AgentKitConfig` after env and runtime overrides.
 - `payments` — the active `PaymentsConfig` (if paywalling is enabled) or `undefined`.
 
 **Example with Hono Adapter:**
@@ -133,7 +133,7 @@ const { runtime, handlers } = createTanStackRuntime({
   description: 'Echoes whatever you pass in',
 });
 
-runtime.addEntrypoint({
+runtime.entrypoints.add({
   key: 'echo',
   description: 'Echo a message',
   input: z.object({ text: z.string() }),
@@ -252,12 +252,12 @@ Every agent app exposes the following for free:
 
 `core` keeps configuration centralized so every helper resolves the same values.
 
-- Defaults live in `src/config.ts` (facilitator, pay-to address, network, wallet API).
-- Environment variables override defaults automatically: `FACILITATOR_URL`, `PAYMENTS_RECEIVABLE_ADDRESS`, `NETWORK`, `LUCID_API_URL`/`VITE_API_URL`, `AGENT_WALLET_MAX_PAYMENT_BASE_UNITS`, and `AGENT_WALLET_MAX_PAYMENT_USDC`.
+- Defaults live in `src/config.ts` (currently empty placeholders).
+- Environment variables flow in via the extension helpers (`paymentsFromEnv()` and `walletsFromEnv()`).
 - `configureAgentKit(overrides)` merges values at runtime; use it inside tests or before calling `createAgentApp`.
 - `getAgentKitConfig()` returns the resolved values; `resetAgentKitConfigForTesting()` clears overrides.
 
-The helper `paymentsFromEnv()` returns the currently resolved `PaymentsConfig`, honouring inline config and environment values.
+The helper `paymentsFromEnv()` returns the currently resolved `PaymentsConfig`, honouring inline config and environment values. `walletsFromEnv()` follows the same pattern.
 
 ```ts
 import {
@@ -272,12 +272,17 @@ configureAgentKit({
     payTo: '0x...',
     network: 'base-sepolia',
   },
-  wallet: { walletApiUrl: 'https://wallets.example' },
+  wallets: {
+    agent: {
+      type: 'local',
+      privateKey: '0xabc...',
+    },
+  },
 });
 
 const config = getAgentKitConfig();
-console.log(config.payments.facilitatorUrl); // resolved facilitator
-console.log(config.wallet.walletApiUrl); // resolved wallet API base URL
+console.log(config.payments?.facilitatorUrl); // resolved facilitator
+console.log(config.wallets?.agent?.type); // 'local'
 console.log(paymentsFromEnv()); // reuse inside handlers
 ```
 

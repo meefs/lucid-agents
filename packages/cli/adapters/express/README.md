@@ -6,10 +6,10 @@ This directory contains the base project structure for generating Express-based 
 
 ```
 express/
-├── package.json         # Base dependencies (Express, agent-kit, etc.)
+├── package.json         # Base dependencies (Express, core, etc.)
 ├── tsconfig.json        # TypeScript configuration
 ├── src/
-│   ├── index.ts         # Bun server entry point
+│   ├── index.ts         # Server entry point
 │   └── lib/
 │       └── agent.ts     # Agent definition with placeholders
 ```
@@ -23,7 +23,7 @@ The `src/lib/agent.ts` file contains placeholders that are replaced during gener
 - `{{ADAPTER_APP_CREATION}}` - App creation call
 - `{{ADAPTER_ENTRYPOINT_REGISTRATION}}` - Example entrypoint
 - `{{ADAPTER_POST_SETUP}}` - Template cleanup/exports
-- `{{ADAPTER_EXPORTS}}` - Export app/server references
+- `{{ADAPTER_EXPORTS}}` - Export app
 
 ## Usage
 

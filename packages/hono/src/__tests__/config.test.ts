@@ -14,10 +14,8 @@ describe('AgentKit config management', () => {
 
   it('returns defaults when no overrides provided', () => {
     const config = getAgentKitConfig();
-    // Security: Payments are NOT configured by default to prevent accidental misconfiguration
-    expect(config.payments.facilitatorUrl).toBeUndefined();
-    expect(config.payments.payTo).toBeUndefined();
-    expect(config.wallet.walletApiUrl).toBeTruthy();
+    expect(config.payments).toBeUndefined();
+    expect(config.wallets).toBeUndefined();
   });
 
   it('allows scoped config per app instance without global mutation', () => {
@@ -46,7 +44,7 @@ describe('AgentKit config management', () => {
 
     // Global config is not affected (preventing leakage)
     const globalConfig = getAgentKitConfig();
-    expect(globalConfig.payments.facilitatorUrl).not.toBe(
+    expect(globalConfig.payments?.facilitatorUrl).not.toBe(
       'https://facilitator.test'
     );
 
@@ -101,13 +99,20 @@ describe('AgentKit config management', () => {
     expect(payments.network).toBe('base');
   });
 
-  it('instance config overrides global config', () => {
-    // Set global config
+  it('supports wallet overrides at global and instance scope', () => {
+    // Use valid 64-character hex private keys
+    const globalPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
+    const instancePrivateKey = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+
     configureAgentKit({
-      wallet: { walletApiUrl: 'https://global.example' },
+      wallets: {
+        agent: { type: 'local', privateKey: globalPrivateKey },
+      },
     });
 
-    // Create app with instance-specific override
+    const globalConfig = getAgentKitConfig();
+    expect(globalConfig.wallets?.agent?.privateKey).toBe(globalPrivateKey);
+
     const { config } = createAgentApp(
       {
         name: 'config-test-wallet',
@@ -115,15 +120,18 @@ describe('AgentKit config management', () => {
         description: 'Config test wallet agent',
       },
       {
-        config: { wallet: { walletApiUrl: 'https://instance.example' } },
+        config: {
+          wallets: {
+            agent: { type: 'local', privateKey: instancePrivateKey },
+          },
+        },
       }
     );
 
-    // Instance config should override global
-    expect(config.wallet.walletApiUrl).toBe('https://instance.example');
+    // The config should have the wallet configuration
+    expect(config.wallets?.agent?.privateKey).toBe(instancePrivateKey);
 
-    // Global config unchanged
-    const globalConfig = getAgentKitConfig();
-    expect(globalConfig.wallet.walletApiUrl).toBe('https://global.example');
+    const globalAfter = getAgentKitConfig();
+    expect(globalAfter.wallets?.agent?.privateKey).toBe(globalPrivateKey);
   });
 });

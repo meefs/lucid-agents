@@ -1,6 +1,5 @@
 // Core types and functions
 export {
-  type AgentConfig,
   AgentCore,
   createAgentCore,
   type InvokeContext,
@@ -8,7 +7,7 @@ export {
   type StreamContext,
   ZodValidationError,
 } from './core/agent';
-export type { AgentContext, AgentMeta, Network, Usage } from './core/types';
+export type { Network } from './core/types';
 export type {
   EntrypointDef,
   EntrypointHandler,
@@ -17,25 +16,31 @@ export type {
   StreamPushEnvelope,
   StreamResult,
 } from './http/types';
+export type { AgentConfig } from '@lucid-agents/types/core';
 
 // Config management
 export {
-  type AgentKitConfig,
   configureAgentKit,
   getActiveInstanceConfig,
   getAgentKitConfig,
   resetAgentKitConfigForTesting,
-  type ResolvedAgentKitConfig,
   setActiveInstanceConfig,
 } from './config/config';
 
+// Core runtime
+export { createAgentRuntime, type CreateAgentRuntimeOptions } from './runtime';
+
 // HTTP runtime
+export {
+  type AxLLMClient,
+  type AxLLMClientOptions,
+  createAxLLMClient,
+} from './axllm';
 export {
   type AgentHttpHandlers,
   type AgentHttpRuntime,
   type CreateAgentHttpOptions,
   createAgentHttpRuntime,
-  type RuntimePaymentRequirement,
 } from './http/runtime';
 export {
   createSSEStream,
@@ -44,24 +49,7 @@ export {
   type SSEWriteOptions,
   writeSSE,
 } from './http/sse';
-
-// Manifest and A2A types
 export * from './manifest/ap2';
 export { buildManifest } from './manifest/manifest';
-export type {
-  AgentCapabilities,
-  AgentCard,
-  AgentCardWithEntrypoints,
-  AP2Config,
-  Manifest,
-  PaymentMethod,
-} from './manifest/types';
-
-// AX LLM Utilities
-export {
-  type AxLLMClient,
-  type AxLLMClientOptions,
-  createAxLLMClient,
-} from './axllm';
 export * from './utils';
 export { validateAgentMetadata } from './validation';

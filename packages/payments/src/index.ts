@@ -1,7 +1,13 @@
-export type { PaymentRequirement } from './payments';
 export { resolvePrice } from './pricing';
 export { validatePaymentsConfig } from './validation';
-export { resolvePaymentRequirement, paymentRequiredResponse } from './payments';
+export {
+  entrypointHasExplicitPrice,
+  evaluatePaymentRequirement,
+  resolveActivePayments,
+  resolvePaymentRequirement,
+  paymentRequiredResponse,
+  createPaymentsRuntime,
+} from './payments';
 export {
   createRuntimePaymentContext,
   type RuntimePaymentContext,

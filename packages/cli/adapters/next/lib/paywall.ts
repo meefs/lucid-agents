@@ -1,7 +1,8 @@
 import type { AgentHttpRuntime } from '@lucid-agents/core';
 import { toJsonSchemaOrUndefined } from '@lucid-agents/core';
 import { resolvePrice, validatePaymentsConfig } from '@lucid-agents/payments';
-import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/types';
+import type { EntrypointDef } from '@lucid-agents/types/core';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import type {
   FacilitatorConfig,
   PaywallConfig,
@@ -117,13 +118,13 @@ export function createNextPaywall({
   facilitator,
   paywall,
 }: CreateNextPaywallOptions): NextPaywallConfig {
-  const activePayments = payments ?? runtime.payments;
+  const activePayments = payments ?? runtime.payments?.config;
   if (!activePayments) {
     return { matcher: [] };
   }
 
   const normalizedBasePath = normalizeBasePath(basePath);
-  const entrypoints = runtime.snapshotEntrypoints();
+  const entrypoints = runtime.entrypoints.snapshot();
 
   const invokeRoutes = buildEntrypointRoutes({
     entrypoints,

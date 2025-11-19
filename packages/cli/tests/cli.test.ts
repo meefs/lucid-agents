@@ -148,7 +148,7 @@ describe('create-agent-kit CLI', () => {
     expect(envFile).toContain('AGENT_NAME=demo-agent');
     expect(envFile).toContain('AGENT_VERSION=0.1.0');
     expect(envFile).toContain('PAYMENTS_RECEIVABLE_ADDRESS=');
-    expect(envFile).toContain('PRIVATE_KEY=');
+    expect(envFile).toContain('DEVELOPER_WALLET_PRIVATE_KEY=');
   });
 
   it('applies wizard answers to generate .env file', async () => {
@@ -207,7 +207,7 @@ describe('create-agent-kit CLI', () => {
       'PAYMENTS_RECEIVABLE_ADDRESS=0xabc0000000000000000000000000000000000000'
     );
     expect(envFile).toContain('PAYMENTS_NETWORK=base');
-    expect(envFile).toContain('PRIVATE_KEY=');
+    expect(envFile).toContain('DEVELOPER_WALLET_PRIVATE_KEY=');
 
     // README uses agent name
     expect(readme).toContain('quote-agent');
@@ -411,7 +411,7 @@ describe('create-agent-kit CLI', () => {
     expect(env).toContain(
       'PAYMENTS_FACILITATOR_URL=https://facilitator.daydreams.systems'
     );
-    expect(env).toContain('PRIVATE_KEY=');
+    expect(env).toContain('DEVELOPER_WALLET_PRIVATE_KEY=');
   });
 
   it('requires --template when multiple templates and no prompt', async () => {
@@ -498,7 +498,7 @@ describe('create-agent-kit CLI', () => {
         '--AGENT_VERSION=2.0.0',
         '--PAYMENTS_RECEIVABLE_ADDRESS=0x1234567890123456789012345678901234567890',
         '--PAYMENTS_NETWORK=ethereum-mainnet',
-        '--PRIVATE_KEY=0xabcdef',
+        '--DEVELOPER_WALLET_PRIVATE_KEY=0xabcdef',
       ],
       {
         cwd,
@@ -518,7 +518,7 @@ describe('create-agent-kit CLI', () => {
       'PAYMENTS_RECEIVABLE_ADDRESS=0x1234567890123456789012345678901234567890'
     );
     expect(envFile).toContain('PAYMENTS_NETWORK=ethereum-mainnet');
-    expect(envFile).toContain('PRIVATE_KEY=0xabcdef');
+    expect(envFile).toContain('DEVELOPER_WALLET_PRIVATE_KEY=0xabcdef');
   });
 
   it('CLI arguments override template defaults in non-interactive mode', async () => {
@@ -558,7 +558,7 @@ describe('create-agent-kit CLI', () => {
         'empty-args-agent',
         '--template=blank',
         '--non-interactive',
-        '--PRIVATE_KEY=',
+        '--DEVELOPER_WALLET_PRIVATE_KEY=',
         '--PAYMENTS_RECEIVABLE_ADDRESS=',
       ],
       {
@@ -570,7 +570,7 @@ describe('create-agent-kit CLI', () => {
     const projectDir = join(cwd, 'empty-args-agent');
     const envFile = await readFile(join(projectDir, '.env'), 'utf8');
 
-    expect(envFile).toContain('PRIVATE_KEY=');
+    expect(envFile).toContain('DEVELOPER_WALLET_PRIVATE_KEY=');
     expect(envFile).toContain('PAYMENTS_RECEIVABLE_ADDRESS=');
   });
 

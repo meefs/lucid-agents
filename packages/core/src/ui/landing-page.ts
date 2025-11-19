@@ -1,9 +1,9 @@
 import { resolvePrice } from '@lucid-agents/payments';
-import type { PaymentsConfig } from '@lucid-agents/types';
+import type { AgentMeta } from '@lucid-agents/types/core';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
-import type { AgentMeta } from '../core/types';
 import type { EntrypointDef } from '../http/types';
 import { toJsonSchemaOrUndefined } from '../utils';
 

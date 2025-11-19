@@ -54,6 +54,7 @@
     "@lucid-agents/types": "workspace:*",
     "@lucid-agents/identity": "workspace:*",
     "@lucid-agents/payments": "workspace:*",
+    "@lucid-agents/wallet": "workspace:*",
     "x402-fetch": "catalog:",
     "x402": "^0.7.1",
     "viem": "^2.38.5",

@@ -1,4 +1,5 @@
-import type { AgentRuntime } from '@lucid-dreams/agent-auth';
+import type { AgentRuntime } from '@lucid-agents/types/core';
+import type { WalletConnector } from '@lucid-agents/types/wallets';
 import type { Signer } from 'x402/types';
 import { createSigner, type Hex, wrapFetchWithPayment } from 'x402-fetch';
 import { sanitizeAddress, ZERO_ADDRESS } from './crypto';
@@ -12,8 +13,7 @@ type TypedDataPayload = {
   domain?: Record<string, unknown>;
   types?: Record<string, Array<{ name: string; type: string }>>;
   message?: Record<string, unknown>;
-  primaryType?: string;
-  primary_type?: string;
+  primaryType: string;
 };
 
 type RuntimeSigner = {
@@ -115,15 +115,14 @@ function inferChainId(network?: string): number | undefined {
 }
 
 function normalizeTypedData(input: TypedDataPayload) {
-  const primaryType = input.primary_type ?? input.primaryType;
-  if (!primaryType) {
+  if (!input.primaryType) {
     throw new Error('[agent-kit] Typed data missing primaryType');
   }
   return {
     domain: input.domain ?? {},
     types: input.types ?? {},
     message: input.message ?? {},
-    primary_type: primaryType,
+    primaryType: input.primaryType,
   };
 }
 
@@ -144,16 +143,11 @@ const toStringMessage = (message: unknown): string => {
 };
 
 async function fetchWalletAddress(
-  runtime: AgentRuntime
+  wallet: WalletConnector
 ): Promise<string | null> {
   try {
-    const detail = await runtime.api.getAgent();
-    const billingWallet =
-      (detail as any)?.billing?.wallet ??
-      (detail as any)?.wallet ??
-      (detail as any)?.billingWallet;
-    const address = billingWallet?.address;
-    return typeof address === 'string' ? address : null;
+    const metadata = await wallet.getWalletMetadata();
+    return metadata?.address ?? null;
   } catch {
     return null;
   }
@@ -187,7 +181,7 @@ const normalizeAddressOrNull = (
 };
 
 function createRuntimeSigner(opts: {
-  runtime: AgentRuntime;
+  wallet: WalletConnector;
   initialAddress?: string | null;
   chainId: number;
 }): RuntimeSigner {
@@ -211,40 +205,76 @@ function createRuntimeSigner(opts: {
         }
       }
 
-      const response = await opts.runtime.api.signTypedData({
-        typed_data: typedData,
-        idempotency_key:
+      // Create a challenge-like payload for typed data signing
+      // The payload should have typedData field for typed data signing
+      const challengePayload = {
+        typedData: {
+          domain: typedData.domain,
+          types: typedData.types,
+          message: typedData.message,
+          primaryType: typedData.primaryType,
+        },
+      };
+
+      // Use signChallenge with a synthetic challenge for typed data
+      const challenge = {
+        id:
           typeof crypto?.randomUUID === 'function'
             ? crypto.randomUUID()
             : globalThis?.crypto?.randomUUID
               ? globalThis.crypto.randomUUID()
               : `${Date.now()}-${Math.random()}`,
-      });
+        nonce: `${Date.now()}-${Math.random()}`,
+        issued_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        payload: challengePayload,
+        scopes: ['wallet.sign'],
+      };
 
-      const nextAddress = normalizeAddressOrNull(response?.wallet?.address);
-      currentAddress = nextAddress ?? currentAddress;
-      signer.account.address = currentAddress;
+      const signature = await opts.wallet.signChallenge(challenge);
 
-      const signature = (response?.signed as any)?.signature;
-      if (typeof signature !== 'string') {
-        throw new Error('[agent-kit] Wallet signature missing in response');
+      // Update address from wallet metadata if available
+      const metadata = await opts.wallet.getWalletMetadata();
+      if (metadata?.address) {
+        const nextAddress = normalizeAddressOrNull(metadata.address);
+        currentAddress = nextAddress ?? currentAddress;
+        signer.account.address = currentAddress;
       }
+
       return signature as `0x${string}`;
     },
     async signMessage(message: unknown) {
       const payload = toStringMessage(message);
-      const response = await opts.runtime.api.signMessage({
-        message: payload,
-      });
 
-      const nextAddress = normalizeAddressOrNull(response?.wallet?.address);
-      currentAddress = nextAddress ?? currentAddress;
-      signer.account.address = currentAddress;
+      // Create a challenge-like payload for message signing
+      // The payload can be a string message directly, or an object with message field
+      const challengePayload = payload;
 
-      const signature = (response?.signed as any)?.signature;
-      if (typeof signature !== 'string') {
-        throw new Error('[agent-kit] Wallet signature missing in response');
+      // Use signChallenge with a synthetic challenge for message signing
+      const challenge = {
+        id:
+          typeof crypto?.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : globalThis?.crypto?.randomUUID
+              ? globalThis.crypto.randomUUID()
+              : `${Date.now()}-${Math.random()}`,
+        nonce: `${Date.now()}-${Math.random()}`,
+        issued_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        payload: challengePayload,
+        scopes: ['wallet.sign'],
+      };
+
+      const signature = await opts.wallet.signChallenge(challenge);
+
+      // Update address from wallet metadata if available
+      const metadata = await opts.wallet.getWalletMetadata();
+      if (metadata?.address) {
+        const nextAddress = normalizeAddressOrNull(metadata.address);
+        currentAddress = nextAddress ?? currentAddress;
+        signer.account.address = currentAddress;
       }
+
       return signature as `0x${string}`;
     },
   };
@@ -337,7 +367,21 @@ export async function createRuntimePaymentContext(
   }
 
   const runtime = options.runtime;
-  await runtime.ensureAccessToken();
+
+  if (!runtime.wallets?.agent) {
+    logWarning(
+      options.logger,
+      '[agent-kit-payments] Runtime does not have an agent wallet configured'
+    );
+    return {
+      fetchWithPayment: null,
+      signer: null,
+      walletAddress: null,
+      chainId: null,
+    };
+  }
+
+  const wallet = runtime.wallets.agent;
 
   const chainId = options.chainId ?? inferChainId(options.network);
   if (!chainId) {
@@ -353,9 +397,9 @@ export async function createRuntimePaymentContext(
     };
   }
 
-  const walletAddress = await fetchWalletAddress(runtime);
+  const walletAddress = await fetchWalletAddress(wallet.connector);
   const signer = createRuntimeSigner({
-    runtime,
+    wallet: wallet.connector,
     initialAddress: walletAddress,
     chainId,
   });

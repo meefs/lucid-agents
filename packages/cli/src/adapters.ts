@@ -34,7 +34,7 @@ const adapterDefinitions: Record<string, AdapterDefinition> = {
     snippets: {
       imports: `import { createAgentApp } from "@lucid-agents/hono";`,
       preSetup: ``,
-      appCreation: `const { app, addEntrypoint } = createAgentApp(
+      appCreation: `const { app, runtime, addEntrypoint } = createAgentApp(
   {
     name: process.env.AGENT_NAME,
     version: process.env.AGENT_VERSION,
@@ -68,7 +68,7 @@ const adapterDefinitions: Record<string, AdapterDefinition> = {
     snippets: {
       imports: `import { createAgentApp } from "@lucid-agents/express";`,
       preSetup: ``,
-      appCreation: `const { app, addEntrypoint } = createAgentApp(
+      appCreation: `const { app, runtime, addEntrypoint } = createAgentApp(
   {
     name: process.env.AGENT_NAME,
     version: process.env.AGENT_VERSION,
@@ -112,7 +112,7 @@ const adapterDefinitions: Record<string, AdapterDefinition> = {
 );
 
 const { runtime, handlers } = tanstack;`,
-      entrypointRegistration: `runtime.addEntrypoint({
+      entrypointRegistration: `runtime.entrypoints.add({
   key: "echo",
   description: "Echo input text",
   input: z.object({
@@ -150,7 +150,7 @@ export { agent, handlers, runtime };`,
 );
 
 const { runtime, handlers } = tanstack;`,
-      entrypointRegistration: `runtime.addEntrypoint({
+      entrypointRegistration: `runtime.entrypoints.add({
   key: "echo",
   description: "Echo input text",
   input: z.object({

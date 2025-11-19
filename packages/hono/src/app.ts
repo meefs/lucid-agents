@@ -1,9 +1,14 @@
 import { Hono } from 'hono';
-import type { AgentMeta, EntrypointDef } from '@lucid-agents/types';
+import type {
+  AgentMeta,
+  EntrypointDef,
+  CreateAgentAppReturn,
+} from '@lucid-agents/types/core';
 import { withPayments } from './paywall';
 import {
   createAgentHttpRuntime,
   type CreateAgentHttpOptions,
+  type AgentHttpRuntime,
 } from '@lucid-agents/core';
 
 export type CreateAgentAppOptions = CreateAgentHttpOptions & {
@@ -19,7 +24,15 @@ export type CreateAgentAppOptions = CreateAgentHttpOptions & {
   afterMount?: (app: Hono) => void;
 };
 
-export function createAgentApp(meta: AgentMeta, opts?: CreateAgentAppOptions) {
+export function createAgentApp(
+  meta: AgentMeta,
+  opts?: CreateAgentAppOptions
+): CreateAgentAppReturn<
+  Hono,
+  AgentHttpRuntime,
+  ReturnType<typeof createAgentHttpRuntime>['agent'],
+  ReturnType<typeof createAgentHttpRuntime>['config']
+> {
   const runtime = createAgentHttpRuntime(meta, opts);
   const app = new Hono();
 
@@ -35,7 +48,7 @@ export function createAgentApp(meta: AgentMeta, opts?: CreateAgentAppOptions) {
       path: invokePath,
       entrypoint,
       kind: 'invoke',
-      payments: runtime.payments,
+      payments: runtime.payments?.config,
     });
 
     app.post(invokePath, c =>
@@ -52,7 +65,7 @@ export function createAgentApp(meta: AgentMeta, opts?: CreateAgentAppOptions) {
       path: streamPath,
       entrypoint,
       kind: 'stream',
-      payments: runtime.payments,
+      payments: runtime.payments?.config,
     });
 
     app.post(streamPath, c =>
@@ -77,9 +90,9 @@ export function createAgentApp(meta: AgentMeta, opts?: CreateAgentAppOptions) {
   }
 
   const addEntrypoint = (def: EntrypointDef) => {
-    runtime.addEntrypoint(def);
+    runtime.entrypoints.add(def);
     const entrypoint = runtime
-      .snapshotEntrypoints()
+      .entrypoints.snapshot()
       .find((item: EntrypointDef) => item.key === def.key);
     if (!entrypoint) {
       throw new Error(`Failed to register entrypoint "${def.key}"`);
@@ -87,17 +100,24 @@ export function createAgentApp(meta: AgentMeta, opts?: CreateAgentAppOptions) {
     registerEntrypointRoutes(entrypoint);
   };
 
-  for (const entrypoint of runtime.snapshotEntrypoints()) {
+  for (const entrypoint of runtime.entrypoints.snapshot()) {
     registerEntrypointRoutes(entrypoint);
   }
 
   // Allow custom routes and handlers after agent routes
   opts?.afterMount?.(app);
 
-  return {
+  const result: CreateAgentAppReturn<
+    Hono,
+    AgentHttpRuntime,
+    ReturnType<typeof createAgentHttpRuntime>['agent'],
+    ReturnType<typeof createAgentHttpRuntime>['config']
+  > = {
     app,
+    runtime,
     agent: runtime.agent,
     addEntrypoint,
     config: runtime.config,
   };
+  return result;
 }

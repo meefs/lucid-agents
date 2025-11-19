@@ -1,4 +1,5 @@
-import type { EntrypointDef, PaymentsConfig } from '@lucid-agents/types';
+import type { EntrypointDef } from '@lucid-agents/types/core';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 
 /**
  * Resolves the price for an entrypoint.

@@ -43,12 +43,6 @@
         "type": "input",
         "message": "Receivable address (address that receives payments)",
         "defaultValue": ""
-      },
-      {
-        "key": "PRIVATE_KEY",
-        "type": "input",
-        "message": "Wallet private key (leave empty to add later)",
-        "defaultValue": ""
       }
     ]
   }

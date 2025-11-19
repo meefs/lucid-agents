@@ -45,9 +45,9 @@
         "defaultValue": ""
       },
       {
-        "key": "PRIVATE_KEY",
+        "key": "DEVELOPER_WALLET_PRIVATE_KEY",
         "type": "input",
-        "message": "Wallet private key (leave empty to add later)",
+        "message": "Developer wallet private key (optional, for contract interactions)",
         "defaultValue": ""
       },
       {

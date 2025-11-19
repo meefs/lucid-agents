@@ -1,23 +1,25 @@
-import type { RegistrationEntry, TrustConfig } from '../types';
-import type { Hex } from '../utils';
-import {
-  normalizeAddress,
-  normalizeDomain,
-  toCaip10,
-  ZERO_ADDRESS,
-} from '../utils';
-export { toCaip10 } from '../utils';
+import type {
+  RegistrationEntry,
+  TrustConfig,
+} from '@lucid-agents/types/identity';
+import type {
+  AgentWalletHandle,
+  LocalEoaSigner,
+} from '@lucid-agents/types/wallets';
+import type { Hex } from '@lucid-agents/wallet';
+import { normalizeAddress, toCaip10, ZERO_ADDRESS } from '@lucid-agents/wallet';
+
+import { normalizeDomain } from '../utils';
+import { signDomainProof } from './erc8004-signatures';
+
+export { toCaip10 } from '@lucid-agents/wallet';
 
 import type {
   IdentityRegistryReadFunctionName,
   IdentityRegistryWriteFunctionName,
 } from '../abi/types';
 import { IDENTITY_REGISTRY_ABI } from '../abi/types';
-import {
-  DEFAULT_CHAIN_ID,
-  DEFAULT_NAMESPACE,
-  DEFAULT_TRUST_MODELS,
-} from '../config';
+import { DEFAULT_NAMESPACE, DEFAULT_TRUST_MODELS } from '../config';
 
 export type IdentityRegistryClientOptions<
   PublicClient extends PublicClientLike,
@@ -121,6 +123,15 @@ export type IdentityRegistryClient = {
   readonly chainId?: number;
   get(agentId: bigint | number | string): Promise<IdentityRecord | null>;
   register(input: RegisterAgentInput): Promise<RegisterAgentResult>;
+  getMetadata(
+    agentId: bigint | number | string,
+    key: string
+  ): Promise<Uint8Array | null>;
+  setMetadata(
+    agentId: bigint | number | string,
+    key: string,
+    value: Uint8Array
+  ): Promise<Hex>;
   toRegistrationEntry(
     record: IdentityRecord,
     signature?: string
@@ -209,31 +220,24 @@ export function createIdentityRegistryClient<
     async get(agentId) {
       const id = BigInt(agentId);
 
-      const exists = (await publicClient.readContract({
-        address,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: 'agentExists',
-        args: [id],
-      })) as boolean;
-
-      if (!exists) {
-        return null;
-      }
-
-      const [owner, uri] = await Promise.all([
-        publicClient.readContract({
+      let owner: string;
+      try {
+        owner = (await publicClient.readContract({
           address,
           abi: IDENTITY_REGISTRY_ABI,
           functionName: 'ownerOf',
           args: [id],
-        }) as Promise<string>,
-        publicClient.readContract({
-          address,
-          abi: IDENTITY_REGISTRY_ABI,
-          functionName: 'tokenURI',
-          args: [id],
-        }) as Promise<string>,
-      ]);
+        })) as string;
+      } catch {
+        return null;
+      }
+
+      const uri = (await publicClient.readContract({
+        address,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: 'tokenURI',
+        args: [id],
+      })) as string;
 
       return {
         agentId: id,
@@ -311,6 +315,47 @@ export function createIdentityRegistryClient<
       };
     },
 
+    async getMetadata(agentId, key) {
+      const id = BigInt(agentId);
+
+      try {
+        const metadata = (await publicClient.readContract({
+          address,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: 'getMetadata',
+          args: [id, key],
+        })) as Hex;
+
+        if (!metadata || metadata === '0x') {
+          return null;
+        }
+
+        const hexWithoutPrefix = metadata.slice(2);
+        const bytes = new Uint8Array(hexWithoutPrefix.length / 2);
+        for (let i = 0; i < hexWithoutPrefix.length; i += 2) {
+          bytes[i / 2] = parseInt(hexWithoutPrefix.slice(i, i + 2), 16);
+        }
+
+        return bytes;
+      } catch {
+        return null;
+      }
+    },
+
+    async setMetadata(agentId, key, value) {
+      const wallet = ensureWalletClient();
+      const id = BigInt(agentId);
+
+      const txHash = await wallet.writeContract({
+        address,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: 'setMetadata',
+        args: [id, key, value],
+      });
+
+      return txHash;
+    },
+
     toRegistrationEntry(record, signature) {
       if (chainId == null) {
         throw new Error(
@@ -348,9 +393,6 @@ export async function signAgentDomainProof(
   if (!normalizedAddress || normalizedAddress === ZERO_ADDRESS) {
     throw new Error('address must be a valid hex address');
   }
-
-  // Use Viem's proper signMessage action
-  const { signDomainProof } = await import('../utils/signatures');
 
   return signDomainProof(signer as any, {
     domain: normalizedDomain,
@@ -671,8 +713,14 @@ export async function bootstrapIdentity(
     warn: options.logger?.warn ?? defaultLogger.warn,
   } satisfies InferLogger;
 
-  const resolvedChainId =
-    options.chainId ?? parsePositiveInteger(env.CHAIN_ID) ?? DEFAULT_CHAIN_ID;
+  // Resolve chainId - required, no defaults
+  const resolvedChainId = options.chainId ?? parsePositiveInteger(env.CHAIN_ID);
+
+  if (!resolvedChainId) {
+    throw new Error(
+      '[agent-kit-identity] CHAIN_ID is required for bootstrap. Provide it via chainId parameter or CHAIN_ID environment variable.'
+    );
+  }
 
   const domain = options.domain ?? env.AGENT_DOMAIN;
   const namespace = options.namespace ?? DEFAULT_NAMESPACE;
@@ -745,10 +793,15 @@ export async function bootstrapIdentity(
   return {};
 }
 
+export type MakeViemClientsFromWalletOptions = {
+  env?: Record<string, string | undefined>;
+  rpcUrl?: string;
+  walletHandle: AgentWalletHandle;
+};
+
 export type MakeViemClientsFromEnvOptions = {
   env?: Record<string, string | undefined>;
   rpcUrl?: string;
-  privateKey?: `0x${string}` | string;
 };
 
 async function importViemModules(): Promise<{
@@ -756,24 +809,41 @@ async function importViemModules(): Promise<{
   createWalletClient: (...args: any[]) => any;
   http: (url: string) => any;
   privateKeyToAccount: (key: `0x${string}`) => any;
-  baseSepolia: { id: number } & Record<string, unknown>;
+  getChainById: (
+    chainId: number
+  ) => ({ id: number } & Record<string, unknown>) | null;
 } | null> {
   try {
     const viem = await import('viem');
     const accounts = await import('viem/accounts');
     const chains = await import('viem/chains').catch(() => ({}));
-    const baseSepoliaChain =
-      (chains as any).baseSepolia ?? ({ id: DEFAULT_CHAIN_ID } as const);
+
+    // Helper to find a chain definition by chainId from viem's chains
+    const getChainById = (chainId: number) => {
+      if (!chains || typeof chains !== 'object') {
+        return null;
+      }
+      // Try to find a chain that matches the chainId
+      // viem exports chains as named exports, so we iterate through them
+      for (const key in chains) {
+        const chain = (chains as any)[key];
+        if (chain && typeof chain === 'object' && chain.id === chainId) {
+          return chain;
+        }
+      }
+      return null;
+    };
+
     return {
       createPublicClient: (viem as any).createPublicClient,
       createWalletClient: (viem as any).createWalletClient,
       http: (viem as any).http,
       privateKeyToAccount: (accounts as any).privateKeyToAccount,
-      baseSepolia: baseSepoliaChain,
+      getChainById,
     };
   } catch (error) {
     defaultLogger.warn(
-      '[agent-kit] viem helpers unavailable; install viem to use makeViemClientsFromEnv',
+      '[agent-kit] viem helpers unavailable; install viem to use viem clients',
       error
     );
     return null;
@@ -790,6 +860,171 @@ function resolveEnvObject(
   return {};
 }
 
+/**
+ * Create viem clients from a wallet handle.
+ * For local wallets, this creates a wallet client that can write contracts.
+ * For server orchestrator wallets, contract writes are not supported (returns undefined walletClient).
+ */
+export async function makeViemClientsFromWallet(
+  options: MakeViemClientsFromWalletOptions
+): Promise<BootstrapIdentityClientFactory | undefined> {
+  const env = resolveEnvObject(options.env);
+  const modules = await importViemModules();
+  if (!modules) return undefined;
+
+  const walletHandle = options.walletHandle;
+  const connector = walletHandle.connector;
+
+  return async ({ chainId, rpcUrl, env: runtimeEnv }) => {
+    const effectiveRpcUrl = options.rpcUrl ?? rpcUrl ?? env.RPC_URL;
+    if (!effectiveRpcUrl) {
+      defaultLogger.warn(
+        '[agent-kit] RPC_URL missing for viem client factory; skipping'
+      );
+      return null;
+    }
+
+    const transport = modules.http(effectiveRpcUrl);
+    // Get chain definition from viem if available, but ensure we use our RPC URL
+    // Override any RPC URLs in the chain definition with our explicit transport
+    const chainTemplate = modules.getChainById(chainId);
+    const chain = chainTemplate
+      ? { ...chainTemplate, id: chainId }
+      : { id: chainId };
+    const publicClient = modules.createPublicClient({ chain, transport });
+
+    // For local wallets, try to extract the signer to create a wallet client
+    // For server orchestrator wallets, we can't create a wallet client for contract writes
+    let walletClient: any = undefined;
+    let signer: any = undefined;
+
+    if (walletHandle.kind === 'local') {
+      // For local wallets, try to access the signer from the connector
+      // This is a type assertion because the signer is private
+      const localConnector = connector as any;
+      const localSigner = localConnector.signer as LocalEoaSigner | undefined;
+
+      if (localSigner) {
+        // Create a viem account wrapper that uses the connector's signer
+        // For contract writes, we need a full viem account, so we'll create a wrapper
+        try {
+          // Get address from wallet metadata
+          const metadata = await connector.getWalletMetadata();
+          const address = metadata?.address;
+
+          if (address) {
+            // Create a viem account wrapper that uses the signer's methods directly
+            // Use signer's methods if available, otherwise fall back to challenge-based signing
+            const accountLike: any = {
+              address: address as `0x${string}`,
+              type: 'local',
+              async signMessage({ message }: { message: string | Uint8Array }) {
+                // Use the signer's signMessage directly if available
+                if (localSigner.signMessage) {
+                  return await localSigner.signMessage(message);
+                }
+                // Fallback to challenge-based signing
+                const payloadStr =
+                  typeof message === 'string'
+                    ? message
+                    : `0x${Array.from(message)
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('')}`;
+                const challenge = {
+                  id:
+                    typeof crypto?.randomUUID === 'function'
+                      ? crypto.randomUUID()
+                      : globalThis?.crypto?.randomUUID
+                        ? globalThis.crypto.randomUUID()
+                        : `${Date.now()}-${Math.random()}`,
+                  nonce: `${Date.now()}-${Math.random()}`,
+                  issued_at: new Date().toISOString(),
+                  expires_at: new Date(Date.now() + 3600000).toISOString(),
+                  payload: payloadStr,
+                  scopes: ['wallet.sign'],
+                };
+                return await connector.signChallenge(challenge);
+              },
+              async signTypedData(params: any) {
+                // Use the signer's signTypedData directly if available
+                if (localSigner.signTypedData) {
+                  const typedPayload = {
+                    domain: params.domain,
+                    types: params.types,
+                    message: params.message,
+                    primaryType: params.primaryType,
+                  };
+                  return await localSigner.signTypedData(typedPayload);
+                }
+                // Fallback to challenge-based signing
+                const challengePayload = {
+                  typedData: {
+                    domain: params.domain,
+                    types: params.types,
+                    message: params.message,
+                    primaryType: params.primaryType,
+                  },
+                };
+                const challenge = {
+                  id:
+                    typeof crypto?.randomUUID === 'function'
+                      ? crypto.randomUUID()
+                      : globalThis?.crypto?.randomUUID
+                        ? globalThis.crypto.randomUUID()
+                        : `${Date.now()}-${Math.random()}`,
+                  nonce: `${Date.now()}-${Math.random()}`,
+                  issued_at: new Date().toISOString(),
+                  expires_at: new Date(Date.now() + 3600000).toISOString(),
+                  payload: challengePayload,
+                  scopes: ['wallet.sign'],
+                };
+                return await connector.signChallenge(challenge);
+              },
+              // For transaction signing (needed for contract writes)
+              // Viem calls this when writeContract is used
+              async signTransaction(transaction: any) {
+                // Use the signer's signTransaction if available (e.g., from private key signer)
+                if (localSigner.signTransaction) {
+                  return await localSigner.signTransaction(transaction);
+                }
+
+                // Transaction signing is required for contract writes
+                // If the signer doesn't support it, we can't proceed
+                throw new Error(
+                  '[agent-kit-identity] Contract writes (writeContract) require transaction signing support. The wallet signer must implement signTransaction(). Local wallets created from private keys support this automatically.'
+                );
+              },
+            };
+
+            // Try to create a wallet client with this account
+            // Note: This may not fully support writeContract, but will support signing
+            walletClient = modules.createWalletClient({
+              chain,
+              account: accountLike,
+              transport,
+            });
+            signer = walletClient;
+          }
+        } catch (error) {
+          defaultLogger.warn(
+            '[agent-kit] failed to configure viem wallet client from wallet handle',
+            error
+          );
+        }
+      }
+    }
+
+    return {
+      publicClient,
+      walletClient,
+      signer: signer ?? walletClient,
+    } satisfies BootstrapIdentityClients;
+  };
+}
+
+/**
+ * @deprecated Use makeViemClientsFromWallet instead. This function is kept for backward compatibility but will be removed.
+ */
 export async function makeViemClientsFromEnv(
   options: MakeViemClientsFromEnvOptions = {}
 ): Promise<BootstrapIdentityClientFactory | undefined> {
@@ -807,45 +1042,20 @@ export async function makeViemClientsFromEnv(
     }
 
     const transport = modules.http(effectiveRpcUrl);
-    const chain = { ...modules.baseSepolia, id: chainId };
+    // Get chain definition from viem if available, but ensure we use our RPC URL
+    // Override any RPC URLs in the chain definition with our explicit transport
+    const chainTemplate = modules.getChainById(chainId);
+    const chain = chainTemplate
+      ? { ...chainTemplate, id: chainId }
+      : { id: chainId };
     const publicClient = modules.createPublicClient({ chain, transport });
 
-    const mergedEnv = {
-      ...env,
-      ...runtimeEnv,
-    };
-
-    // Normalize private key - add 0x prefix if missing
-    let privateKey: `0x${string}` | undefined;
-    const rawKey = options.privateKey ?? mergedEnv.PRIVATE_KEY;
-    if (rawKey) {
-      const normalized = rawKey.trim();
-      privateKey = normalized.startsWith('0x')
-        ? (normalized as `0x${string}`)
-        : (`0x${normalized}` as `0x${string}`);
-    }
-
-    let walletClient: any = undefined;
-    if (privateKey) {
-      try {
-        const account = modules.privateKeyToAccount(privateKey);
-        walletClient = modules.createWalletClient({
-          chain,
-          account,
-          transport,
-        });
-      } catch (error) {
-        defaultLogger.warn(
-          '[agent-kit] failed to configure viem wallet client from PRIVATE_KEY',
-          error
-        );
-      }
-    }
-
+    // This function no longer creates wallet clients since privateKey is removed
+    // It only creates a public client for reading contracts
     return {
       publicClient,
-      walletClient,
-      signer: walletClient,
+      walletClient: undefined,
+      signer: undefined,
     } satisfies BootstrapIdentityClients;
   };
 }

@@ -52,3 +52,4 @@ export function toCaip10(params: {
   const address = normalizeAddress(params.address);
   return `${namespace}:${chainRef}:${address}`;
 }
+

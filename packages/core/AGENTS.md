@@ -298,7 +298,7 @@ const result = await fetchAndInvoke(
 
 ### Example: Three-Agent Composition
 
-See `examples/assistant-agent.ts`, `examples/data-worker-agent.ts`, and `examples/analysis-worker-agent.ts` for a complete example of agent composition where an assistant agent routes requests to worker agents and pays for their services.
+See `examples/full-agent.ts` for a complete agent example, or use the `trading-data-agent` and `trading-recommendation-agent` CLI templates for A2A composition examples where an agent routes requests to other agents and pays for their services.
 
 ### ERC-8004 Identity Helpers (Prototype)
 

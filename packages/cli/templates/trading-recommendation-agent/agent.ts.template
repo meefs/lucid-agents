@@ -51,7 +51,7 @@ addEntrypoint({
       try {
         const paymentContext = await createRuntimePaymentContext({
           runtime,
-          network: (process.env.PAYMENTS_NETWORK as any) || 'base-sepolia',
+          network: process.env.PAYMENTS_NETWORK || 'base-sepolia',
         });
         fetchWithPayment = paymentContext.fetchWithPayment;
       } catch (error) {
@@ -69,7 +69,7 @@ addEntrypoint({
         DATA_AGENT_URL,
         fetchWithPayment
       );
-      const entrypoint = dataCard?.entrypoints.getMarketData;
+      const entrypoint = dataCard?.entrypoints?.getMarketData;
       dataPrice = entrypoint?.pricing?.invoke;
 
       // Call data agent with payment-enabled fetch
@@ -180,7 +180,7 @@ addEntrypoint({
       try {
         const paymentContext = await createRuntimePaymentContext({
           runtime,
-          network: (process.env.PAYMENTS_NETWORK as any) || 'base-sepolia',
+          network: process.env.PAYMENTS_NETWORK || 'base-sepolia',
         });
         fetchWithPayment = paymentContext.fetchWithPayment;
       } catch (error) {

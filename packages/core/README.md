@@ -300,7 +300,7 @@ For authenticated wallet access, pair your agent with
 
 ```ts
 import { AgentRuntime } from '@lucid-agents/agent-auth';
-import { createRuntimePaymentContext } from '@lucid-agents/core';
+import { createRuntimePaymentContext } from '@lucid-agents/payments';
 
 const { runtime } = await AgentRuntime.load({
   wallet: {
@@ -437,7 +437,7 @@ const result = await fetchAndInvoke(
 );
 ```
 
-See `examples/assistant-agent.ts` and related examples for a complete three-agent composition demonstration.
+See `examples/full-agent.ts` for a complete agent example, or use the `trading-data-agent` and `trading-recommendation-agent` CLI templates for A2A composition examples.
 
 ## x402 + AxFlow utilities
 

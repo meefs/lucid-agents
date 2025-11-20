@@ -36,7 +36,7 @@ const dataCard = await runtime.a2a?.fetchCard(
   DATA_AGENT_URL,
   fetchWithPayment
 );
-const price = dataCard?.entrypoints.getMarketData?.pricing?.invoke;
+const price = dataCard?.entrypoints?.getMarketData?.pricing?.invoke;
 ```
 
 ### 3. Calling Other Agents

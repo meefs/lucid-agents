@@ -47,6 +47,8 @@ export type AgentHttpHandlers = {
   stream: (req: Request, params: { key: string }) => Promise<Response>;
   tasks: (req: Request) => Promise<Response>;
   getTask: (req: Request, params: { taskId: string }) => Promise<Response>;
+  listTasks: (req: Request) => Promise<Response>;
+  cancelTask: (req: Request, params: { taskId: string }) => Promise<Response>;
   subscribeTask: (
     req: Request,
     params: { taskId: string }
@@ -115,13 +117,18 @@ const resolveFaviconSvg = (meta: AgentMeta): string => {
   return defaultFaviconSvg;
 };
 
+type TaskEntry = {
+  task: Task;
+  controller?: AbortController;
+};
+
 export function createAgentHttpRuntime(
   meta: AgentMeta,
   opts: CreateAgentHttpOptions = {}
 ): AgentHttpRuntime {
   const runtime = createAgentRuntime(meta, opts as CreateAgentRuntimeOptions);
 
-  const tasks = new Map<string, Task>();
+  const tasks = new Map<string, TaskEntry>();
 
   const activePayments = runtime.payments?.config;
 
@@ -430,7 +437,7 @@ export function createAgentHttpRuntime(
         );
       }
 
-      const { skillId, message } = requestBody;
+      const { skillId, message, contextId } = requestBody;
 
       const entrypoint = runtime.agent.getEntrypoint(skillId);
       if (!entrypoint) {
@@ -475,16 +482,21 @@ export function createAgentHttpRuntime(
       }
 
       const taskId = randomUUID();
+      const abortController = new AbortController();
       const now = new Date().toISOString();
 
       const task: Task = {
         taskId,
         status: 'running',
+        contextId,
         createdAt: now,
         updatedAt: now,
       };
 
-      tasks.set(taskId, task);
+      tasks.set(taskId, {
+        task,
+        controller: abortController,
+      });
 
       console.info(
         '[agent-kit:task] create',
@@ -494,26 +506,32 @@ export function createAgentHttpRuntime(
 
       runtime.agent
         .invoke(skillId, rawInput, {
-          signal: req.signal,
+          signal: abortController.signal,
           headers: req.headers,
           runId: taskId,
           runtime,
         })
         .then(result => {
-          const updatedTask: Task = {
-            ...task,
-            status: 'completed',
-            result: {
-              output: result.output,
-              usage: result.usage,
-              model: result.model,
-            } as TaskResult,
-            updatedAt: new Date().toISOString(),
-          };
-          tasks.set(taskId, updatedTask);
+          const entry = tasks.get(taskId);
+          if (entry) {
+            const updatedTask: Task = {
+              ...entry.task,
+              status: 'completed',
+              result: {
+                output: result.output,
+                usage: result.usage,
+                model: result.model,
+              } as TaskResult,
+              updatedAt: new Date().toISOString(),
+            };
+            tasks.set(taskId, { task: updatedTask });
+          }
           console.info('[agent-kit:task] completed', `taskId=${taskId}`);
         })
         .catch(err => {
+          const entry = tasks.get(taskId);
+          if (!entry) return;
+
           let error: TaskError;
           if (err instanceof ZodValidationError) {
             if (err.kind === 'input') {
@@ -537,12 +555,12 @@ export function createAgentHttpRuntime(
           }
 
           const updatedTask: Task = {
-            ...task,
+            ...entry.task,
             status: 'failed',
             error,
             updatedAt: new Date().toISOString(),
           };
-          tasks.set(taskId, updatedTask);
+          tasks.set(taskId, { task: updatedTask });
           console.info(
             '[agent-kit:task] failed',
             `taskId=${taskId}`,
@@ -557,9 +575,9 @@ export function createAgentHttpRuntime(
     },
     getTask: async (req, params) => {
       const { taskId } = params;
-      const task = tasks.get(taskId);
+      const entry = tasks.get(taskId);
 
-      if (!task) {
+      if (!entry) {
         return jsonResponse(
           {
             error: {
@@ -571,13 +589,91 @@ export function createAgentHttpRuntime(
         );
       }
 
-      return jsonResponse(task);
+      return jsonResponse(entry.task);
+    },
+    listTasks: async req => {
+      const url = new URL(req.url);
+      const contextId = url.searchParams.get('contextId') || undefined;
+      const statusParam = url.searchParams.get('status');
+      const status = statusParam
+        ? ((statusParam.includes(',')
+            ? statusParam.split(',')
+            : statusParam) as TaskStatus | TaskStatus[])
+        : undefined;
+      const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+      const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+
+      let filteredTasks = Array.from(tasks.values()).map(entry => entry.task);
+
+      if (contextId) {
+        filteredTasks = filteredTasks.filter(t => t.contextId === contextId);
+      }
+
+      if (status) {
+        const statusArray = Array.isArray(status) ? status : [status];
+        filteredTasks = filteredTasks.filter(t =>
+          statusArray.includes(t.status)
+        );
+      }
+
+      const total = filteredTasks.length;
+      const paginatedTasks = filteredTasks.slice(offset, offset + limit);
+      const hasMore = offset + limit < total;
+
+      return jsonResponse({
+        tasks: paginatedTasks,
+        total,
+        hasMore,
+      });
+    },
+    cancelTask: async (req, params) => {
+      const { taskId } = params;
+      const entry = tasks.get(taskId);
+
+      if (!entry) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'task_not_found',
+              message: `Task "${taskId}" not found`,
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      if (entry.task.status !== 'running') {
+        return jsonResponse(
+          {
+            error: {
+              code: 'invalid_state',
+              message: `Task "${taskId}" is not running`,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      if (entry.controller) {
+        entry.controller.abort();
+      }
+
+      const updatedTask: Task = {
+        ...entry.task,
+        status: 'cancelled',
+        updatedAt: new Date().toISOString(),
+      };
+
+      tasks.set(taskId, { task: updatedTask });
+      console.info('[agent-kit:task] cancelled', `taskId=${taskId}`);
+
+      return jsonResponse(updatedTask);
     },
     subscribeTask: async (req, params) => {
       const { taskId } = params;
-      const task = tasks.get(taskId);
+      const entry = tasks.get(taskId);
 
-      if (!task) {
+      if (!entry) {
         return jsonResponse(
           {
             error: {
@@ -589,6 +685,7 @@ export function createAgentHttpRuntime(
         );
       }
 
+      const task = entry.task;
       return createSSEStream(
         async ({ write, close }: SSEStreamRunnerContext) => {
           write({
@@ -626,13 +723,14 @@ export function createAgentHttpRuntime(
           }
 
           const checkInterval = setInterval(() => {
-            const currentTask = tasks.get(taskId);
-            if (!currentTask) {
+            const currentEntry = tasks.get(taskId);
+            if (!currentEntry) {
               clearInterval(checkInterval);
               close();
               return;
             }
 
+            const currentTask = currentEntry.task;
             if (currentTask.status !== task.status) {
               write({
                 event: 'statusUpdate',

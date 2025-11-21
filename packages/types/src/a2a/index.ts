@@ -26,9 +26,29 @@ export type Task = {
   status: TaskStatus;
   result?: TaskResult;
   error?: TaskError;
+  contextId?: string;
   createdAt: string;
   updatedAt: string;
 };
+
+export type ListTasksRequest = {
+  contextId?: string;
+  status?: TaskStatus | TaskStatus[];
+  limit?: number;
+  offset?: number;
+};
+
+export type ListTasksResponse = {
+  tasks: Task[];
+  total?: number;
+  hasMore?: boolean;
+};
+
+export type CancelTaskRequest = {
+  taskId: string;
+};
+
+export type CancelTaskResponse = Task;
 
 export type MessageContent =
   | { text: string }
@@ -139,7 +159,8 @@ export type A2AClient = {
     card: AgentCardWithEntrypoints,
     skillId: string,
     input: unknown,
-    fetch?: FetchFunction
+    fetch?: FetchFunction,
+    options?: { contextId?: string; metadata?: Record<string, unknown> }
   ) => Promise<SendMessageResponse>;
 
   /**
@@ -170,6 +191,24 @@ export type A2AClient = {
     input: unknown,
     fetch?: FetchFunction
   ) => Promise<SendMessageResponse>;
+
+  /**
+   * Lists tasks with optional filtering.
+   */
+  listTasks: (
+    card: AgentCardWithEntrypoints,
+    filters?: ListTasksRequest,
+    fetch?: FetchFunction
+  ) => Promise<ListTasksResponse>;
+
+  /**
+   * Cancels a running task.
+   */
+  cancelTask: (
+    card: AgentCardWithEntrypoints,
+    taskId: string,
+    fetch?: FetchFunction
+  ) => Promise<Task>;
 };
 
 /**

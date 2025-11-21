@@ -516,4 +516,405 @@ describe('Task Operations', () => {
       }
     });
   });
+
+  describe('GET /tasks - List Tasks', () => {
+    it('returns all tasks without filters', async () => {
+      const runtime = makeTestRuntime();
+      runtime.entrypoints.add({
+        key: 'echo',
+        description: 'Echo endpoint',
+        input: z.object({ text: z.string() }),
+        output: z.object({ text: z.string() }),
+        handler: async ctx => {
+          const input = ctx.input as { text: string };
+          return {
+            output: { text: input.text },
+            usage: { total_tokens: 0 },
+          };
+        },
+      });
+
+      const createTask = async (text: string) => {
+        const requestBody: SendMessageRequest = {
+          message: {
+            role: 'user',
+            content: { text: JSON.stringify({ text }) },
+          },
+          skillId: 'echo',
+        };
+
+        const request = new Request('http://localhost/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        const response = await runtime.handlers.tasks(request);
+        const data = (await response.json()) as { taskId: string };
+        return data.taskId;
+      };
+
+      const taskId1 = await createTask('hello1');
+      const taskId2 = await createTask('hello2');
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const listRequest = new Request('http://localhost/tasks', {
+        method: 'GET',
+      });
+
+      const listResponse = await runtime.handlers.listTasks(listRequest);
+      expect(listResponse.status).toBe(200);
+
+      const listData = (await listResponse.json()) as {
+        tasks: Task[];
+        total?: number;
+        hasMore?: boolean;
+      };
+      expect(listData.tasks.length).toBeGreaterThanOrEqual(2);
+      expect(listData.tasks.some(t => t.taskId === taskId1)).toBe(true);
+      expect(listData.tasks.some(t => t.taskId === taskId2)).toBe(true);
+    });
+
+    it('filters tasks by contextId', async () => {
+      const runtime = makeTestRuntime();
+      runtime.entrypoints.add({
+        key: 'echo',
+        description: 'Echo endpoint',
+        input: z.object({ text: z.string() }),
+        output: z.object({ text: z.string() }),
+        handler: async ctx => {
+          const input = ctx.input as { text: string };
+          return {
+            output: { text: input.text },
+            usage: { total_tokens: 0 },
+          };
+        },
+      });
+
+      const createTask = async (text: string, contextId?: string) => {
+        const requestBody: SendMessageRequest = {
+          message: {
+            role: 'user',
+            content: { text: JSON.stringify({ text }) },
+          },
+          skillId: 'echo',
+          contextId,
+        };
+
+        const request = new Request('http://localhost/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        const response = await runtime.handlers.tasks(request);
+        const data = (await response.json()) as { taskId: string };
+        return data.taskId;
+      };
+
+      const contextId1 = 'context-1';
+      const contextId2 = 'context-2';
+
+      const taskId1 = await createTask('hello1', contextId1);
+      const taskId2 = await createTask('hello2', contextId1);
+      const taskId3 = await createTask('hello3', contextId2);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const listRequest = new Request(
+        `http://localhost/tasks?contextId=${contextId1}`,
+        {
+          method: 'GET',
+        }
+      );
+
+      const listResponse = await runtime.handlers.listTasks(listRequest);
+      expect(listResponse.status).toBe(200);
+
+      const listData = (await listResponse.json()) as {
+        tasks: Task[];
+        total?: number;
+        hasMore?: boolean;
+      };
+      expect(listData.tasks.length).toBe(2);
+      expect(listData.tasks.every(t => t.contextId === contextId1)).toBe(true);
+      expect(listData.tasks.some(t => t.taskId === taskId1)).toBe(true);
+      expect(listData.tasks.some(t => t.taskId === taskId2)).toBe(true);
+      expect(listData.tasks.some(t => t.taskId === taskId3)).toBe(false);
+    });
+
+    it('filters tasks by status', async () => {
+      const runtime = makeTestRuntime();
+      runtime.entrypoints.add({
+        key: 'echo',
+        description: 'Echo endpoint',
+        input: z.object({ text: z.string() }),
+        output: z.object({ text: z.string() }),
+        handler: async ctx => {
+          const input = ctx.input as { text: string };
+          return {
+            output: { text: input.text },
+            usage: { total_tokens: 0 },
+          };
+        },
+      });
+
+      const createTask = async (text: string) => {
+        const requestBody: SendMessageRequest = {
+          message: {
+            role: 'user',
+            content: { text: JSON.stringify({ text }) },
+          },
+          skillId: 'echo',
+        };
+
+        const request = new Request('http://localhost/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        const response = await runtime.handlers.tasks(request);
+        const data = (await response.json()) as { taskId: string };
+        return data.taskId;
+      };
+
+      const taskId1 = await createTask('hello1');
+      const taskId2 = await createTask('hello2');
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const listRequest = new Request(
+        'http://localhost/tasks?status=completed',
+        {
+          method: 'GET',
+        }
+      );
+
+      const listResponse = await runtime.handlers.listTasks(listRequest);
+      expect(listResponse.status).toBe(200);
+
+      const listData = (await listResponse.json()) as {
+        tasks: Task[];
+        total?: number;
+        hasMore?: boolean;
+      };
+      expect(listData.tasks.length).toBeGreaterThanOrEqual(2);
+      expect(listData.tasks.every(t => t.status === 'completed')).toBe(true);
+    });
+
+    it('supports pagination with limit and offset', async () => {
+      const runtime = makeTestRuntime();
+      runtime.entrypoints.add({
+        key: 'echo',
+        description: 'Echo endpoint',
+        input: z.object({ text: z.string() }),
+        output: z.object({ text: z.string() }),
+        handler: async ctx => {
+          const input = ctx.input as { text: string };
+          return {
+            output: { text: input.text },
+            usage: { total_tokens: 0 },
+          };
+        },
+      });
+
+      const createTask = async (text: string) => {
+        const requestBody: SendMessageRequest = {
+          message: {
+            role: 'user',
+            content: { text: JSON.stringify({ text }) },
+          },
+          skillId: 'echo',
+        };
+
+        const request = new Request('http://localhost/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        const response = await runtime.handlers.tasks(request);
+        const data = (await response.json()) as { taskId: string };
+        return data.taskId;
+      };
+
+      await createTask('hello1');
+      await createTask('hello2');
+      await createTask('hello3');
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const listRequest = new Request(
+        'http://localhost/tasks?limit=2&offset=0',
+        {
+          method: 'GET',
+        }
+      );
+
+      const listResponse = await runtime.handlers.listTasks(listRequest);
+      expect(listResponse.status).toBe(200);
+
+      const listData = (await listResponse.json()) as {
+        tasks: Task[];
+        total?: number;
+        hasMore?: boolean;
+      };
+      expect(listData.tasks.length).toBe(2);
+      expect(listData.total).toBeGreaterThanOrEqual(3);
+      expect(listData.hasMore).toBe(true);
+    });
+  });
+
+  describe('POST /tasks/{taskId}/cancel - Cancel Task', () => {
+    it('cancels a running task', async () => {
+      const runtime = makeTestRuntime();
+      let taskAborted = false;
+
+      runtime.entrypoints.add({
+        key: 'slow',
+        description: 'Slow endpoint',
+        input: z.object({ delay: z.number() }),
+        output: z.object({ done: z.boolean() }),
+        handler: async ctx => {
+          const input = ctx.input as { delay: number };
+          if (ctx.signal?.aborted) {
+            taskAborted = true;
+            throw new Error('Task aborted');
+          }
+          await new Promise(resolve => setTimeout(resolve, input.delay));
+          if (ctx.signal?.aborted) {
+            taskAborted = true;
+            throw new Error('Task aborted');
+          }
+          return {
+            output: { done: true },
+            usage: { total_tokens: 0 },
+          };
+        },
+      });
+
+      const requestBody: SendMessageRequest = {
+        message: {
+          role: 'user',
+          content: { text: JSON.stringify({ delay: 1000 }) },
+        },
+        skillId: 'slow',
+      };
+
+      const createRequest = new Request('http://localhost/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const createResponse = await runtime.handlers.tasks(createRequest);
+      const { taskId } = (await createResponse.json()) as { taskId: string };
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const cancelRequest = new Request(
+        `http://localhost/tasks/${taskId}/cancel`,
+        {
+          method: 'POST',
+        }
+      );
+
+      const cancelResponse = await runtime.handlers.cancelTask(cancelRequest, {
+        taskId,
+      });
+      expect(cancelResponse.status).toBe(200);
+
+      const cancelledTask = (await cancelResponse.json()) as Task;
+      expect(cancelledTask.status).toBe('cancelled');
+      expect(cancelledTask.taskId).toBe(taskId);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const getRequest = new Request(`http://localhost/tasks/${taskId}`, {
+        method: 'GET',
+      });
+
+      const getResponse = await runtime.handlers.getTask(getRequest, {
+        taskId,
+      });
+      const task = (await getResponse.json()) as Task;
+      expect(task.status).toBe('cancelled');
+    });
+
+    it('returns 404 for non-existent task', async () => {
+      const runtime = makeTestRuntime();
+
+      const cancelRequest = new Request(
+        'http://localhost/tasks/non-existent/cancel',
+        {
+          method: 'POST',
+        }
+      );
+
+      const cancelResponse = await runtime.handlers.cancelTask(cancelRequest, {
+        taskId: 'non-existent',
+      });
+      expect(cancelResponse.status).toBe(404);
+
+      const error = (await cancelResponse.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(error.error.code).toBe('task_not_found');
+    });
+
+    it('returns 400 for non-running task', async () => {
+      const runtime = makeTestRuntime();
+      runtime.entrypoints.add({
+        key: 'echo',
+        description: 'Echo endpoint',
+        input: z.object({ text: z.string() }),
+        output: z.object({ text: z.string() }),
+        handler: async ctx => {
+          const input = ctx.input as { text: string };
+          return {
+            output: { text: input.text },
+            usage: { total_tokens: 0 },
+          };
+        },
+      });
+
+      const requestBody: SendMessageRequest = {
+        message: {
+          role: 'user',
+          content: { text: JSON.stringify({ text: 'hello' }) },
+        },
+        skillId: 'echo',
+      };
+
+      const createRequest = new Request('http://localhost/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const createResponse = await runtime.handlers.tasks(createRequest);
+      const { taskId } = (await createResponse.json()) as { taskId: string };
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const cancelRequest = new Request(
+        `http://localhost/tasks/${taskId}/cancel`,
+        {
+          method: 'POST',
+        }
+      );
+
+      const cancelResponse = await runtime.handlers.cancelTask(cancelRequest, {
+        taskId,
+      });
+      expect(cancelResponse.status).toBe(400);
+
+      const error = (await cancelResponse.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(error.error.code).toBe('invalid_state');
+    });
+  });
 });

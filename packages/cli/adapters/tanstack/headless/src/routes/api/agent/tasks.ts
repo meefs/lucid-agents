@@ -7,6 +7,10 @@ export const Route = createFileRoute('/api/agent/tasks')({
         const { handlers } = await import('@/lib/agent');
         return handlers.tasks({ request });
       },
+      GET: async ({ request }) => {
+        const { handlers } = await import('@/lib/agent');
+        return handlers.listTasks({ request });
+      },
     },
   },
 });

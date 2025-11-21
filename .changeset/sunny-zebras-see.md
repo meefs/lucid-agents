@@ -16,18 +16,23 @@ Implements bidirectional A2A communication, refactors Agent Card generation to i
 
 ## New Features
 
+
 ### A2A Protocol Task-Based Operations
 
 Implements A2A Protocol task-based operations alongside existing direct invocation. Tasks enable long-running operations, status tracking, and multi-turn conversations.
 
 **New HTTP Endpoints:**
 - `POST /tasks` - Create task (returns `{ taskId, status: 'running' }` immediately)
+- `GET /tasks` - List tasks with filtering (contextId, status, pagination)
 - `GET /tasks/{taskId}` - Get task status and result
+- `POST /tasks/{taskId}/cancel` - Cancel a running task
 - `GET /tasks/{taskId}/subscribe` - SSE stream for task updates
 
 **New A2A Client Methods:**
-- `sendMessage(card, skillId, input)` - Creates task and returns taskId immediately
+- `sendMessage(card, skillId, input, fetch?, options?)` - Creates task and returns taskId immediately (supports contextId for multi-turn conversations)
 - `getTask(card, taskId)` - Retrieves task status and result
+- `listTasks(card, filters?)` - Lists tasks with optional filtering by contextId, status, and pagination
+- `cancelTask(card, taskId)` - Cancels a running task
 - `subscribeTask(card, taskId, emit)` - Subscribes to task updates via SSE
 - `fetchAndSendMessage(baseUrl, skillId, input)` - Convenience: fetch card + send message
 - `waitForTask(client, card, taskId)` - Utility to poll for task completion
@@ -35,9 +40,19 @@ Implements A2A Protocol task-based operations alongside existing direct invocati
 **Task Lifecycle:**
 1. Client creates task via `POST /tasks` → receives `{ taskId, status: 'running' }`
 2. Task executes asynchronously (handler runs in background)
-3. Task status updates automatically: `running` → `completed`/`failed`
+3. Task status updates automatically: `running` → `completed`/`failed`/`cancelled`
 4. Client polls `GET /tasks/{taskId}` or subscribes via SSE for updates
 5. When complete, task contains `result: { output, usage, model }` or `error: { code, message }`
+
+**Multi-Turn Conversations:**
+- Tasks support `contextId` parameter for grouping related tasks in a conversation
+- Use `listTasks(card, { contextId })` to retrieve all tasks in a conversation
+- Enables building conversational agents that maintain context across multiple interactions
+
+**Task Management:**
+- `listTasks()` supports filtering by `contextId`, `status` (single or array), and pagination (`limit`, `offset`)
+- `cancelTask()` allows cancelling running tasks, updating status to `cancelled` and aborting handler execution
+- Tasks include `AbortController` for proper cancellation handling
 
 **Backward Compatible:**
 - Direct invocation (`/entrypoints/{key}/invoke`) remains fully supported
@@ -45,8 +60,9 @@ Implements A2A Protocol task-based operations alongside existing direct invocati
 - Both approaches can be used side-by-side
 
 **Task Storage:**
-- In-memory `Map<taskId, Task>` in core runtime
+- In-memory `Map<taskId, TaskEntry>` in core runtime (combines Task and AbortController)
 - Tasks persist for agent lifetime (no automatic expiration)
+- Each task entry includes task data and AbortController for cancellation support
 
 **Adapters:**
 - Hono: Task routes registered automatically
@@ -112,6 +128,13 @@ The example shows a three-agent composition:
 **Flow:** Agent 3 → Agent 2 → Agent 1 → Agent 2 → Agent 3
 
 This demonstrates that agents can orchestrate other agents, enabling complex agent compositions and supply chains. The facilitating agent pattern is essential for building agent ecosystems where agents work together to accomplish tasks.
+
+The example demonstrates:
+- Task-based operations (sendMessage, waitForTask)
+- Multi-turn conversations with contextId tracking
+- Listing tasks filtered by contextId
+- Task cancellation with proper error handling
+- Agent composition via tasks (agent calling agent calling agent)
 
 Run the example: `bun run examples/full-integration.ts` (from `packages/a2a`)
 

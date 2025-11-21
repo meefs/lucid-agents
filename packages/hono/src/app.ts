@@ -85,8 +85,12 @@ export function createAgentApp(
 
   // Task routes (A2A Protocol task-based operations)
   app.post('/tasks', c => runtime.handlers.tasks(c.req.raw));
+  app.get('/tasks', c => runtime.handlers.listTasks(c.req.raw));
   app.get('/tasks/:taskId', c =>
     runtime.handlers.getTask(c.req.raw, { taskId: c.req.param('taskId') })
+  );
+  app.post('/tasks/:taskId/cancel', c =>
+    runtime.handlers.cancelTask(c.req.raw, { taskId: c.req.param('taskId') })
   );
   app.get('/tasks/:taskId/subscribe', c =>
     runtime.handlers.subscribeTask(c.req.raw, { taskId: c.req.param('taskId') })

@@ -15,7 +15,10 @@ graph TB
     subgraph "Layer 1: Extensions"
         identity["@lucid-agents/identity<br/>ERC-8004 identity & trust"]
         payments["@lucid-agents/payments<br/>x402 bi-directional payments"]
-        future["Future extensions<br/>(wallet, monitoring, etc.)"]
+        wallet["@lucid-agents/wallet<br/>Wallet connectors"]
+        a2a["@lucid-agents/a2a<br/>A2A protocol support"]
+        ap2["@lucid-agents/ap2<br/>AP2 extension"]
+        future["Future extensions<br/>(monitoring, etc.)"]
     end
 
     subgraph "Layer 2: Core"
@@ -35,10 +38,16 @@ graph TB
 
     types --> identity
     types --> payments
+    types --> wallet
+    types --> a2a
+    types --> ap2
     types --> core
 
     core --> identity
     core --> payments
+    core --> wallet
+    core --> a2a
+    core --> ap2
 
     hono --> core
     tanstack --> core
@@ -70,6 +79,9 @@ graph LR
     subgraph "Extensions (Independent)"
         identity[identity]
         payments[payments]
+        wallet[wallet]
+        a2a[a2a]
+        ap2[ap2]
     end
 
     subgraph "Core Runtime"
@@ -87,10 +99,16 @@ graph LR
 
     types --> identity
     types --> payments
+    types --> wallet
+    types --> a2a
+    types --> ap2
     types --> core
 
     payments --> core
     identity --> core
+    wallet --> core
+    a2a --> core
+    ap2 --> core
 
     core --> hono
     core --> tanstack
@@ -101,6 +119,9 @@ graph LR
     style types fill:#4fc3f7
     style identity fill:#81c784
     style payments fill:#81c784
+    style wallet fill:#81c784
+    style a2a fill:#81c784
+    style ap2 fill:#81c784
     style core fill:#ffb74d
     style hono fill:#ba68c8
     style tanstack fill:#ba68c8
@@ -113,7 +134,7 @@ Note: Dependencies are one-directional. @lucid-agents/core imports from extensio
 
 Extensions add optional capabilities. They are independent and don't depend on each other.
 
-### @lucid-agents/agent-kit-identity
+### @lucid-agents/identity
 
 **Purpose:** ERC-8004 on-chain identity and trust layer
 
@@ -128,7 +149,7 @@ Extensions add optional capabilities. They are independent and don't depend on e
 
 ---
 
-### @lucid-agents/agent-kit-payments
+### @lucid-agents/payments
 
 **Purpose:** x402 payment protocol (bi-directional)
 
@@ -137,34 +158,78 @@ Extensions add optional capabilities. They are independent and don't depend on e
 - Entrypoint definitions (priced capabilities)
 - Payment requirement resolution (server-side)
 - x402 client utilities (client-side)
-- AxLLM integration with payments
 - Payment configuration and validation
+- Multi-network support (EVM and Solana)
 
-**Dependencies:** `x402`, `x402-fetch`, `@ax-llm/ax`, `@lucid-dreams/agent-auth`, `zod`
+**Dependencies:** `x402`, `x402-fetch`, `zod`
+
+---
+
+### @lucid-agents/wallet
+
+**Purpose:** Wallet connectors and helpers for agent operations
+
+**Provides:**
+
+- Wallet client creation and management
+- Multi-network wallet support (EVM and Solana)
+- Wallet configuration utilities
+
+**Dependencies:** `viem` (Ethereum interactions)
+
+---
+
+### @lucid-agents/a2a
+
+**Purpose:** Agent-to-Agent (A2A) protocol implementation
+
+**Provides:**
+
+- Agent Card building and fetching
+- A2A client utilities (invoke, stream, task operations)
+- Task-based operations (sendMessage, getTask, listTasks, cancelTask)
+- Multi-turn conversation support with contextId
+- A2A runtime integration
+
+**Dependencies:** `@lucid-agents/types`, `zod`
+
+---
+
+### @lucid-agents/ap2
+
+**Purpose:** AP2 (Agent Payments Protocol) extension
+
+**Provides:**
+
+- AP2 runtime creation
+- Agent Card enhancement with AP2 extension metadata
+- AP2 role management (merchant, shopper)
+
+**Dependencies:** `@lucid-agents/types`
 
 ## Layer 2: Core
 
-### @lucid-agents/agent-kit
+### @lucid-agents/core
 
 **Purpose:** Framework-agnostic agent runtime
 
 **Provides:**
 
 - Agent execution (`AgentCore`)
-- HTTP request handlers
+- HTTP request handlers (invoke, stream, tasks)
 - Server-Sent Events (SSE) streaming
 - Manifest generation (AgentCard, A2A)
+- Task management (create, get, list, cancel, subscribe)
 - Configuration management
 - Landing page UI
-- AxLLM client wrapper
 
-**Dependencies:** `agent-kit-payments`, `agent-kit-identity`
+**Dependencies:** `@lucid-agents/payments`, `@lucid-agents/identity`, `@lucid-agents/wallet`, `@lucid-agents/a2a`, `@lucid-agents/ap2`
 
 ## Layer 3: Adapters
 
 Adapters integrate the core runtime with specific web frameworks.
 
-### @lucid-agents/agent-kit-hono
+### @lucid-agents/hono
 
 **Purpose:** Hono framework integration
 
@@ -172,12 +237,13 @@ Adapters integrate the core runtime with specific web frameworks.
 
 - `createAgentApp()` - Returns Hono app instance
 - `withPayments()` - x402-hono middleware wrapper
+- Automatic route registration for tasks, entrypoints, manifest
 
-**Dependencies:** `agent-kit`, `hono`, `x402-hono`
+**Dependencies:** `@lucid-agents/core`, `hono`, `x402-hono`
 
 ---
 
-### @lucid-agents/agent-kit-tanstack
+### @lucid-agents/tanstack
 
 **Purpose:** TanStack Start framework integration
 
@@ -185,23 +251,38 @@ Adapters integrate the core runtime with specific web frameworks.
 
 - `createTanStackRuntime()` - Returns runtime & handlers
 - `withPayments()` - x402-tanstack middleware wrapper
+- Route files for tasks, entrypoints, manifest
 
-**Dependencies:** `agent-kit`, `@tanstack/start`, `x402-tanstack`
+**Dependencies:** `@lucid-agents/core`, `@tanstack/start`, `x402-tanstack-start`
+
+---
+
+### @lucid-agents/express
+
+**Purpose:** Express framework integration
+
+**Provides:**
+
+- `createAgentApp()` - Returns Express app instance
+- `withPayments()` - x402 Express middleware wrapper
+- Automatic route registration for tasks, entrypoints, manifest
+
+**Dependencies:** `@lucid-agents/core`, `express`, `x402-express`
 
 ## Layer 4: Developer Tools
 
-### @lucid-agents/create-agent-kit
+### @lucid-agents/cli
 
 **Purpose:** CLI for scaffolding new agent projects
 
 **Provides:**
 
 - Interactive project wizard
-- Template system (blank, axllm, identity, axllm-flow)
-- Adapter selection (hono, tanstack-ui, tanstack-headless)
+- Template system (blank, axllm, identity, axllm-flow, trading-*)
+- Adapter selection (hono, tanstack-ui, tanstack-headless, express)
 - Merge system (combines adapter + template)
 
-**Dependencies:** All agent-kit packages
+**Dependencies:** All @lucid-agents packages
 
 ## Developer Flow
 
@@ -303,35 +384,49 @@ Note: agent-kit-payments is now a leaf package that can build before agent-kit, 
 
 | Package              | Responsibility                                               |
 | -------------------- | ------------------------------------------------------------ |
-| `agent-kit-identity` | ERC-8004 on-chain identity, registries, trust models         |
-| `agent-kit-payments` | x402 protocol, EntrypointDef, pricing, payment client/server |
-| `agent-kit`          | Core runtime, HTTP handlers, SSE, manifest, config, UI       |
-| `agent-kit-hono`     | Hono framework integration, middleware wiring                |
-| `agent-kit-tanstack` | TanStack framework integration, middleware wiring            |
-| `create-agent-kit`   | CLI tool, templates, project scaffolding                     |
+| `@lucid-agents/types` | Shared type definitions (zero dependencies)                  |
+| `@lucid-agents/identity` | ERC-8004 on-chain identity, registries, trust models         |
+| `@lucid-agents/payments` | x402 protocol, EntrypointDef, pricing, payment client/server |
+| `@lucid-agents/wallet` | Wallet connectors and helpers for agent operations           |
+| `@lucid-agents/a2a` | A2A protocol implementation, Agent Cards, task operations     |
+| `@lucid-agents/ap2` | AP2 extension for Agent Cards                                |
+| `@lucid-agents/core` | Core runtime, HTTP handlers, SSE, manifest, config, UI     |
+| `@lucid-agents/hono` | Hono framework integration, middleware wiring                |
+| `@lucid-agents/tanstack` | TanStack framework integration, middleware wiring            |
+| `@lucid-agents/express` | Express framework integration, middleware wiring             |
+| `@lucid-agents/cli` | CLI tool, templates, project scaffolding                     |
 
 ## Extension Independence
 
 ```mermaid
 graph TB
     subgraph "Independent Extensions"
-        identity[agent-kit-identity<br/>Can be used without payments]
-        payments[agent-kit-payments<br/>Can be used without identity]
+        identity[@lucid-agents/identity<br/>ERC-8004 identity]
+        payments[@lucid-agents/payments<br/>x402 payments]
+        wallet[@lucid-agents/wallet<br/>Wallet connectors]
+        a2a[@lucid-agents/a2a<br/>A2A protocol]
+        ap2[@lucid-agents/ap2<br/>AP2 extension]
     end
 
     subgraph "Core"
-        core[agent-kit<br/>Uses both extensions]
+        core[@lucid-agents/core<br/>Uses all extensions]
     end
 
     identity -.->|optional| core
     payments -.->|optional| core
+    wallet -.->|optional| core
+    a2a -.->|optional| core
+    ap2 -.->|optional| core
 
     style identity fill:#90caf9
     style payments fill:#a5d6a7
+    style wallet fill:#a5d6a7
+    style a2a fill:#a5d6a7
+    style ap2 fill:#a5d6a7
     style core fill:#ffcc80
 ```
 
-Extensions are independent modules that core can optionally use. Neither depends on the other.
+Extensions are independent modules that core can optionally use. They don't depend on each other.
 
 ## Types Package
 
@@ -391,40 +486,35 @@ Planned extensions and adapters:
 ```mermaid
 graph TB
     subgraph "Existing"
-        identity_now[agent-kit-identity]
-        payments_now[agent-kit-payments]
-        core_now[agent-kit]
-        hono_now[agent-kit-hono]
-        tanstack_now[agent-kit-tanstack]
+        identity_now[@lucid-agents/identity]
+        payments_now[@lucid-agents/payments]
+        wallet_now[@lucid-agents/wallet]
+        a2a_now[@lucid-agents/a2a]
+        ap2_now[@lucid-agents/ap2]
+        core_now[@lucid-agents/core]
+        hono_now[@lucid-agents/hono]
+        tanstack_now[@lucid-agents/tanstack]
+        express_now[@lucid-agents/express]
     end
 
     subgraph "Planned Extensions"
-        wallet[agent-kit-wallet<br/>Agent wallet management]
-        monitoring[agent-kit-monitoring<br/>Metrics & observability]
-        storage[agent-kit-storage<br/>Persistent state]
-        axllm_pkg[agent-kit-axllm<br/>Dedicated LLM package]
+        monitoring[monitoring<br/>Metrics & observability]
+        storage[storage<br/>Persistent state]
     end
 
     subgraph "Planned Adapters"
-        express[agent-kit-express]
-        fastify[agent-kit-fastify]
-        nextjs[agent-kit-nextjs]
+        fastify[fastify]
+        nextjs[nextjs]
     end
 
-    core_now --> wallet
     core_now --> monitoring
     core_now --> storage
-    core_now --> axllm_pkg
 
-    core_now --> express
     core_now --> fastify
     core_now --> nextjs
 
-    style wallet fill:#fff59d,stroke-dasharray: 5 5
     style monitoring fill:#fff59d,stroke-dasharray: 5 5
     style storage fill:#fff59d,stroke-dasharray: 5 5
-    style axllm_pkg fill:#fff59d,stroke-dasharray: 5 5
-    style express fill:#e1bee7,stroke-dasharray: 5 5
     style fastify fill:#e1bee7,stroke-dasharray: 5 5
     style nextjs fill:#e1bee7,stroke-dasharray: 5 5
 ```

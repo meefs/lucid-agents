@@ -23,9 +23,34 @@
         "prettier": "^3.0.0",
       },
     },
+    "packages/a2a": {
+      "name": "@lucid-agents/a2a",
+      "version": "0.1.0",
+      "dependencies": {
+        "@lucid-agents/types": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@lucid-agents/core": "workspace:*",
+        "@lucid-agents/hono": "workspace:*",
+        "tsup": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
+    "packages/ap2": {
+      "name": "@lucid-agents/ap2",
+      "version": "0.1.0",
+      "dependencies": {
+        "@lucid-agents/types": "workspace:*",
+      },
+      "devDependencies": {
+        "tsup": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
     "packages/cli": {
       "name": "@lucid-agents/cli",
-      "version": "1.5.2",
+      "version": "1.6.0",
       "bin": {
         "create-agent-kit": "dist/index.js",
       },
@@ -40,10 +65,12 @@
     },
     "packages/core": {
       "name": "@lucid-agents/core",
-      "version": "1.5.2",
+      "version": "1.6.0",
       "dependencies": {
         "@ax-llm/ax": "^14.0.37",
         "@ax-llm/ax-tools": "^14.0.37",
+        "@lucid-agents/a2a": "workspace:*",
+        "@lucid-agents/ap2": "workspace:*",
         "@lucid-agents/identity": "workspace:*",
         "@lucid-agents/payments": "workspace:*",
         "@lucid-agents/types": "workspace:*",
@@ -70,7 +97,7 @@
     },
     "packages/express": {
       "name": "@lucid-agents/express",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "dependencies": {
         "@lucid-agents/core": "workspace:*",
         "@lucid-agents/payments": "workspace:*",
@@ -88,8 +115,9 @@
     },
     "packages/hono": {
       "name": "@lucid-agents/hono",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "dependencies": {
+        "@lucid-agents/ap2": "workspace:*",
         "@lucid-agents/core": "workspace:*",
         "@lucid-agents/payments": "workspace:*",
         "@lucid-agents/types": "workspace:*",
@@ -105,9 +133,8 @@
     },
     "packages/identity": {
       "name": "@lucid-agents/identity",
-      "version": "1.5.2",
+      "version": "1.6.0",
       "dependencies": {
-        "@lucid-agents/core": "workspace:*",
         "@lucid-agents/types": "workspace:*",
         "@lucid-agents/wallet": "workspace:*",
         "viem": "^2.38.1",
@@ -121,12 +148,10 @@
     },
     "packages/payments": {
       "name": "@lucid-agents/payments",
-      "version": "1.5.2",
+      "version": "1.6.0",
       "dependencies": {
         "@ax-llm/ax": "catalog:",
-        "@lucid-agents/core": "workspace:*",
         "@lucid-agents/types": "workspace:*",
-        "@lucid-agents/wallet": "workspace:*",
         "viem": "^2.38.5",
         "x402": "^0.7.1",
         "x402-fetch": "catalog:",
@@ -143,7 +168,7 @@
     },
     "packages/tanstack": {
       "name": "@lucid-agents/tanstack",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "dependencies": {
         "@lucid-agents/core": "workspace:*",
         "@lucid-agents/payments": "workspace:*",
@@ -159,7 +184,7 @@
     },
     "packages/types": {
       "name": "@lucid-agents/types",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "devDependencies": {
         "tsup": "catalog:",
         "typescript": "catalog:",
@@ -172,7 +197,7 @@
     },
     "packages/wallet": {
       "name": "@lucid-agents/wallet",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@lucid-agents/types": "workspace:*",
         "viem": "^2.38.5",
@@ -410,6 +435,10 @@
     "@lit-labs/ssr-dom-shim": ["@lit-labs/ssr-dom-shim@1.4.0", "", {}, "sha512-ficsEARKnmmW5njugNYKipTm4SFnbik7CXtoencDZzmzo/dQ+2Q0bgkzJuoJP20Aj0F+izzJjOqsnkd6F/o1bw=="],
 
     "@lit/reactive-element": ["@lit/reactive-element@2.1.1", "", { "dependencies": { "@lit-labs/ssr-dom-shim": "^1.4.0" } }, "sha512-N+dm5PAYdQ8e6UlywyyrgI2t++wFGXfHx+dSJ1oBrg6FAxUj40jId++EaRm80MKX5JnlH1sBsyZ5h0bcZKemCg=="],
+
+    "@lucid-agents/a2a": ["@lucid-agents/a2a@workspace:packages/a2a"],
+
+    "@lucid-agents/ap2": ["@lucid-agents/ap2@workspace:packages/ap2"],
 
     "@lucid-agents/cli": ["@lucid-agents/cli@workspace:packages/cli"],
 
@@ -1977,7 +2006,7 @@
 
     "x402-express": ["x402-express@0.7.1", "", { "dependencies": { "@coinbase/cdp-sdk": "^1.22.0", "@solana/kit": "^2.1.1", "express": "^4.18.2", "viem": "^2.21.26", "x402": "^0.7.1", "zod": "^3.24.2" } }, "sha512-pOJogwD7kj+83FVFxp2RNw/y7iIvrjS8dMjKnrt/EFtBicZ1sWpTO56yEOeusYKzDnvYM3bKbmQp6JdrGmMrrA=="],
 
-    "x402-fetch": ["x402-fetch@0.7.0", "", { "dependencies": { "viem": "^2.21.26", "x402": "^0.7.0", "zod": "^3.24.2" } }, "sha512-HS7v6wsIVrU8TvAGBwRmA3I+ZXbanPraA3OMj90y6Hn1Mej1wAELOK4VpGh6zI8d6w5E464BnGu9o0FE+8DRAA=="],
+    "x402-fetch": ["x402-fetch@0.7.2", "", { "dependencies": { "viem": "^2.21.26", "x402": "^0.7.2", "zod": "^3.24.2" } }, "sha512-fS3jAGZHQUPR/GCqZSPayBdYwsNk/mULVf7ZnE2Kr3feTdV3riwXS78eJEnOL3+1mul3XOnPo8uoUCAGNihESQ=="],
 
     "x402-hono": ["x402-hono@0.7.1", "", { "dependencies": { "@coinbase/cdp-sdk": "^1.22.0", "@solana/kit": "^2.1.1", "hono": "^4.7.1", "viem": "^2.21.26", "x402": "^0.7.1", "zod": "^3.24.2" } }, "sha512-4QGtjK9FpuUnkBCWm8ptJmNkWs6TlLvDAI0Ypo85/WZGg3JKOoyyMSF1pDU3SReKYCYOwRCbCJ9A4TbtbPMOTg=="],
 
@@ -2046,6 +2075,10 @@
     "@eslint/eslintrc/ignore": ["ignore@5.3.2", "", {}, "sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g=="],
 
     "@isaacs/cliui/strip-ansi": ["strip-ansi@7.1.2", "", { "dependencies": { "ansi-regex": "^6.0.1" } }, "sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA=="],
+
+    "@lucid-dreams/client/x402-fetch": ["x402-fetch@0.7.0", "", { "dependencies": { "viem": "^2.21.26", "x402": "^0.7.0", "zod": "^3.24.2" } }, "sha512-HS7v6wsIVrU8TvAGBwRmA3I+ZXbanPraA3OMj90y6Hn1Mej1wAELOK4VpGh6zI8d6w5E464BnGu9o0FE+8DRAA=="],
+
+    "@lucid-dreams/sdk/x402-fetch": ["x402-fetch@0.7.0", "", { "dependencies": { "viem": "^2.21.26", "x402": "^0.7.0", "zod": "^3.24.2" } }, "sha512-HS7v6wsIVrU8TvAGBwRmA3I+ZXbanPraA3OMj90y6Hn1Mej1wAELOK4VpGh6zI8d6w5E464BnGu9o0FE+8DRAA=="],
 
     "@manypkg/find-root/@types/node": ["@types/node@12.20.55", "", {}, "sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ=="],
 
@@ -2332,6 +2365,10 @@
     "@coinbase/wallet-sdk/ox/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
     "@isaacs/cliui/strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
+
+    "@lucid-dreams/client/x402-fetch/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "@lucid-dreams/sdk/x402-fetch/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@manypkg/find-root/find-up/locate-path": ["locate-path@5.0.0", "", { "dependencies": { "p-locate": "^4.1.0" } }, "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g=="],
 

@@ -1,11 +1,13 @@
 import { resolvePrice } from '@lucid-agents/payments';
 import type {
-  AgentCapabilities,
-  AgentCardWithEntrypoints,
-  AgentMeta,
   AP2Config,
   AP2ExtensionDescriptor,
   AP2Role,
+} from '@lucid-agents/types/ap2';
+import type {
+  AgentCapabilities,
+  AgentCardWithEntrypoints,
+  AgentMeta,
   Manifest,
   PaymentMethod,
 } from '@lucid-agents/types/core';

@@ -7,6 +7,15 @@ import type { PaymentsConfig } from '../payments';
 import type { RegistrationEntry, TrustModel } from '../identity';
 
 /**
+ * Standard fetch function type.
+ * Used across packages to type fetch implementations (including payment-enabled fetch).
+ */
+export type FetchFunction = (
+  input: RequestInfo | URL,
+  init?: RequestInit
+) => Promise<Response>;
+
+/**
  * Usage metrics for agent execution.
  */
 export type Usage = {
@@ -49,6 +58,7 @@ export type AgentContext = {
   signal: AbortSignal;
   headers: Headers;
   runId?: string;
+  runtime?: AgentRuntime;
 };
 
 /**
@@ -259,43 +269,6 @@ export type AgentCore = {
   listEntrypoints: () => EntrypointDef[];
 };
 
-// AP2 (Agent Payments Protocol) types
-/**
- * AP2 (Agent Payments Protocol) role types.
- */
-export type AP2Role =
-  | 'merchant'
-  | 'shopper'
-  | 'credentials-provider'
-  | 'payment-processor';
-
-/**
- * Parameters for AP2 extension configuration.
- */
-export type AP2ExtensionParams = {
-  roles: [AP2Role, ...AP2Role[]];
-  [key: string]: unknown;
-};
-
-/**
- * Descriptor for AP2 extension in agent manifest.
- */
-export type AP2ExtensionDescriptor = {
-  uri: 'https://github.com/google-agentic-commerce/ap2/tree/v0.1';
-  description?: string;
-  required?: boolean;
-  params: AP2ExtensionParams;
-};
-
-/**
- * Configuration for AP2 (Agent Payments Protocol) extension.
- */
-export type AP2Config = {
-  roles: AP2Role[];
-  description?: string;
-  required?: boolean;
-};
-
 // Manifest and Agent Card types
 /**
  * Agent manifest structure describing entrypoints and capabilities.
@@ -335,7 +308,9 @@ export type AgentCapabilities = {
   streaming?: boolean;
   pushNotifications?: boolean;
   stateTransitionHistory?: boolean;
-  extensions?: Array<AP2ExtensionDescriptor | Record<string, unknown>>;
+  extensions?: Array<
+    import('../ap2').AP2ExtensionDescriptor | Record<string, unknown>
+  >;
 };
 
 /**
@@ -418,6 +393,8 @@ export type AgentRuntime = {
   config: AgentKitConfig;
   wallets?: import('../wallets').WalletsRuntime;
   payments?: import('../payments').PaymentsRuntime;
+  a2a?: import('../a2a').A2ARuntime;
+  ap2?: import('../ap2').AP2Runtime;
   entrypoints: EntrypointsRuntime;
   manifest: ManifestRuntime;
 };

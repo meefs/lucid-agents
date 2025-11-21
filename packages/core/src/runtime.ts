@@ -1,10 +1,16 @@
-import { createPaymentsRuntime } from '@lucid-agents/payments';
+import { createA2ARuntime } from '@lucid-agents/a2a';
+import { createAgentCardWithAP2, createAP2Runtime } from '@lucid-agents/ap2';
+import { createAgentCardWithIdentity } from '@lucid-agents/identity';
+import {
+  createAgentCardWithPayments,
+  createPaymentsRuntime,
+} from '@lucid-agents/payments';
+import type { AP2Config } from '@lucid-agents/types/ap2';
 import type {
   AgentCardWithEntrypoints,
   AgentKitConfig,
   AgentMeta,
   AgentRuntime,
-  AP2Config,
 } from '@lucid-agents/types/core';
 import type { TrustConfig } from '@lucid-agents/types/identity';
 import type {
@@ -17,7 +23,6 @@ import { getAgentKitConfig, setActiveInstanceConfig } from './config/config';
 import { type AgentCore, createAgentCore } from './core/agent';
 import type { Network } from './core/types';
 import type { EntrypointDef } from './http/types';
-import { buildManifest } from './manifest/manifest';
 
 export type CreateAgentRuntimeOptions = {
   payments?: PaymentsConfig | false;
@@ -88,23 +93,63 @@ export function createAgentRuntime(
       streaming: Boolean(entry.stream ?? entry.streaming),
     }));
 
+  // Create runtime object (will be used to create A2A runtime)
+  const runtimeObj = {
+    agent,
+    config,
+    wallets,
+    payments,
+    entrypoints: {
+      add: () => {},
+      list: listEntrypoints,
+      snapshot: snapshotEntrypoints,
+    },
+    manifest: {
+      build: () => ({}) as AgentCardWithEntrypoints,
+      invalidate: () => {},
+    },
+  } as AgentRuntime;
+
+  const a2a = createA2ARuntime(runtimeObj);
+  const ap2 = createAP2Runtime(opts?.ap2);
+
+  // Update runtime object with A2A and AP2
+  (runtimeObj as AgentRuntime).a2a = a2a;
+  (runtimeObj as AgentRuntime).ap2 = ap2;
+
   const buildManifestForOrigin = (origin: string) => {
     const cached = manifestCache.get(origin);
     if (cached) {
       return cached;
     }
 
-    const manifest = buildManifest({
-      meta,
-      registry: snapshotEntrypoints(),
-      origin,
-      payments: payments?.config,
-      ap2: opts?.ap2,
-      trust: opts?.trust,
-    });
+    // Build base A2A card (no pricing, no payments, no identity, no AP2)
+    let card = a2a.buildCard(origin);
 
-    manifestCache.set(origin, manifest);
-    return manifest;
+    // Apply enhancements immutably (each returns new card)
+    // Payments enhancement needs entrypoints to resolve pricing
+    if (payments?.config) {
+      card = createAgentCardWithPayments(
+        card,
+        payments.config,
+        snapshotEntrypoints()
+      );
+    }
+    if (opts?.trust) {
+      card = createAgentCardWithIdentity(card, opts.trust);
+    }
+
+    // AP2 auto-enables with merchant role when payments are enabled (unless explicitly disabled)
+    const resolvedAp2Config =
+      opts?.ap2 ??
+      (payments?.config ? { roles: ['merchant'], required: true } : undefined);
+    if (resolvedAp2Config) {
+      card = createAgentCardWithAP2(card, resolvedAp2Config);
+    }
+
+    // Cache the final enhanced card
+    manifestCache.set(origin, card);
+    return card;
   };
 
   const invalidateManifestCache = () => {
@@ -120,21 +165,18 @@ export function createAgentRuntime(
     );
   }
 
-  return {
-    agent,
-    config,
-    wallets,
-    payments,
-    entrypoints: {
-      add(def: EntrypointDef) {
-        addEntrypoint(def, payments, agent, invalidateManifestCache);
-      },
-      list: listEntrypoints,
-      snapshot: snapshotEntrypoints,
+  runtimeObj.entrypoints = {
+    add(def: EntrypointDef) {
+      addEntrypoint(def, payments, agent, invalidateManifestCache);
     },
-    manifest: {
-      build: buildManifestForOrigin,
-      invalidate: invalidateManifestCache,
-    },
-  } satisfies AgentRuntime;
+    list: listEntrypoints,
+    snapshot: snapshotEntrypoints,
+  };
+
+  runtimeObj.manifest = {
+    build: buildManifestForOrigin,
+    invalidate: invalidateManifestCache,
+  };
+
+  return runtimeObj;
 }

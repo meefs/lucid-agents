@@ -4,7 +4,6 @@ import type { EntrypointDef } from '@lucid-agents/types/core';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { buildManifest } from '@lucid-agents/core';
 
 const meta = { name: 'tester', version: '0.0.1', description: 'test agent' };
 
@@ -145,59 +144,7 @@ describe('withPayments helper', () => {
   });
 });
 
-describe('buildManifest', () => {
-  const registry: EntrypointDef[] = [
-    {
-      key: 'echo',
-      description: 'echoes',
-      input: z.object({ text: z.string() }),
-      output: z.object({ text: z.string() }),
-      stream: async () => ({ status: 'succeeded' }),
-    },
-    {
-      key: 'ping',
-    },
-  ];
-
-  it('produces manifest with entrypoint schemas and capabilities', () => {
-    const card = buildManifest({
-      meta,
-      registry,
-      origin: 'https://agent.example',
-    });
-    expect(card.name).toBe(meta.name);
-    expect(card.url).toBe('https://agent.example/');
-    expect(card.entrypoints.echo.streaming).toBe(true);
-    expect(card.entrypoints.echo.input_schema).toBeTruthy();
-    expect(card.capabilities?.streaming).toBe(true);
-  });
-
-  it('includes payments and trust metadata when provided', () => {
-    const card = buildManifest({
-      meta,
-      registry,
-      origin: 'https://agent.example',
-      payments: {
-        payTo: '0xabc0000000000000000000000000000000000000',
-        facilitatorUrl: 'https://facilitator.example' as any,
-        network: 'base-sepolia' as any,
-        defaultPrice: '12',
-      },
-      trust: {
-        registrations: [{ agentId: 1, agentAddress: 'eip155:8453:0xabc' }],
-        trustModels: ['feedback', 'feedback'],
-        validationRequestsUri: 'https://agent.example/req',
-        validationResponsesUri: 'https://agent.example/res',
-        feedbackDataUri: 'https://agent.example/feedback',
-      },
-    });
-    expect(Array.isArray((card as any).payments)).toBe(true);
-    expect(card.trustModels).toEqual(['feedback']);
-    expect((card as any).ValidationRequestsURI).toBe(
-      'https://agent.example/req'
-    );
-  });
-
+describe('manifest building', () => {
   it('caches manifest per origin', async () => {
     const { app } = createAgentApp(meta, {
       entrypoints: [

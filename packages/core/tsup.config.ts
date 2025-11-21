@@ -15,6 +15,8 @@ export default definePackageConfig({
     '@ax-llm/ax',
     '@lucid-dreams/client',
     '@lucid-agents/types',
+    '@lucid-agents/a2a',
+    '@lucid-agents/ap2',
     '@lucid-agents/identity',
     '@lucid-agents/payments',
     'hono',

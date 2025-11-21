@@ -10,7 +10,8 @@ import type { Hex } from '@lucid-agents/wallet';
 import { normalizeAddress, toCaip10, ZERO_ADDRESS } from '@lucid-agents/wallet';
 
 import { normalizeDomain } from '../utils';
-import { signDomainProof } from './erc8004-signatures';
+import { signDomainProof } from './signatures';
+import { waitForConfirmation } from './utils';
 
 export { toCaip10 } from '@lucid-agents/wallet';
 
@@ -26,7 +27,7 @@ export type IdentityRegistryClientOptions<
   WalletClient extends WalletClientLike | undefined = undefined,
 > = {
   address: Hex;
-  chainId?: number;
+  chainId: number;
   publicClient: PublicClient;
   walletClient?: WalletClient;
   namespace?: string;
@@ -50,6 +51,8 @@ type RegistrationEntryParams = {
   chainId: number | string;
   namespace?: string;
   signature?: string;
+  tokenURI?: string;
+  agentRegistry?: Hex;
 };
 
 type TrustOverridesInput = Partial<
@@ -105,6 +108,12 @@ function createRegistrationEntry(
   if (params.signature) {
     entry.signature = params.signature;
   }
+  if (params.tokenURI) {
+    entry.tokenURI = params.tokenURI;
+  }
+  if (params.agentRegistry) {
+    entry.agentRegistry = params.agentRegistry;
+  }
   return entry;
 }
 
@@ -120,13 +129,14 @@ function createTrustConfig(
 
 export type IdentityRegistryClient = {
   readonly address: Hex;
-  readonly chainId?: number;
+  readonly chainId: number;
+
   get(agentId: bigint | number | string): Promise<IdentityRecord | null>;
-  register(input: RegisterAgentInput): Promise<RegisterAgentResult>;
   getMetadata(
     agentId: bigint | number | string,
     key: string
   ): Promise<Uint8Array | null>;
+  register(input: RegisterAgentInput): Promise<RegisterAgentResult>;
   setMetadata(
     agentId: bigint | number | string,
     key: string,
@@ -157,28 +167,6 @@ export type WalletClientLike = {
   }): Promise<Hex>;
 };
 
-export type TransactionReceiptLike = {
-  logs?: Array<{
-    address: Hex;
-    topics: Hex[];
-    data: Hex;
-  }>;
-};
-
-export type PublicClientWithReceipt = PublicClientLike & {
-  waitForTransactionReceipt?(args: {
-    hash: Hex;
-  }): Promise<TransactionReceiptLike>;
-  getTransactionReceipt?(args: { hash: Hex }): Promise<TransactionReceiptLike>;
-  getContractEvents?(args: {
-    address: Hex;
-    abi: typeof IDENTITY_REGISTRY_ABI;
-    eventName: string;
-    fromBlock?: bigint;
-    toBlock?: bigint;
-  }): Promise<any[]>;
-};
-
 export type RegisterAgentInput = {
   tokenURI: string;
   metadata?: Array<{ key: string; value: Uint8Array }>;
@@ -204,172 +192,182 @@ export function createIdentityRegistryClient<
     namespace = 'eip155',
   } = options;
 
-  function ensureWalletClient(): WalletClientLike {
-    if (!walletClient) {
-      throw new Error(
-        'identity registry client requires walletClient for writes'
-      );
+  async function get(
+    agentId: bigint | number | string
+  ): Promise<IdentityRecord | null> {
+    const id = BigInt(agentId);
+
+    let owner: string;
+    try {
+      owner = (await publicClient.readContract({
+        address,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: 'ownerOf',
+        args: [id],
+      })) as string;
+    } catch {
+      return null;
     }
-    return walletClient;
+
+    const uri = (await publicClient.readContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'tokenURI',
+      args: [id],
+    })) as string;
+
+    return {
+      agentId: id,
+      owner: normalizeAddress(owner),
+      tokenURI: uri,
+    };
+  }
+
+  async function getMetadata(
+    agentId: bigint | number | string,
+    key: string
+  ): Promise<Uint8Array | null> {
+    const id = BigInt(agentId);
+
+    try {
+      const metadata = (await publicClient.readContract({
+        address,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: 'getMetadata',
+        args: [id, key],
+      })) as Hex;
+
+      if (!metadata || metadata === '0x') {
+        return null;
+      }
+
+      const hexWithoutPrefix = metadata.slice(2);
+      const bytes = new Uint8Array(hexWithoutPrefix.length / 2);
+      for (let i = 0; i < hexWithoutPrefix.length; i += 2) {
+        bytes[i / 2] = parseInt(hexWithoutPrefix.slice(i, i + 2), 16);
+      }
+
+      return bytes;
+    } catch {
+      return null;
+    }
+  }
+
+  async function register(
+    input: RegisterAgentInput
+  ): Promise<RegisterAgentResult> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for register');
+    }
+    if (!input.tokenURI) {
+      throw new Error('tokenURI is required');
+    }
+
+    if (!walletClient.account?.address) {
+      throw new Error('wallet account address is required');
+    }
+
+    const agentAddress = normalizeAddress(walletClient.account.address);
+
+    const args = input.metadata
+      ? [input.tokenURI, input.metadata]
+      : [input.tokenURI];
+
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'register',
+      args,
+    });
+
+    // Wait for transaction and get receipt to parse agentId from Registered event
+    let agentId: bigint | undefined;
+    try {
+      const receipt = await waitForConfirmation(publicClient, txHash);
+
+      const REGISTERED_EVENT_SIGNATURE =
+        '0xca52e62c367d81bb2e328eb795f7c7ba24afb478408a26c0e201d155c449bc4a';
+
+      // topics[0] = event signature hash
+      // topics[1] = agentId (indexed uint256)
+      // topics[2] = owner (indexed address)
+      if (receipt?.logs) {
+        for (const log of receipt.logs) {
+          if (
+            log.address.toLowerCase() === address.toLowerCase() &&
+            log.topics[0] === REGISTERED_EVENT_SIGNATURE &&
+            log.topics.length >= 2
+          ) {
+            agentId = BigInt(log.topics[1]);
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      agentId = undefined;
+    }
+
+    return {
+      transactionHash: txHash,
+      agentAddress,
+      agentId,
+    };
+  }
+
+  async function setMetadata(
+    agentId: bigint | number | string,
+    key: string,
+    value: Uint8Array
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for setMetadata');
+    }
+
+    const id = BigInt(agentId);
+
+    // Convert Uint8Array to hex string if needed (viem expects hex for bytes type)
+    let bytesValue: `0x${string}` | Uint8Array = value;
+    if (value instanceof Uint8Array) {
+      bytesValue = `0x${Array.from(value)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')}` as `0x${string}`;
+    }
+
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'setMetadata',
+      args: [id, key, bytesValue],
+    });
+
+    await waitForConfirmation(publicClient, txHash);
+
+    return txHash;
+  }
+
+  function toRegistrationEntry(
+    record: IdentityRecord,
+    signature?: string
+  ): RegistrationEntry {
+    return createRegistrationEntry({
+      agentId: record.agentId,
+      address: record.owner,
+      chainId,
+      namespace,
+      signature,
+      tokenURI: record.tokenURI,
+      agentRegistry: address,
+    });
   }
 
   return {
     address,
     chainId,
-
-    async get(agentId) {
-      const id = BigInt(agentId);
-
-      let owner: string;
-      try {
-        owner = (await publicClient.readContract({
-          address,
-          abi: IDENTITY_REGISTRY_ABI,
-          functionName: 'ownerOf',
-          args: [id],
-        })) as string;
-      } catch {
-        return null;
-      }
-
-      const uri = (await publicClient.readContract({
-        address,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: 'tokenURI',
-        args: [id],
-      })) as string;
-
-      return {
-        agentId: id,
-        owner: normalizeAddress(owner),
-        tokenURI: uri,
-      };
-    },
-
-    async register(input) {
-      const wallet = ensureWalletClient();
-
-      if (!input.tokenURI) {
-        throw new Error('tokenURI is required');
-      }
-
-      if (!wallet.account?.address) {
-        throw new Error('wallet account address is required');
-      }
-
-      const agentAddress = normalizeAddress(wallet.account.address);
-
-      const args = input.metadata
-        ? [input.tokenURI, input.metadata]
-        : [input.tokenURI];
-
-      const txHash = await wallet.writeContract({
-        address,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: 'register',
-        args,
-      });
-
-      // Parse transaction receipt to get agentId from Registered event
-      let agentId: bigint | undefined;
-      try {
-        const publicClientWithReceipt = publicClient as PublicClientWithReceipt;
-
-        let receipt: TransactionReceiptLike | undefined;
-        if (publicClientWithReceipt.waitForTransactionReceipt) {
-          receipt = await publicClientWithReceipt.waitForTransactionReceipt({
-            hash: txHash,
-          });
-        } else if (publicClientWithReceipt.getTransactionReceipt) {
-          receipt = await publicClientWithReceipt.getTransactionReceipt({
-            hash: txHash,
-          });
-        }
-
-        const REGISTERED_EVENT_SIGNATURE =
-          '0xca52e62c367d81bb2e328eb795f7c7ba24afb478408a26c0e201d155c449bc4a';
-
-        // topics[0] = event signature hash
-        // topics[1] = agentId (indexed uint256)
-        // topics[2] = owner (indexed address)
-        if (receipt?.logs) {
-          for (const log of receipt.logs) {
-            if (
-              log.address.toLowerCase() === address.toLowerCase() &&
-              log.topics[0] === REGISTERED_EVENT_SIGNATURE &&
-              log.topics.length >= 2
-            ) {
-              agentId = BigInt(log.topics[1]);
-              break;
-            }
-          }
-        }
-      } catch (error) {
-        agentId = undefined;
-      }
-
-      return {
-        transactionHash: txHash,
-        agentAddress,
-        agentId,
-      };
-    },
-
-    async getMetadata(agentId, key) {
-      const id = BigInt(agentId);
-
-      try {
-        const metadata = (await publicClient.readContract({
-          address,
-          abi: IDENTITY_REGISTRY_ABI,
-          functionName: 'getMetadata',
-          args: [id, key],
-        })) as Hex;
-
-        if (!metadata || metadata === '0x') {
-          return null;
-        }
-
-        const hexWithoutPrefix = metadata.slice(2);
-        const bytes = new Uint8Array(hexWithoutPrefix.length / 2);
-        for (let i = 0; i < hexWithoutPrefix.length; i += 2) {
-          bytes[i / 2] = parseInt(hexWithoutPrefix.slice(i, i + 2), 16);
-        }
-
-        return bytes;
-      } catch {
-        return null;
-      }
-    },
-
-    async setMetadata(agentId, key, value) {
-      const wallet = ensureWalletClient();
-      const id = BigInt(agentId);
-
-      const txHash = await wallet.writeContract({
-        address,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: 'setMetadata',
-        args: [id, key, value],
-      });
-
-      return txHash;
-    },
-
-    toRegistrationEntry(record, signature) {
-      if (chainId == null) {
-        throw new Error(
-          'identity registry client needs chainId to build CAIP-10 registration entries'
-        );
-      }
-      return createRegistrationEntry({
-        agentId: record.agentId,
-        address: record.owner,
-        chainId,
-        namespace,
-        signature,
-      });
-    },
+    get,
+    getMetadata,
+    register,
+    setMetadata,
+    toRegistrationEntry,
   };
 }
 
@@ -520,7 +518,6 @@ export async function bootstrapTrust(
 
   if (!record && shouldRegister) {
     const tokenURI = buildMetadataURI(normalizedDomain);
-
     const registration = await client.register({ tokenURI });
     transactionHash = registration.transactionHash;
     didRegister = true;

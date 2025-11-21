@@ -49,7 +49,5 @@ export {
   type SSEWriteOptions,
   writeSSE,
 } from './http/sse';
-export * from './manifest/ap2';
-export { buildManifest } from './manifest/manifest';
 export * from './utils';
 export { validateAgentMetadata } from './validation';

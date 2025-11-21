@@ -211,6 +211,95 @@ All fields are optional. If `url` is not provided, it defaults to the agent's or
 
 Phases 2–4 will add helpers for on-chain registration, reputation/validation plumbing, and a full demo agent. For now, agents can statically declare trust details and update the manifest as their ERC-8004 integration evolves.
 
+## Agent-to-Agent (A2A) Client Support
+
+Agents can now call other agents using the A2A protocol. The A2A client is available through the runtime in entrypoint handlers.
+
+### Using A2A Client in Handlers
+
+Access the A2A client via `ctx.runtime.a2a.client`:
+
+```ts
+addEntrypoint({
+  key: 'delegate',
+  input: z.object({ task: z.string(), data: z.unknown() }),
+  output: z.object({ result: z.unknown() }),
+  handler: async ctx => {
+    // Access A2A client from runtime
+    const a2aClient = ctx.runtime?.a2a?.client;
+    if (!a2aClient) {
+      throw new Error('A2A client not available');
+    }
+
+    // Fetch worker agent's card
+    const workerCard = await a2aClient.fetchCard('https://worker.example.com');
+
+    // Call worker agent
+    const result = await a2aClient.invoke(
+      workerCard,
+      'process',
+      ctx.input.data
+    );
+
+    return { output: { result: result.output } };
+  },
+});
+```
+
+### Payment-Enabled A2A Calls
+
+To pay for agent calls, create a payment-enabled fetch using `createRuntimePaymentContext`:
+
+```ts
+import { createRuntimePaymentContext } from '@lucid-agents/payments';
+
+handler: async ctx => {
+  const runtime = ctx.runtime;
+  if (!runtime) throw new Error('Runtime not available');
+
+  // Create payment-enabled fetch
+  const paymentContext = await createRuntimePaymentContext({
+    runtime,
+    network: 'base-sepolia',
+  });
+
+  // Use payment-enabled fetch for A2A calls
+  const workerCard = await runtime.a2a?.fetchCard(
+    'https://worker.example.com',
+    paymentContext.fetchWithPayment
+  );
+
+  const result = await runtime.a2a?.client.invoke(
+    workerCard,
+    'process',
+    ctx.input.data,
+    paymentContext.fetchWithPayment
+  );
+
+  return { output: { result: result.output } };
+};
+```
+
+### Convenience Functions
+
+The A2A client provides convenience functions:
+
+```ts
+import { fetchAndInvoke } from '@lucid-agents/a2a';
+
+// Fetch card and invoke in one call
+const result = await fetchAndInvoke(
+  'https://worker.example.com',
+  'process',
+  { data: [1, 2, 3] },
+  fetchWithPayment // optional payment-enabled fetch
+);
+```
+
+### Example: Three-Agent Composition
+
+See `examples/full-agent.ts` for a complete agent example, or use the `trading-data-agent` and `trading-recommendation-agent` CLI templates for A2A composition examples where an agent routes requests to other agents and pays for their services.
+
 ### ERC-8004 Identity Helpers (Prototype)
 
 Pull in `createIdentityRegistryClient` from `@lucid/agent-kit/erc8004` to read/write the registry with whichever viem/ethers client you already use:

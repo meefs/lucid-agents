@@ -1,6 +1,12 @@
 // Core types
 export * from './core';
 
+// A2A types
+export * from './a2a';
+
+// AP2 types
+export * from './ap2';
+
 // Identity types
 export * from './identity';
 

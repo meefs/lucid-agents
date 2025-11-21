@@ -21,9 +21,31 @@ const identity = await createAgentIdentity({
 if (identity.didRegister) {
   console.log("Registered agent on-chain!");
   console.log("Transaction:", identity.transactionHash);
+
+  // IMPORTANT: After registration, you MUST host the ERC-8004 metadata at the tokenURI
+  // The tokenURI points to: https://{domain}/.well-known/agent-metadata.json
+  // This metadata is what gets stored on-chain and allows others to verify your agent's identity
+  const { generateAgentMetadata } = await import("@lucid-agents/identity");
+  const metadata = generateAgentMetadata(identity, {
+    name: process.env.AGENT_NAME,
+    description: process.env.AGENT_DESCRIPTION,
+  });
+
+  console.log("\n⚠️  IMPORTANT: Host this metadata at:");
+  console.log(`   https://${identity.domain}/.well-known/agent-metadata.json\n`);
+  console.log(JSON.stringify(metadata, null, 2));
+  console.log("\nWhy? The ERC-8004 registry stores this URL as the tokenURI.");
+  console.log("Anyone querying the registry will fetch this metadata to verify your agent's identity.");
+  console.log("Without hosting this file, your agent's on-chain identity cannot be verified.\n");
 } else if (identity.trust) {
   console.log("Found existing registration");
   console.log("Agent ID:", identity.record?.agentId);
+
+  // Even if already registered, verify metadata is hosted
+  if (identity.record?.tokenURI) {
+    console.log("Token URI:", identity.record.tokenURI);
+    console.log("Ensure metadata is hosted at the tokenURI location.");
+  }
 }
 
 const trustConfig = getTrustConfig(identity);

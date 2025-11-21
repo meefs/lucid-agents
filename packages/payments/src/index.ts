@@ -1,4 +1,5 @@
 export { resolvePrice } from './pricing';
+export { createAgentCardWithPayments } from './manifest';
 export { validatePaymentsConfig } from './validation';
 export {
   entrypointHasExplicitPrice,

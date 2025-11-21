@@ -16,6 +16,16 @@
       "import": "./dist/core/index.js",
       "default": "./dist/core/index.js"
     },
+    "./a2a": {
+      "types": "./dist/a2a/index.d.ts",
+      "import": "./dist/a2a/index.js",
+      "default": "./dist/a2a/index.js"
+    },
+    "./ap2": {
+      "types": "./dist/ap2/index.d.ts",
+      "import": "./dist/ap2/index.js",
+      "default": "./dist/ap2/index.js"
+    },
     "./identity": {
       "types": "./dist/identity/index.d.ts",
       "import": "./dist/identity/index.js",

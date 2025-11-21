@@ -24,22 +24,32 @@ export function validateIdentityConfig(
   env?: Record<string, string | undefined>
 ): void {
   const envVars = env ?? (typeof process !== 'undefined' ? process.env : {});
-  const domain = options.domain ?? envVars.AGENT_DOMAIN;
+  const errors: string[] = [];
 
-  // Validate required AGENT_DOMAIN
-  if (!domain || domain.trim() === '') {
-    console.error(
-      '[agent-kit-identity] AGENT_DOMAIN is required but not provided.'
-    );
-    console.error(
-      'Please set AGENT_DOMAIN environment variable to your agent\'s domain (e.g., "agent.example.com")'
-    );
-    console.error(
-      'or pass domain as an option: createAgentIdentity({ domain: "agent.example.com" })'
-    );
-    throw new Error(
-      'Missing required AGENT_DOMAIN: Please set AGENT_DOMAIN environment variable or pass domain option.'
-    );
+  const domain = (options.domain ?? envVars.AGENT_DOMAIN)?.trim();
+  if (!domain) {
+    errors.push('AGENT_DOMAIN (set AGENT_DOMAIN or pass the domain option)');
+  }
+
+  const hasCustomClients = typeof options.makeClients === 'function';
+  const rpcUrl = (options.rpcUrl ?? envVars.RPC_URL)?.trim();
+  if (!hasCustomClients && !rpcUrl) {
+    errors.push('RPC_URL (set RPC_URL or pass the rpcUrl option)');
+  }
+
+  const chainId =
+    options.chainId ??
+    (envVars.CHAIN_ID ? Number(envVars.CHAIN_ID) : undefined);
+  if (!chainId || Number.isNaN(chainId)) {
+    errors.push('CHAIN_ID (set CHAIN_ID or pass the chainId option)');
+  }
+
+  if (errors.length > 0) {
+    const message = `[agent-kit-identity] Missing required identity configuration:\n - ${errors.join(
+      '\n - '
+    )}`;
+    console.error(message);
+    throw new Error(message);
   }
 }
 

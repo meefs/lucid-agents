@@ -2,10 +2,17 @@ import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 
 import type {
+  SendMessageRequest,
+  Task,
+  TaskError,
+  TaskResult,
+  TaskStatus,
+} from '@lucid-agents/types/a2a';
+import type { AP2Config } from '@lucid-agents/types/ap2';
+import type {
   AgentKitConfig,
   AgentMeta,
   AgentRuntime,
-  AP2Config,
 } from '@lucid-agents/types/core';
 import type { TrustConfig } from '@lucid-agents/types/identity';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
@@ -38,6 +45,14 @@ export type AgentHttpHandlers = {
   favicon: (req: Request) => Promise<Response>;
   invoke: (req: Request, params: { key: string }) => Promise<Response>;
   stream: (req: Request, params: { key: string }) => Promise<Response>;
+  tasks: (req: Request) => Promise<Response>;
+  getTask: (req: Request, params: { taskId: string }) => Promise<Response>;
+  listTasks: (req: Request) => Promise<Response>;
+  cancelTask: (req: Request, params: { taskId: string }) => Promise<Response>;
+  subscribeTask: (
+    req: Request,
+    params: { taskId: string }
+  ) => Promise<Response>;
 };
 
 export type AgentHttpRuntime = AgentRuntime & {
@@ -102,12 +117,18 @@ const resolveFaviconSvg = (meta: AgentMeta): string => {
   return defaultFaviconSvg;
 };
 
+type TaskEntry = {
+  task: Task;
+  controller?: AbortController;
+};
+
 export function createAgentHttpRuntime(
   meta: AgentMeta,
   opts: CreateAgentHttpOptions = {}
 ): AgentHttpRuntime {
-  // Create core runtime first
   const runtime = createAgentRuntime(meta, opts as CreateAgentRuntimeOptions);
+
+  const tasks = new Map<string, TaskEntry>();
 
   const activePayments = runtime.payments?.config;
 
@@ -226,6 +247,7 @@ export function createAgentHttpRuntime(
           signal: req.signal,
           headers: req.headers,
           runId,
+          runtime,
         });
         return jsonResponse({
           run_id: runId,
@@ -336,6 +358,7 @@ export function createAgentHttpRuntime(
               input,
               emit,
               {
+                runtime,
                 signal: req.signal,
                 headers: req.headers,
                 runId,
@@ -386,9 +409,450 @@ export function createAgentHttpRuntime(
         }
       );
     },
+    tasks: async req => {
+      let requestBody: SendMessageRequest;
+      try {
+        const body = await readJson(req);
+        if (
+          !body ||
+          typeof body !== 'object' ||
+          !('message' in body) ||
+          !('skillId' in body)
+        ) {
+          return jsonResponse(
+            {
+              error: {
+                code: 'invalid_request',
+                message: 'Invalid request body',
+              },
+            },
+            { status: 400 }
+          );
+        }
+        requestBody = body as SendMessageRequest;
+      } catch {
+        return jsonResponse(
+          { error: { code: 'invalid_request', message: 'Invalid JSON' } },
+          { status: 400 }
+        );
+      }
+
+      const { skillId, message, contextId } = requestBody;
+
+      const entrypoint = runtime.agent.getEntrypoint(skillId);
+      if (!entrypoint) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'skill_not_found',
+              message: `Skill "${skillId}" not found`,
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      if (!entrypoint.handler) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'not_implemented',
+              message: `Skill "${skillId}" has no handler`,
+            },
+          },
+          { status: 501 }
+        );
+      }
+
+      let rawInput: unknown;
+      if ('text' in message.content) {
+        try {
+          rawInput = JSON.parse(message.content.text);
+        } catch {
+          rawInput = message.content.text;
+        }
+      } else if (
+        'parts' in message.content &&
+        message.content.parts.length > 0
+      ) {
+        const firstPart = message.content.parts[0];
+        rawInput = 'text' in firstPart ? firstPart.text : firstPart;
+      } else {
+        rawInput = message.content;
+      }
+
+      const taskId = randomUUID();
+      const abortController = new AbortController();
+      const now = new Date().toISOString();
+
+      const task: Task = {
+        taskId,
+        status: 'running',
+        contextId,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      tasks.set(taskId, {
+        task,
+        controller: abortController,
+      });
+
+      console.info(
+        '[agent-kit:task] create',
+        `taskId=${taskId}`,
+        `skillId=${skillId}`
+      );
+
+      runtime.agent
+        .invoke(skillId, rawInput, {
+          signal: abortController.signal,
+          headers: req.headers,
+          runId: taskId,
+          runtime,
+        })
+        .then(result => {
+          const entry = tasks.get(taskId);
+          if (!entry) return;
+
+          const currentStatus = entry.task.status;
+          if (
+            currentStatus === 'completed' ||
+            currentStatus === 'failed' ||
+            currentStatus === 'cancelled'
+          ) {
+            return;
+          }
+
+          const updatedTask: Task = {
+            ...entry.task,
+            status: 'completed',
+            result: {
+              output: result.output,
+              usage: result.usage,
+              model: result.model,
+            } as TaskResult,
+            updatedAt: new Date().toISOString(),
+          };
+          tasks.set(taskId, {
+            task: updatedTask,
+            controller: entry.controller,
+          });
+          console.info('[agent-kit:task] completed', `taskId=${taskId}`);
+        })
+        .catch(err => {
+          const entry = tasks.get(taskId);
+          if (!entry) return;
+
+          const currentStatus = entry.task.status;
+          if (
+            currentStatus === 'completed' ||
+            currentStatus === 'failed' ||
+            currentStatus === 'cancelled'
+          ) {
+            return;
+          }
+
+          if (err.name === 'AbortError') {
+            const updatedTask: Task = {
+              ...entry.task,
+              status: 'cancelled',
+              updatedAt: new Date().toISOString(),
+            };
+            tasks.set(taskId, {
+              task: updatedTask,
+              controller: entry.controller,
+            });
+            console.info('[agent-kit:task] cancelled', `taskId=${taskId}`);
+            return;
+          }
+
+          let error: TaskError;
+          if (err instanceof ZodValidationError) {
+            if (err.kind === 'input') {
+              error = {
+                code: 'invalid_input',
+                message: 'Invalid input',
+                details: err.issues,
+              };
+            } else {
+              error = {
+                code: 'invalid_output',
+                message: 'Invalid output',
+                details: err.issues,
+              };
+            }
+          } else {
+            error = {
+              code: 'internal_error',
+              message: (err as Error)?.message || 'error',
+            };
+          }
+
+          const updatedTask: Task = {
+            ...entry.task,
+            status: 'failed',
+            error,
+            updatedAt: new Date().toISOString(),
+          };
+          tasks.set(taskId, {
+            task: updatedTask,
+            controller: entry.controller,
+          });
+          console.info(
+            '[agent-kit:task] failed',
+            `taskId=${taskId}`,
+            `error=${error.code}`
+          );
+        });
+
+      return jsonResponse({
+        taskId,
+        status: 'running' as TaskStatus,
+      });
+    },
+    getTask: async (req, params) => {
+      const { taskId } = params;
+      const entry = tasks.get(taskId);
+
+      if (!entry) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'task_not_found',
+              message: `Task "${taskId}" not found`,
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      return jsonResponse(entry.task);
+    },
+    listTasks: async req => {
+      const url = new URL(req.url);
+      const contextId = url.searchParams.get('contextId') || undefined;
+      const statusParam = url.searchParams.get('status');
+      const status = statusParam
+        ? ((statusParam.includes(',')
+            ? statusParam.split(',')
+            : statusParam) as TaskStatus | TaskStatus[])
+        : undefined;
+      const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+      const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+
+      let filteredTasks = Array.from(tasks.values()).map(entry => entry.task);
+
+      if (contextId) {
+        filteredTasks = filteredTasks.filter(t => t.contextId === contextId);
+      }
+
+      if (status) {
+        const statusArray = Array.isArray(status) ? status : [status];
+        filteredTasks = filteredTasks.filter(t =>
+          statusArray.includes(t.status)
+        );
+      }
+
+      const total = filteredTasks.length;
+      const paginatedTasks = filteredTasks.slice(offset, offset + limit);
+      const hasMore = offset + limit < total;
+
+      return jsonResponse({
+        tasks: paginatedTasks,
+        total,
+        hasMore,
+      });
+    },
+    cancelTask: async (req, params) => {
+      const { taskId } = params;
+      const entry = tasks.get(taskId);
+
+      if (!entry) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'task_not_found',
+              message: `Task "${taskId}" not found`,
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      if (entry.task.status !== 'running') {
+        return jsonResponse(
+          {
+            error: {
+              code: 'invalid_state',
+              message: `Task "${taskId}" is not running`,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      if (entry.controller) {
+        entry.controller.abort();
+      }
+
+      const updatedTask: Task = {
+        ...entry.task,
+        status: 'cancelled',
+        updatedAt: new Date().toISOString(),
+      };
+
+      tasks.set(taskId, { task: updatedTask, controller: entry.controller });
+      console.info('[agent-kit:task] cancelled', `taskId=${taskId}`);
+
+      return jsonResponse(updatedTask);
+    },
+    subscribeTask: async (req, params) => {
+      const { taskId } = params;
+      const entry = tasks.get(taskId);
+
+      if (!entry) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'task_not_found',
+              message: `Task "${taskId}" not found`,
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      const task = entry.task;
+      return createSSEStream(
+        async ({ write, close }: SSEStreamRunnerContext) => {
+          let lastStatus = task.status;
+
+          write({
+            event: 'statusUpdate',
+            data: JSON.stringify({
+              taskId,
+              status: task.status,
+            }),
+          });
+
+          if (task.status === 'completed' && task.result) {
+            write({
+              event: 'resultUpdate',
+              data: JSON.stringify({
+                taskId,
+                status: task.status,
+                result: task.result,
+              }),
+            });
+            close();
+            return;
+          }
+
+          if (task.status === 'failed' && task.error) {
+            write({
+              event: 'error',
+              data: JSON.stringify({
+                taskId,
+                status: task.status,
+                error: task.error,
+              }),
+            });
+            close();
+            return;
+          }
+
+          if (task.status === 'cancelled') {
+            write({
+              event: 'statusUpdate',
+              data: JSON.stringify({
+                taskId,
+                status: task.status,
+              }),
+            });
+            close();
+            return;
+          }
+
+          const checkInterval = setInterval(() => {
+            const currentEntry = tasks.get(taskId);
+            if (!currentEntry) {
+              clearInterval(checkInterval);
+              close();
+              return;
+            }
+
+            const currentTask = currentEntry.task;
+            if (currentTask.status !== lastStatus) {
+              write({
+                event: 'statusUpdate',
+                data: JSON.stringify({
+                  taskId,
+                  status: currentTask.status,
+                }),
+              });
+              lastStatus = currentTask.status;
+            }
+
+            if (currentTask.status === 'completed' && currentTask.result) {
+              write({
+                event: 'resultUpdate',
+                data: JSON.stringify({
+                  taskId,
+                  status: currentTask.status,
+                  result: currentTask.result,
+                }),
+              });
+              clearInterval(checkInterval);
+              close();
+              return;
+            }
+
+            if (currentTask.status === 'failed' && currentTask.error) {
+              write({
+                event: 'error',
+                data: JSON.stringify({
+                  taskId,
+                  status: currentTask.status,
+                  error: currentTask.error,
+                }),
+              });
+              clearInterval(checkInterval);
+              close();
+              return;
+            }
+
+            if (currentTask.status === 'cancelled') {
+              write({
+                event: 'statusUpdate',
+                data: JSON.stringify({
+                  taskId,
+                  status: currentTask.status,
+                }),
+              });
+              clearInterval(checkInterval);
+              close();
+              return;
+            }
+          }, 100);
+
+          req.signal?.addEventListener('abort', () => {
+            clearInterval(checkInterval);
+            close();
+          });
+
+          setTimeout(
+            () => {
+              clearInterval(checkInterval);
+              close();
+            },
+            5 * 60 * 1000
+          );
+        }
+      );
+    },
   };
 
-  // Return combined runtime with HTTP handlers
   return {
     ...runtime,
     handlers,

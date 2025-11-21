@@ -6,12 +6,10 @@
 import type { Hex } from '@lucid-agents/wallet';
 
 import { VALIDATION_REGISTRY_ABI } from '../abi/types';
-import { hashValidationRequest } from './erc8004-signatures';
 import type { PublicClientLike, WalletClientLike } from './identity';
+import { hashValidationRequest } from './signatures';
+import { waitForConfirmation } from './utils';
 
-/**
- * Default tag value for validation operations (zero bytes32)
- */
 const DEFAULT_TAG: Hex =
   '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex;
 
@@ -26,9 +24,6 @@ export type ValidationRegistryClientOptions<
   identityRegistryAddress: Hex;
 };
 
-/**
- * Validation request entry
- */
 export type ValidationRequest = {
   validatorAddress: Hex;
   agentId: bigint;
@@ -37,9 +32,6 @@ export type ValidationRequest = {
   timestamp: bigint;
 };
 
-/**
- * Validation status/response
- */
 export type ValidationStatus = {
   validatorAddress: Hex;
   agentId: bigint;
@@ -49,9 +41,6 @@ export type ValidationStatus = {
   lastUpdate: bigint;
 };
 
-/**
- * Parameters for creating a validation request
- */
 export type CreateValidationRequestInput = {
   validatorAddress: Hex;
   agentId: bigint;
@@ -59,9 +48,6 @@ export type CreateValidationRequestInput = {
   requestHash?: Hex; // Optional - will be computed from requestUri if not provided
 };
 
-/**
- * Parameters for submitting a validation response
- */
 export type SubmitValidationResponseInput = {
   requestHash: Hex;
   response: number; // Result code
@@ -70,9 +56,6 @@ export type SubmitValidationResponseInput = {
   tag?: Hex;
 };
 
-/**
- * Validation summary statistics
- */
 export type ValidationSummary = {
   count: bigint;
   avgResponse: number;
@@ -82,16 +65,9 @@ export type ValidationRegistryClient = {
   readonly address: Hex;
   readonly chainId: number;
 
-  // Core write operations
-  createRequest(input: CreateValidationRequestInput): Promise<Hex>;
-  submitResponse(input: SubmitValidationResponseInput): Promise<Hex>;
-
-  // Read operations
   getValidationStatus(requestHash: Hex): Promise<ValidationStatus | null>;
-
   getAgentValidations(agentId: bigint): Promise<Hex[]>;
   getValidatorRequests(validatorAddress: Hex): Promise<Hex[]>;
-
   getSummary(
     agentId: bigint,
     options?: {
@@ -99,11 +75,10 @@ export type ValidationRegistryClient = {
       tag?: Hex;
     }
   ): Promise<ValidationSummary>;
+  createRequest(input: CreateValidationRequestInput): Promise<Hex>;
+  submitResponse(input: SubmitValidationResponseInput): Promise<Hex>;
 };
 
-/**
- * Create a Validation Registry client
- */
 export function createValidationRegistryClient<
   PublicClient extends PublicClientLike,
   WalletClient extends WalletClientLike | undefined = undefined,
@@ -112,132 +87,155 @@ export function createValidationRegistryClient<
 ): ValidationRegistryClient {
   const { address, chainId, publicClient, walletClient } = options;
 
-  function ensureWalletClient(): WalletClientLike {
-    if (!walletClient) {
-      throw new Error(
-        'Validation registry client requires walletClient for write operations'
-      );
+  async function getValidationStatus(
+    requestHash: Hex
+  ): Promise<ValidationStatus | null> {
+    try {
+      const result = (await publicClient.readContract({
+        address,
+        abi: VALIDATION_REGISTRY_ABI,
+        functionName: 'getValidationStatus',
+        args: [requestHash],
+      })) as [Hex, bigint, number, Hex, Hex, bigint];
+
+      const [
+        validatorAddress,
+        agentId,
+        response,
+        responseHash,
+        tag,
+        lastUpdate,
+      ] = result;
+
+      // Check if this is a valid status (non-zero agentId indicates request exists)
+      // Response 0 means pending/unresponded, which is valid
+      if (agentId === 0n) {
+        return null; // Request doesn't exist
+      }
+
+      return {
+        validatorAddress,
+        agentId,
+        response,
+        responseHash,
+        tag,
+        lastUpdate,
+      };
+    } catch {
+      return null;
     }
-    return walletClient;
+  }
+
+  async function getAgentValidations(agentId: bigint): Promise<Hex[]> {
+    const requestHashes = (await publicClient.readContract({
+      address,
+      abi: VALIDATION_REGISTRY_ABI,
+      functionName: 'getAgentValidations',
+      args: [agentId],
+    })) as Hex[];
+
+    return requestHashes;
+  }
+
+  async function getValidatorRequests(validatorAddress: Hex): Promise<Hex[]> {
+    const requestHashes = (await publicClient.readContract({
+      address,
+      abi: VALIDATION_REGISTRY_ABI,
+      functionName: 'getValidatorRequests',
+      args: [validatorAddress],
+    })) as Hex[];
+
+    return requestHashes;
+  }
+
+  async function getSummary(
+    agentId: bigint,
+    options: {
+      validatorAddresses?: Hex[];
+      tag?: Hex;
+    } = {}
+  ): Promise<ValidationSummary> {
+    const validatorAddresses = options.validatorAddresses ?? [];
+    const tag = options.tag ?? DEFAULT_TAG;
+
+    const result = (await publicClient.readContract({
+      address,
+      abi: VALIDATION_REGISTRY_ABI,
+      functionName: 'getSummary',
+      args: [agentId, validatorAddresses, tag],
+    })) as [bigint, number];
+
+    const [count, avgResponse] = result;
+
+    return {
+      count,
+      avgResponse,
+    };
+  }
+
+  async function createRequest(
+    input: CreateValidationRequestInput
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for createRequest');
+    }
+
+    // Compute request hash from URI if not provided
+    const requestHash =
+      input.requestHash ?? hashValidationRequest(input.requestUri);
+
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: VALIDATION_REGISTRY_ABI,
+      functionName: 'validationRequest',
+      args: [
+        input.validatorAddress,
+        input.agentId,
+        input.requestUri,
+        requestHash,
+      ],
+    });
+
+    await waitForConfirmation(publicClient, txHash);
+
+    return txHash;
+  }
+
+  async function submitResponse(
+    input: SubmitValidationResponseInput
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for submitResponse');
+    }
+
+    const tag = input.tag ?? DEFAULT_TAG;
+
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: VALIDATION_REGISTRY_ABI,
+      functionName: 'validationResponse',
+      args: [
+        input.requestHash,
+        input.response,
+        input.responseUri,
+        input.responseHash,
+        tag,
+      ],
+    });
+
+    await waitForConfirmation(publicClient, txHash);
+
+    return txHash;
   }
 
   return {
     address,
     chainId,
-
-    async createRequest(input) {
-      const wallet = ensureWalletClient();
-
-      // Compute request hash from URI if not provided
-      const requestHash =
-        input.requestHash ?? hashValidationRequest(input.requestUri);
-
-      const txHash = await wallet.writeContract({
-        address,
-        abi: VALIDATION_REGISTRY_ABI,
-        functionName: 'validationRequest',
-        args: [
-          input.validatorAddress,
-          input.agentId,
-          input.requestUri,
-          requestHash,
-        ],
-      });
-
-      return txHash;
-    },
-
-    async submitResponse(input) {
-      const wallet = ensureWalletClient();
-
-      const tag = input.tag ?? DEFAULT_TAG;
-
-      const txHash = await wallet.writeContract({
-        address,
-        abi: VALIDATION_REGISTRY_ABI,
-        functionName: 'validationResponse',
-        args: [
-          input.requestHash,
-          input.response,
-          input.responseUri,
-          input.responseHash,
-          tag,
-        ],
-      });
-
-      return txHash;
-    },
-
-    async getValidationStatus(requestHash) {
-      try {
-        const result = (await publicClient.readContract({
-          address,
-          abi: VALIDATION_REGISTRY_ABI,
-          functionName: 'getValidationStatus',
-          args: [requestHash],
-        })) as [Hex, bigint, number, Hex, Hex, bigint];
-
-        const [
-          validatorAddress,
-          agentId,
-          response,
-          responseHash,
-          tag,
-          lastUpdate,
-        ] = result;
-
-        return {
-          validatorAddress,
-          agentId,
-          response,
-          responseHash,
-          tag,
-          lastUpdate,
-        };
-      } catch {
-        return null;
-      }
-    },
-
-    async getAgentValidations(agentId) {
-      const requestHashes = (await publicClient.readContract({
-        address,
-        abi: VALIDATION_REGISTRY_ABI,
-        functionName: 'getAgentValidations',
-        args: [agentId],
-      })) as Hex[];
-
-      return requestHashes;
-    },
-
-    async getValidatorRequests(validatorAddress) {
-      const requestHashes = (await publicClient.readContract({
-        address,
-        abi: VALIDATION_REGISTRY_ABI,
-        functionName: 'getValidatorRequests',
-        args: [validatorAddress],
-      })) as Hex[];
-
-      return requestHashes;
-    },
-
-    async getSummary(agentId, options = {}) {
-      const validatorAddresses = options.validatorAddresses ?? [];
-      const tag = options.tag ?? DEFAULT_TAG;
-
-      const result = (await publicClient.readContract({
-        address,
-        abi: VALIDATION_REGISTRY_ABI,
-        functionName: 'getSummary',
-        args: [agentId, validatorAddresses, tag],
-      })) as [bigint, number];
-
-      const [count, avgResponse] = result;
-
-      return {
-        count,
-        avgResponse,
-      };
-    },
+    getValidationStatus,
+    getAgentValidations,
+    getValidatorRequests,
+    getSummary,
+    createRequest,
+    submitResponse,
   };
 }

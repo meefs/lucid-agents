@@ -4,10 +4,7 @@ import type { FacilitatorConfig } from 'x402/types';
 import { toJsonSchemaOrUndefined } from './utils';
 import type { EntrypointDef } from '@lucid-agents/types/core';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
-import {
-  resolvePrice,
-  validatePaymentsConfig,
-} from '@lucid-agents/payments';
+import { resolvePrice, validatePaymentsConfig } from '@lucid-agents/payments';
 
 type PaymentMiddlewareFactory = typeof paymentMiddleware;
 

@@ -11,6 +11,7 @@ export type InvokeContext = {
   signal: AbortSignal;
   headers: Headers;
   runId?: string;
+  runtime?: import('@lucid-agents/types/core').AgentRuntime;
 };
 
 export type StreamContext = InvokeContext;
@@ -96,6 +97,7 @@ export class AgentCore {
       signal: ctx.signal,
       headers: ctx.headers,
       runId: ctx.runId,
+      runtime: ctx.runtime,
     };
     const result = await handler(runContext);
     const output = this.parseOutput(entrypoint, result.output);
@@ -123,6 +125,7 @@ export class AgentCore {
       signal: ctx.signal,
       headers: ctx.headers,
       runId: ctx.runId,
+      runtime: ctx.runtime,
     };
     return entrypoint.stream(runContext, emit);
   }

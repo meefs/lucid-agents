@@ -311,7 +311,12 @@ export async function createAgentIdentity(
   }
 
   const resolvedDomain =
-    domain ?? (typeof env === 'object' ? env?.AGENT_DOMAIN : undefined);
+    domain ??
+    (typeof env === 'object' && env?.AGENT_DOMAIN
+      ? env.AGENT_DOMAIN
+      : typeof process !== 'undefined' && process.env?.AGENT_DOMAIN
+        ? process.env.AGENT_DOMAIN
+        : undefined);
 
   let clients: RegistryClients | undefined;
 

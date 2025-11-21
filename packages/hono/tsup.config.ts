@@ -7,6 +7,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
+  tsconfig: "./tsconfig.build.json",
   external: [
     '@lucid-agents/core',
     '@lucid-agents/payments',

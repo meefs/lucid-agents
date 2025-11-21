@@ -22,6 +22,11 @@ export type TanStackHandlers = {
   landing?: TanStackRequestHandler;
   invoke: TanStackRouteHandler<{ key: string }>;
   stream: TanStackRouteHandler<{ key: string }>;
+  tasks: TanStackRequestHandler;
+  getTask: TanStackRouteHandler<{ taskId: string }>;
+  listTasks: TanStackRequestHandler;
+  cancelTask: TanStackRouteHandler<{ taskId: string }>;
+  subscribeTask: TanStackRouteHandler<{ taskId: string }>;
 };
 
 export type TanStackRuntime = {
@@ -55,6 +60,11 @@ export function createTanStackHandlers(
       : undefined,
     invoke: adaptRouteHandler(handlers.invoke),
     stream: adaptRouteHandler(handlers.stream),
+    tasks: adaptRequestHandler(handlers.tasks),
+    getTask: adaptRouteHandler(handlers.getTask),
+    listTasks: adaptRequestHandler(handlers.listTasks),
+    cancelTask: adaptRouteHandler(handlers.cancelTask),
+    subscribeTask: adaptRouteHandler(handlers.subscribeTask),
   };
 }
 

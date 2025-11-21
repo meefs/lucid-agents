@@ -13,6 +13,8 @@ import {
   getTask,
   subscribeTask,
   fetchAndSendMessage,
+  listTasks,
+  cancelTask,
 } from './client';
 
 /**
@@ -45,6 +47,8 @@ export function createA2ARuntime(
       getTask,
       subscribeTask,
       fetchAndSendMessage,
+      listTasks,
+      cancelTask,
     },
   };
 

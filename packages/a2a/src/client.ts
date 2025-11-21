@@ -10,6 +10,10 @@ import type {
   Task,
   TaskUpdateEvent,
   A2AClient,
+  ListTasksRequest,
+  ListTasksResponse,
+  CancelTaskRequest,
+  CancelTaskResponse,
 } from '@lucid-agents/types/a2a';
 
 import { fetchAgentCard, findSkill } from './card';
@@ -172,7 +176,8 @@ export async function sendMessage(
   card: AgentCardWithEntrypoints,
   skillId: string,
   input: unknown,
-  fetchImpl?: FetchFunction
+  fetchImpl?: FetchFunction,
+  options?: { contextId?: string; metadata?: Record<string, unknown> }
 ): Promise<SendMessageResponse> {
   const skill = findSkill(card, skillId);
   if (!skill) {
@@ -200,6 +205,8 @@ export async function sendMessage(
       content: messageContent,
     },
     skillId,
+    contextId: options?.contextId,
+    metadata: options?.metadata,
   };
 
   const url = new URL('/tasks', baseUrl);
@@ -372,6 +379,82 @@ export async function fetchAndSendMessage(
 ): Promise<SendMessageResponse> {
   const card = await fetchAgentCard(baseUrl, fetchImpl);
   return sendMessage(card, skillId, input, fetchImpl);
+}
+
+/**
+ * Lists tasks with optional filtering.
+ */
+export async function listTasks(
+  card: AgentCardWithEntrypoints,
+  filters?: ListTasksRequest,
+  fetchImpl?: FetchFunction
+): Promise<ListTasksResponse> {
+  const baseUrl = card.url;
+  if (!baseUrl) {
+    throw new Error('Agent Card missing url field');
+  }
+
+  const fetchFn = fetchImpl ?? globalThis.fetch;
+  if (!fetchFn) {
+    throw new Error('fetch is not available');
+  }
+
+  const url = new URL('/tasks', baseUrl);
+  if (filters?.contextId) url.searchParams.set('contextId', filters.contextId);
+  if (filters?.status) {
+    const statusArray = Array.isArray(filters.status)
+      ? filters.status
+      : [filters.status];
+    url.searchParams.set('status', statusArray.join(','));
+  }
+  if (filters?.limit) url.searchParams.set('limit', String(filters.limit));
+  if (filters?.offset) url.searchParams.set('offset', String(filters.offset));
+
+  const response = await fetchFn(url.toString(), {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to list tasks: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return (await response.json()) as ListTasksResponse;
+}
+
+/**
+ * Cancels a running task.
+ */
+export async function cancelTask(
+  card: AgentCardWithEntrypoints,
+  taskId: string,
+  fetchImpl?: FetchFunction
+): Promise<Task> {
+  const baseUrl = card.url;
+  if (!baseUrl) {
+    throw new Error('Agent Card missing url field');
+  }
+
+  const fetchFn = fetchImpl ?? globalThis.fetch;
+  if (!fetchFn) {
+    throw new Error('fetch is not available');
+  }
+
+  const url = new URL(`/tasks/${taskId}/cancel`, baseUrl);
+  const response = await fetchFn(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to cancel task: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return (await response.json()) as Task;
 }
 
 /**

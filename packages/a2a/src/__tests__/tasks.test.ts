@@ -11,6 +11,8 @@ import {
   getTask,
   subscribeTask,
   fetchAndSendMessage,
+  listTasks,
+  cancelTask,
 } from '../client';
 import { fetchAgentCard } from '../card';
 
@@ -445,6 +447,278 @@ describe('Task-based A2A Client Methods', () => {
           fetchFn
         )
       ).rejects.toThrow('Failed to fetch Agent Card');
+    });
+  });
+
+  describe('listTasks', () => {
+    it('lists all tasks without filters', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const mockTasks = [
+        {
+          taskId: 'task-1',
+          status: 'completed' as TaskStatus,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:01Z',
+        },
+        {
+          taskId: 'task-2',
+          status: 'running' as TaskStatus,
+          createdAt: '2024-01-01T00:00:02Z',
+          updatedAt: '2024-01-01T00:00:02Z',
+        },
+      ];
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks',
+        createResponse(
+          JSON.stringify({
+            tasks: mockTasks,
+            total: 2,
+            hasMore: false,
+          }),
+          { status: 200, statusText: 'OK' }
+        )
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      const result = await listTasks(card, undefined, fetchFn);
+
+      expect(result.tasks).toHaveLength(2);
+      expect(result.tasks[0].taskId).toBe('task-1');
+      expect(result.tasks[1].taskId).toBe('task-2');
+      expect(result.total).toBe(2);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it('filters tasks by contextId', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const mockTasks = [
+        {
+          taskId: 'task-1',
+          status: 'completed' as TaskStatus,
+          contextId: 'context-1',
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:01Z',
+        },
+      ];
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks?contextId=context-1',
+        createResponse(
+          JSON.stringify({
+            tasks: mockTasks,
+            total: 1,
+            hasMore: false,
+          }),
+          { status: 200, statusText: 'OK' }
+        )
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      const result = await listTasks(card, { contextId: 'context-1' }, fetchFn);
+
+      expect(result.tasks).toHaveLength(1);
+      expect(result.tasks[0].contextId).toBe('context-1');
+    });
+
+    it('filters tasks by status', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const mockTasks = [
+        {
+          taskId: 'task-1',
+          status: 'completed' as TaskStatus,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:01Z',
+        },
+      ];
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks?status=completed',
+        createResponse(
+          JSON.stringify({
+            tasks: mockTasks,
+            total: 1,
+            hasMore: false,
+          }),
+          { status: 200, statusText: 'OK' }
+        )
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      const result = await listTasks(card, { status: 'completed' }, fetchFn);
+
+      expect(result.tasks).toHaveLength(1);
+      expect(result.tasks[0].status).toBe('completed');
+    });
+
+    it('supports pagination', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks?limit=10&offset=20',
+        createResponse(
+          JSON.stringify({
+            tasks: [],
+            total: 30,
+            hasMore: true,
+          }),
+          { status: 200, statusText: 'OK' }
+        )
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      const result = await listTasks(card, { limit: 10, offset: 20 }, fetchFn);
+
+      expect(result.total).toBe(30);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it('handles HTTP errors', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks',
+        createResponse('Internal Server Error', {
+          status: 500,
+          statusText: 'Internal Server Error',
+        })
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      await expect(listTasks(card, undefined, fetchFn)).rejects.toThrow(
+        'Failed to list tasks: 500 Internal Server Error'
+      );
+    });
+  });
+
+  describe('cancelTask', () => {
+    it('cancels a task successfully', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const mockTask: Task = {
+        taskId: 'task-1',
+        status: 'cancelled',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:01Z',
+      };
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks/task-1/cancel',
+        createResponse(JSON.stringify(mockTask), {
+          status: 200,
+          statusText: 'OK',
+        })
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      const result = await cancelTask(card, 'task-1', fetchFn);
+
+      expect(result.taskId).toBe('task-1');
+      expect(result.status).toBe('cancelled');
+    });
+
+    it('handles HTTP errors', async () => {
+      const card: AgentCardWithEntrypoints = {
+        url: 'https://agent.example.com',
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {
+          tasks: {
+            description: 'Task operations',
+            streaming: false,
+          },
+        },
+      };
+
+      const responses = new Map<string, Response>();
+      responses.set(
+        'https://agent.example.com/tasks/non-existent/cancel',
+        createResponse('Task not found', {
+          status: 404,
+          statusText: 'Not Found',
+        })
+      );
+
+      const fetchFn = makeMockFetch(responses);
+
+      await expect(cancelTask(card, 'non-existent', fetchFn)).rejects.toThrow(
+        'Failed to cancel task: 404 Not Found'
+      );
     });
   });
 });

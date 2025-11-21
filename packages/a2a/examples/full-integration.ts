@@ -22,11 +22,7 @@
 import { z } from 'zod';
 import { createAgentApp } from '@lucid-agents/hono';
 import { createAgentRuntime } from '@lucid-agents/core';
-import {
-  createA2ARuntime,
-  fetchAndInvoke,
-  waitForTask,
-} from '../src/index';
+import { createA2ARuntime, fetchAndInvoke, waitForTask } from '../src/index';
 import type { A2ARuntime } from '@lucid-agents/types/a2a';
 
 // Helper to start a simple HTTP server
@@ -192,11 +188,7 @@ async function main() {
       );
       console.log(`[Agent 2] Created task ${taskId} for Agent 1`);
 
-      const task = await waitForTask(
-        a2a2ForAgent1.client,
-        agent1Card,
-        taskId
-      );
+      const task = await waitForTask(a2a2ForAgent1.client, agent1Card, taskId);
 
       if (task.status === 'failed') {
         throw new Error(
@@ -235,11 +227,7 @@ async function main() {
       );
       console.log(`[Agent 2] Created task ${taskId} for Agent 1`);
 
-      const task = await waitForTask(
-        a2a2ForAgent1.client,
-        agent1Card,
-        taskId
-      );
+      const task = await waitForTask(a2a2ForAgent1.client, agent1Card, taskId);
 
       if (task.status === 'failed') {
         throw new Error(
@@ -442,6 +430,124 @@ async function main() {
     console.log('');
 
     // ============================================================================
+    // STEP 7: Multi-Turn Conversations with contextId
+    // ============================================================================
+    console.log('STEP 7: Multi-Turn Conversations with contextId');
+    console.log('-'.repeat(80));
+    console.log('Demonstrates contextId for tracking multi-turn conversations');
+    console.log('');
+
+    const contextId = `conversation-${Date.now()}`;
+
+    console.log('7.1: Create first message in conversation');
+    const turn1TaskResponse = await a2a3.client.sendMessage(
+      fetchedCard2,
+      'echo',
+      {
+        text: 'First message in conversation',
+      },
+      undefined,
+      { contextId }
+    );
+    console.log(
+      `  Task created: ${turn1TaskResponse.taskId} (contextId: ${contextId})`
+    );
+
+    const turn1Task = await waitForTask(
+      a2a3.client,
+      fetchedCard2,
+      turn1TaskResponse.taskId
+    );
+    console.log(`  Response: ${JSON.stringify(turn1Task.result?.output)}`);
+    console.log('');
+
+    console.log('7.2: Create second message in same conversation');
+    const turn2TaskResponse = await a2a3.client.sendMessage(
+      fetchedCard2,
+      'echo',
+      {
+        text: 'Second message in conversation',
+      },
+      undefined,
+      { contextId }
+    );
+    console.log(
+      `  Task created: ${turn2TaskResponse.taskId} (contextId: ${contextId})`
+    );
+
+    const turn2Task = await waitForTask(
+      a2a3.client,
+      fetchedCard2,
+      turn2TaskResponse.taskId
+    );
+    console.log(`  Response: ${JSON.stringify(turn2Task.result?.output)}`);
+    console.log('');
+
+    console.log('7.3: List all tasks in conversation');
+    const conversationTasks = await a2a3.client.listTasks(fetchedCard2, {
+      contextId,
+    });
+    console.log(
+      `  Found ${conversationTasks.tasks.length} tasks in conversation`
+    );
+    conversationTasks.tasks.forEach((task, idx) => {
+      console.log(
+        `    ${idx + 1}. Task ${task.taskId.substring(0, 8)}... (${task.status})`
+      );
+    });
+    console.log('');
+
+    // ============================================================================
+    // STEP 8: Task Cancellation
+    // ============================================================================
+    console.log('STEP 8: Task Cancellation');
+    console.log('-'.repeat(80));
+    console.log('Demonstrates cancelling a running task');
+    console.log('');
+
+    console.log('8.1: Create a long-running task (will be cancelled)');
+    console.log(
+      '  Note: For demonstration, we create a task but cancel immediately'
+    );
+    console.log(
+      '  In practice, cancellation works on tasks that are still running'
+    );
+
+    const slowTaskResponse = await a2a3.client.sendMessage(
+      fetchedCard2,
+      'process',
+      {
+        data: Array.from({ length: 1000 }, (_, i) => i),
+      }
+    );
+    console.log(
+      `  Task created: ${slowTaskResponse.taskId} (status: ${slowTaskResponse.status})`
+    );
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    console.log('8.2: Attempt to cancel the task');
+    try {
+      const cancelledTask = await a2a3.client.cancelTask(
+        fetchedCard2,
+        slowTaskResponse.taskId
+      );
+      console.log(
+        `  Task cancelled: ${cancelledTask.taskId} (status: ${cancelledTask.status})`
+      );
+    } catch (error) {
+      const task = await a2a3.client.getTask(
+        fetchedCard2,
+        slowTaskResponse.taskId
+      );
+      console.log(
+        `  Task already completed (status: ${task.status}) - cancellation only works on running tasks`
+      );
+      console.log(`  This demonstrates proper error handling for cancellation`);
+    }
+    console.log('');
+
+    // ============================================================================
     // SUMMARY
     // ============================================================================
     console.log('='.repeat(80));
@@ -462,6 +568,9 @@ async function main() {
     console.log(
       '  ✓ Agent composition via tasks (agent calling agent calling agent)'
     );
+    console.log('  ✓ Multi-turn conversations with contextId');
+    console.log('  ✓ List tasks filtered by contextId');
+    console.log('  ✓ Cancel running tasks');
     console.log('');
     console.log(
       'This demonstrates that agents can act as both clients and servers,'

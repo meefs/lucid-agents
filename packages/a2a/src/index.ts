@@ -1,4 +1,9 @@
-export { buildAgentCard, fetchAgentCard, parseAgentCard, findSkill } from './card';
+export {
+  buildAgentCard,
+  fetchAgentCard,
+  parseAgentCard,
+  findSkill,
+} from './card';
 export {
   invokeAgent,
   streamAgent,
@@ -7,7 +12,8 @@ export {
   getTask,
   subscribeTask,
   fetchAndSendMessage,
+  listTasks,
+  cancelTask,
   waitForTask,
 } from './client';
 export { createA2ARuntime } from './runtime';
-

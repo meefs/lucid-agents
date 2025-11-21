@@ -28,10 +28,7 @@ if (identity.didRegister) {
   const { generateAgentMetadata } = await import("@lucid-agents/identity");
   const metadata = generateAgentMetadata(identity, {
     name: process.env.AGENT_NAME,
-    const metadata = generateAgentMetadata(identity, {
-      name: process.env.AGENT_NAME,
-      description: process.env.AGENT_DESCRIPTION,
-    });
+    description: process.env.AGENT_DESCRIPTION,
   });
 
   console.log("\n⚠️  IMPORTANT: Host this metadata at:");

@@ -13,63 +13,28 @@ import type {
   BuildContext,
   EntrypointDef,
   Extension,
-  StreamEnvelope,
-  StreamPushEnvelope,
   StreamResult,
 } from '@lucid-agents/types/core';
-import type { HttpExtensionOptions, AgentHttpHandlers } from '@lucid-agents/types/http';
+import type {
+  HttpExtensionOptions,
+  AgentHttpHandlers,
+} from '@lucid-agents/types/http';
 
-import { ZodValidationError } from '@lucid-agents/core';
+import { ZodValidationError } from '@lucid-agents/types/core';
+import { invoke, invokeHandler } from './invoke';
+import {
+  errorResponse,
+  extractInput,
+  jsonResponse,
+  readJson,
+} from './http-utils';
 import { renderLandingPage } from './landing-page';
+import { stream } from './stream';
 import { createSSEStream, type SSEStreamRunnerContext } from './sse';
 
 type TaskEntry = {
   task: Task;
   controller?: AbortController;
-};
-
-const jsonResponse = (
-  payload: unknown,
-  init?: ConstructorParameters<typeof Response>[1]
-): Response => {
-  const body = JSON.stringify(payload);
-  const headers = new Headers(init?.headers);
-  if (!headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json; charset=utf-8');
-  }
-  return new Response(body, { ...init, headers });
-};
-
-const errorResponse = (
-  code: string,
-  status: number,
-  details?: unknown
-): Response => {
-  return jsonResponse(
-    {
-      error: {
-        code,
-        ...(details ? { details } : {}),
-      },
-    },
-    { status }
-  );
-};
-
-const readJson = async (req: Request): Promise<unknown> => {
-  try {
-    return await req.clone().json();
-  } catch {
-    return undefined;
-  }
-};
-
-const extractInput = (payload: unknown): unknown => {
-  if (payload && typeof payload === 'object' && 'input' in payload) {
-    const { input } = payload as { input?: unknown };
-    return input ?? {};
-  }
-  return {};
 };
 
 const resolveFaviconSvg = (icon?: string): string => {
@@ -126,13 +91,14 @@ export function http(
         '',
         'config();',
         '',
-        'const privateKey = process.env.PRIVATE_KEY as Hex | string;',
-        'const baseURL = process.env.RESOURCE_SERVER_URL as string; // e.g. https://example.com',
-        'const endpointPath = process.env.ENDPOINT_PATH as string; // e.g. /weather',
-        'const url = `${baseURL}${endpointPath}`; // e.g. https://example.com/weather',
+        'const privateKey = process.env.AGENT_WALLET_PRIVATE_KEY as Hex | string;',
+        'const agentUrl = process.env.AGENT_URL as string; // e.g. https://agent.example.com',
+        'const endpointPath = process.env.ENDPOINT_PATH as string; // e.g. /entrypoints/echo/invoke',
+        'const url = `${agentUrl}${endpointPath}`;',
         '',
-        'if (!baseURL || !privateKey || !endpointPath) {',
+        'if (!agentUrl || !privateKey || !endpointPath) {',
         '  console.error("Missing required environment variables");',
+        '  console.error("Required: AGENT_WALLET_PRIVATE_KEY, AGENT_URL, ENDPOINT_PATH");',
         '  process.exit(1);',
         '}',
         '',
@@ -140,9 +106,9 @@ export function http(
         ' * Demonstrates paying for a protected resource using x402-fetch.',
         ' *',
         ' * Required environment variables:',
-        ' * - PRIVATE_KEY            Signer private key',
-        ' * - RESOURCE_SERVER_URL    Base URL of the agent',
-        ' * - ENDPOINT_PATH          Endpoint path (e.g. /entrypoints/echo/invoke)',
+        ' * - AGENT_WALLET_PRIVATE_KEY    Wallet private key for signing payments',
+        ' * - AGENT_URL                   Base URL of the agent server',
+        ' * - ENDPOINT_PATH               Endpoint path (e.g. /entrypoints/echo/invoke)',
         ' */',
         'async function main(): Promise<void> {',
         '  // const signer = await createSigner("solana-devnet", privateKey); // uncomment for Solana',
@@ -204,196 +170,10 @@ export function http(
           });
         },
         invoke: async (req, params) => {
-          const entrypoint = runtime.agent.getEntrypoint(params.key);
-          if (!entrypoint) {
-            return errorResponse('entrypoint_not_found', 404);
-          }
-          if (!entrypoint.handler) {
-            return errorResponse('not_implemented', 501);
-          }
-
-          const rawBody = await readJson(req);
-          const rawInput = extractInput(rawBody);
-          const runId = randomUUID();
-          console.info(
-            '[agent-kit:entrypoint] invoke',
-            `key=${entrypoint.key}`,
-            `runId=${runId}`
-          );
-          try {
-            const result = await runtime.agent.invoke(
-              entrypoint.key,
-              rawInput,
-              {
-                signal: req.signal,
-                headers: req.headers,
-                runId,
-                runtime,
-              }
-            );
-            return jsonResponse({
-              run_id: runId,
-              status: 'succeeded',
-              output: result.output,
-              usage: result.usage,
-              model: result.model,
-            });
-          } catch (err) {
-            if (err instanceof ZodValidationError) {
-              if (err.kind === 'input') {
-                return jsonResponse(
-                  {
-                    error: { code: 'invalid_input', issues: err.issues },
-                  },
-                  { status: 400 }
-                );
-              }
-              return jsonResponse(
-                {
-                  error: { code: 'invalid_output', issues: err.issues },
-                },
-                { status: 500 }
-              );
-            }
-            const message = (err as Error)?.message || 'error';
-            return jsonResponse(
-              {
-                error: {
-                  code: 'internal_error',
-                  message,
-                },
-              },
-              { status: 500 }
-            );
-          }
+          return invoke(req, params.key, runtime);
         },
         stream: async (req, params) => {
-          const entrypoint = runtime.agent.getEntrypoint(params.key);
-          if (!entrypoint) {
-            return errorResponse('entrypoint_not_found', 404);
-          }
-          if (!entrypoint.stream) {
-            return jsonResponse(
-              { error: { code: 'stream_not_supported', key: entrypoint.key } },
-              { status: 400 }
-            );
-          }
-
-          const rawBody = await readJson(req);
-          const rawInput = extractInput(rawBody);
-          let input = rawInput;
-          if (entrypoint.input) {
-            const parsed = entrypoint.input.safeParse(rawInput);
-            if (!parsed.success) {
-              return jsonResponse(
-                {
-                  error: { code: 'invalid_input', issues: parsed.error.issues },
-                },
-                { status: 400 }
-              );
-            }
-            input = parsed.data;
-          }
-
-          const runId = randomUUID();
-          console.info(
-            '[agent-kit:entrypoint] stream',
-            `key=${entrypoint.key}`,
-            `runId=${runId}`
-          );
-
-          let sequence = 0;
-          const nowIso = () => new Date().toISOString();
-          const allocateSequence = () => sequence++;
-
-          return createSSEStream(
-            async ({ write, close }: SSEStreamRunnerContext) => {
-              const sendEnvelope = (
-                payload: StreamEnvelope | StreamPushEnvelope
-              ) => {
-                const currentSequence =
-                  payload.sequence != null
-                    ? payload.sequence
-                    : allocateSequence();
-                const createdAt = payload.createdAt ?? nowIso();
-                const envelope: StreamEnvelope = {
-                  ...(payload as StreamEnvelope),
-                  runId,
-                  sequence: currentSequence,
-                  createdAt,
-                };
-                write({
-                  event: envelope.kind,
-                  data: JSON.stringify(envelope),
-                  id: String(currentSequence),
-                });
-              };
-
-              sendEnvelope({
-                kind: 'run-start',
-                runId,
-              });
-
-              const emit = async (chunk: StreamPushEnvelope) => {
-                sendEnvelope(chunk);
-              };
-
-              try {
-                const result: StreamResult = await runtime.agent.stream(
-                  entrypoint.key,
-                  input,
-                  emit,
-                  {
-                    runtime,
-                    signal: req.signal,
-                    headers: req.headers,
-                    runId,
-                  }
-                );
-
-                sendEnvelope({
-                  kind: 'run-end',
-                  runId,
-                  status: result.status ?? 'succeeded',
-                  output: result.output,
-                  usage: result.usage,
-                  model: result.model,
-                  error: result.error,
-                  metadata: result.metadata,
-                });
-                close();
-              } catch (err) {
-                if (err instanceof ZodValidationError && err.kind === 'input') {
-                  sendEnvelope({
-                    kind: 'error',
-                    code: 'invalid_input',
-                    message: 'Invalid input',
-                  });
-                  sendEnvelope({
-                    kind: 'run-end',
-                    runId,
-                    status: 'failed',
-                    error: { code: 'invalid_input' },
-                  });
-                  close();
-                  return;
-                }
-                const message = (err as Error)?.message || 'error';
-                sendEnvelope({
-                  kind: 'error',
-                  code: 'internal_error',
-                  message,
-                });
-                sendEnvelope({
-                  kind: 'run-end',
-                  runId,
-                  status: 'failed',
-                  error: { code: 'internal_error', message },
-                });
-                close();
-              }
-            }
-          );
+          return stream(req, params.key, runtime);
         },
         tasks: async req => {
           let requestBody: SendMessageRequest;
@@ -425,8 +205,8 @@ export function http(
 
           const { skillId, message, contextId } = requestBody;
 
-          const entrypoint = runtime.agent.getEntrypoint(skillId);
-          if (!entrypoint) {
+          const taskEntrypoint = runtime.agent.getEntrypoint(skillId);
+          if (!taskEntrypoint) {
             return jsonResponse(
               {
                 error: {
@@ -438,7 +218,7 @@ export function http(
             );
           }
 
-          if (!entrypoint.handler) {
+          if (!taskEntrypoint.handler) {
             return jsonResponse(
               {
                 error: {
@@ -490,13 +270,12 @@ export function http(
             `skillId=${skillId}`
           );
 
-          runtime.agent
-            .invoke(skillId, rawInput, {
-              signal: abortController.signal,
-              headers: req.headers,
-              runId: taskId,
-              runtime,
-            })
+          invokeHandler(taskEntrypoint, rawInput, {
+            signal: abortController.signal,
+            headers: req.headers,
+            runId: taskId,
+            runtime,
+          })
             .then(result => {
               const entry = tasks.get(taskId);
               if (!entry) return;

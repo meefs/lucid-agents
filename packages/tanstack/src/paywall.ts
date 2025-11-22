@@ -1,5 +1,5 @@
 import type { AgentRuntime } from '@lucid-agents/types/core';
-import { toJsonSchemaOrUndefined } from '@lucid-agents/core';
+import { z } from 'zod';
 import type { EntrypointDef } from '@lucid-agents/types/core';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import { resolvePrice, validatePaymentsConfig } from '@lucid-agents/payments';
@@ -72,10 +72,10 @@ function buildEntrypointRoutes({
 
     if (!network || !price) continue;
 
-    const requestSchema = toJsonSchemaOrUndefined(entrypoint.input);
+    const requestSchema = entrypoint.input ? z.toJSONSchema(entrypoint.input) : undefined;
     const responseSchema =
       kind === 'invoke'
-        ? toJsonSchemaOrUndefined(entrypoint.output)
+        ? (entrypoint.output ? z.toJSONSchema(entrypoint.output) : undefined)
         : undefined;
     const description =
       entrypoint.description ??

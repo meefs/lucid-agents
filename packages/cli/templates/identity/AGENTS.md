@@ -128,26 +128,23 @@ The template automatically generates and displays the metadata JSON after regist
 ### Manual Registration
 
 ```typescript
-import { createAgentHttpRuntime } from "@lucid-agents/core";
+import { createApp } from "@lucid-agents/core";
+import { http } from "@lucid-agents/http";
+import { wallets } from "@lucid-agents/wallet";
+import { walletsFromEnv } from "@lucid-agents/wallet";
 import {
   createAgentIdentity,
   getTrustConfig,
 } from "@lucid-agents/identity";
 
 // Create runtime first (must have wallets.agent configured)
-const runtime = createAgentHttpRuntime(
-  { name: "my-agent", version: "0.1.0" },
-  {
-    config: {
-      wallets: {
-        agent: {
-          type: "local",
-          privateKey: process.env.PRIVATE_KEY,
-        },
-      },
-    },
-  }
-);
+const runtime = createApp({
+  name: "my-agent",
+  version: "0.1.0",
+})
+  .use(http())
+  .use(wallets({ config: { wallets: walletsFromEnv() } }))
+  .build();
 
 // Then create identity using the runtime
 const identity = await createAgentIdentity({

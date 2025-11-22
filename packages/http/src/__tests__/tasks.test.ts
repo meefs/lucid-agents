@@ -6,12 +6,12 @@ import type {
   TaskStatus,
 } from '@lucid-agents/types/a2a';
 import type { AgentRuntime, EntrypointDef } from '@lucid-agents/types/core';
-import type { InvokeResult } from '@lucid-agents/core';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { z } from 'zod';
 
 import { http } from '../index';
-import { ZodValidationError } from '@lucid-agents/core';
+import type { InvokeResult } from '../invoke';
+import { ZodValidationError } from '@lucid-agents/types/core';
 
 const meta = {
   name: 'test-agent',
@@ -42,7 +42,9 @@ const makeMockRuntime = (
       key,
       input,
       signal: options.signal,
-      headers: options.headers || new Headers(),
+      metadata: {
+        headers: options.headers || new Headers(),
+      },
       runId: options.runId,
       runtime: options.runtime,
     };

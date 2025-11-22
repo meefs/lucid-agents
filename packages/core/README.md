@@ -6,13 +6,15 @@
 
 ## Highlights
 
+- Protocol-agnostic core runtime - not tied to any specific protocol (HTTP, WebSocket, etc.)
+- Extension-based architecture - add features via `.use()` method
 - Type-safe entrypoints with optional Zod input and output schemas.
-- Automatic `/health`, `/entrypoints`, and AgentCard manifest routes.
-- Built-in Server-Sent Events (SSE) streaming helpers.
-- Optional x402 monetization and per-entrypoint pricing/network overrides.
+- Automatic manifest building with extension hooks.
 - Shared runtime configuration with environment + runtime overrides.
-- ERC-8004 trust and AP2 manifest integration out of the box.
+- ERC-8004 trust and AP2 manifest integration via extensions.
 - Utilities for x402-enabled LLM calls, agent wallets, and identity registries.
+
+**Note:** HTTP-specific functionality (handlers, invoke, stream) is provided by the `@lucid-agents/http` extension, not the core package.
 
 ## Install & Import
 
@@ -42,7 +44,7 @@ import type { EntrypointDef, AgentMeta } from '@lucid-agents/core';
 Subpath exports (shared across adapters):
 
 - `@lucid-agents/core` — main exports including types (EntrypointDef, AgentMeta, etc.)
-- `@lucid-agents/core/utils` — focused helpers (`toJsonSchemaOrUndefined`, etc.)
+- `@lucid-agents/core/utils` — focused helpers
 - `@lucid-agents/core/axllm` — AxLLM client integration
 
 ## Core Concepts

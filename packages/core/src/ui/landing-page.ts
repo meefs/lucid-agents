@@ -3,8 +3,7 @@ import type { AgentMeta, EntrypointDef } from '@lucid-agents/types/core';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
-
-import { toJsonSchemaOrUndefined } from '../utils';
+import { z } from 'zod';
 
 type LandingPageOptions = {
   meta: AgentMeta;
@@ -772,12 +771,12 @@ export const renderLandingPage = ({
                       : 'Free';
                     const invokePath = `/entrypoints/${entrypoint.key}/invoke`;
                     const streamPath = `/entrypoints/${entrypoint.key}/stream`;
-                    const inputSchema = toJsonSchemaOrUndefined(
-                      entrypoint.input
-                    );
-                    const outputSchema = toJsonSchemaOrUndefined(
-                      entrypoint.output
-                    );
+                    const inputSchema = entrypoint.input
+                      ? z.toJSONSchema(entrypoint.input)
+                      : undefined;
+                    const outputSchema = entrypoint.output
+                      ? z.toJSONSchema(entrypoint.output)
+                      : undefined;
                     const exampleInputValue = inputSchema
                       ? buildExampleFromJsonSchema(inputSchema)
                       : undefined;

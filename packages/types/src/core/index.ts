@@ -1,5 +1,5 @@
 import type { Network, Resource } from 'x402/types';
-import type { z } from 'zod';
+import { z, type z as ZType } from 'zod';
 
 import type { EntrypointPrice, SolanaAddress } from '../payments';
 import type { WalletsConfig, AgentWalletHandle } from '../wallets';
@@ -56,10 +56,24 @@ export type AgentContext = {
   key: string;
   input: unknown;
   signal: AbortSignal;
-  headers: Headers;
+  metadata?: Record<string, unknown>;
   runId?: string;
   runtime?: AgentRuntime;
 };
+
+/**
+ * Error thrown when input or output validation fails.
+ */
+export class ZodValidationError extends Error {
+  constructor(
+    public readonly kind: 'input' | 'output',
+    public readonly issues: z.ZodError['issues']
+  ) {
+    super(
+      kind === 'input' ? 'Invalid input provided' : 'Invalid output produced'
+    );
+  }
+}
 
 /**
  * Stream envelope types for SSE responses.

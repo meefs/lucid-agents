@@ -360,7 +360,7 @@ import type {
 Key shapes:
 
 - `EntrypointDef`: `{ key, description?, input?, output?, streaming?, price?, network?, handler?, stream? }`
-- `AgentContext`: `{ key, input, signal, headers, runId }`
+- `AgentContext`: `{ key, input, signal, metadata?, runId?, runtime? }`
 - `PaymentsConfig`: `{ payTo, facilitatorUrl, network }`
 - `CreateAgentAppOptions`: `{ config?, payments?, ap2?, trust?, entrypoints? }`
 - `CreateAgentAppReturn<TApp>`: `{ app: TApp, runtime, agent, addEntrypoint, config }` (generic type in `@lucid-agents/types/core`)

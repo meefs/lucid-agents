@@ -35,6 +35,42 @@ type RoutesConfigResolver =
   | (() => RoutesConfig | Promise<RoutesConfig>);
 type RoutePatternResolver = () => Promise<RoutePattern[]>;
 
+/**
+ * Known testnet network identifiers.
+ * This set should be maintained as new testnets are added.
+ */
+const KNOWN_TESTNETS = new Set([
+  'sepolia',
+  'goerli',
+  'base-sepolia',
+  'optimism-sepolia',
+  'arbitrum-sepolia',
+  'polygon-amoy',
+  'solana-devnet',
+  'testnet',
+  'devnet',
+]);
+
+/**
+ * Regex pattern to detect common testnet indicators in network names.
+ * Matches case-insensitively: testnet, sepolia, goerli, devnet, etc.
+ */
+const TESTNET_PATTERN = /testnet|sepolia|goerli|devnet|amoy/i;
+
+/**
+ * Determines if a network is a testnet by checking against known testnets
+ * and common testnet naming patterns.
+ * @param network - Network identifier (may be null/undefined)
+ * @returns true if the network is a testnet, false otherwise
+ */
+function isTestnet(network: string | null | undefined): boolean {
+  if (!network || typeof network !== 'string') {
+    return false;
+  }
+  const normalized = network.toLowerCase().trim();
+  return KNOWN_TESTNETS.has(normalized) || TESTNET_PATTERN.test(normalized);
+}
+
 type PaymentHandlerDeps = {
   payTo: Address | SolanaAddress;
   facilitator?: FacilitatorConfig;
@@ -123,6 +159,10 @@ function createPaymentHandler({
     const paymentRequirements: PaymentRequirements[] = [];
 
     if (SupportedEVMNetworks.includes(network)) {
+      const erc20Asset = asset as ERC20TokenAmount['asset'];
+      if (!erc20Asset.eip712) {
+        throw new Error('EIP-712 configuration missing for EVM network asset');
+      }
       paymentRequirements.push({
         scheme: 'exact',
         network,
@@ -142,7 +182,7 @@ function createPaymentHandler({
           },
           output: outputSchema,
         },
-        extra: (asset as ERC20TokenAmount['asset']).eip712,
+        extra: erc20Asset.eip712,
       });
     } else if (SupportedSVMNetworks.includes(network)) {
       const paymentKinds = await supported();
@@ -206,7 +246,7 @@ function createPaymentHandler({
                 paymentRequirements
               ) as Parameters<typeof getPaywallHtml>[0]['paymentRequirements'],
               currentUrl: request.url,
-              testnet: network === 'base-sepolia',
+              testnet: isTestnet(network),
               cdpClientKey: paywall?.cdpClientKey,
               appLogo: paywall?.appLogo,
               appName: paywall?.appName,

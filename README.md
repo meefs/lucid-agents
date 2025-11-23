@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Lucid Agents</h1>
-  <p><strong>The Multi-Runtime Framework for Building and Monetizing AI Agents</strong></p>
+  <p><strong>The Protocol-Agnostic Multi-Runtime Framework for Building and Monetizing AI Agents</strong></p>
   <p>Build, deploy, and monetize autonomous AI agents with typed entrypoints, on-chain identity, and built-in payment infrastructure.</p>
 </div>
 
@@ -19,17 +19,18 @@ Lucid Agents is a TypeScript-first framework for building and monetizing AI agen
 
 **Core Capabilities:**
 
-- **x402 Payment Protocol**: Accept payments in USDC on Ethereum L2s (Base) or Solana with automatic paywall middleware
-- **A2A Protocol Support**: Agent-to-agent communication with task-based operations, enabling agents to buy and sell services from each other
-- **ERC-8004 Identity Layer**: Register agent identities on-chain, build reputation, and prove ownership for trust in agent marketplaces
-- **Multi-Adapter Architecture**: Write your agent logic once, deploy on Hono, TanStack Start, Express, or Next.js
-- **Type-Safe Entrypoints**: Define inputs/outputs with Zod schemas, get automatic validation and JSON schemas
-- **Streaming Support**: Server-Sent Events (SSE) for real-time agent responses
-- **Task Management**: Long-running tasks with status tracking, cancellation, and SSE subscriptions
-- **AgentCard Manifests**: Auto-generated A2A-compatible manifests with Open Graph tags for discoverability
-- **Template System**: Scaffold new agents with `blank`, `axllm`, `axllm-flow`, `identity`, `trading-data-agent`, or `trading-recommendation-agent` templates
-- **Multi-Network Support**: EVM (Base, Ethereum, Sepolia) and Solana (mainnet, devnet) payment networks
-- **Developer Experience**: CLI scaffolding, hot reload, comprehensive examples, TypeScript strict mode, and ESM modules
+- **Industry-Standard Protocols**: Native support for x402 (payments), A2A (agent-to-agent communication), and ERC-8004 (on-chain identity)—build agents that work with the ecosystem
+- **Accept Payments**: Accept payments in USDC on Ethereum L2s (Base) or Solana with automatic paywall middleware—no payment infrastructure code needed
+- **Agent-to-Agent Communication**: Agents can discover and call other agents, enabling agent marketplaces and multi-agent systems where agents buy and sell services from each other
+- **On-Chain Identity**: Register agent identities on-chain, build reputation, and prove ownership for trust in agent marketplaces
+- **Framework Flexibility**: Write your agent logic once, deploy on Hono, TanStack Start, Express, or Next.js—choose the framework that fits your stack
+- **Type-Safe APIs**: Define inputs/outputs with Zod schemas, get automatic validation, JSON schemas, and full TypeScript inference
+- **Real-Time Streaming**: Server-Sent Events (SSE) for streaming agent responses—perfect for LLM outputs and long-running operations
+- **Task Management**: Long-running tasks with status tracking, cancellation, and real-time updates via SSE subscriptions
+- **Auto-Discovery**: Auto-generated AgentCard manifests with Open Graph tags—agents are discoverable in directories and show rich previews when shared
+- **Quick Start**: CLI scaffolding with templates for common patterns—get a working agent in minutes, not hours
+- **Multi-Network Support**: Accept payments on EVM (Base, Ethereum, Sepolia) or Solana (mainnet, devnet) networks
+- **Composable Architecture**: Add only the features you need—payments, identity, A2A, wallets—mix and match as your agent evolves
 
 Whether you're building paid AI services, agent marketplaces, or multi-agent systems where agents transact with each other, Lucid Agents provides the payments and commerce infrastructure you need.
 
@@ -98,13 +99,13 @@ curl -X POST http://localhost:3000/entrypoints/echo/invoke \
 
 ## Architecture Overview
 
-Lucid Agents is a TypeScript monorepo built for multi-runtime agent deployment with a layered architecture:
+Lucid Agents is a TypeScript monorepo built for protocol-agnostic, multi-runtime agent deployment with a compositional extension architecture:
 
-- **Layer 0: Types** - Shared type definitions (`@lucid-agents/types`)
-- **Layer 1: Extensions** - Optional capabilities (http, identity, payments, wallet, a2a, ap2)
-- **Layer 2: Core** - Protocol-agnostic agent runtime with extension system (`@lucid-agents/core`)
-- **Layer 3: Adapters** - Framework integrations (hono, tanstack, express, next)
-- **Layer 4: Developer Tools** - CLI scaffolding and templates
+- **Layer 1: Core** - Protocol-agnostic agent runtime with extension system (`@lucid-agents/core`) - no protocol-specific code
+- **Layer 2: Extensions** - Optional capabilities added via composition: `http()` (HTTP protocol), `payments()` (x402), `wallets()` (wallet management), `identity()` (ERC-8004), `a2a()` (agent-to-agent), `ap2()` (Agent Payments Protocol)
+- **Layer 3: Adapters** - Framework integrations (hono, tanstack, express, next) that use the HTTP extension
+
+The core runtime is completely protocol-agnostic—protocols like HTTP are provided as extensions that get merged into the runtime. Future protocols (gRPC, WebSocket, etc.) can be added as additional extensions.
 
 > For detailed architecture documentation including dependency graphs, request flows, and extension system design, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -177,7 +178,7 @@ const agent = await createAgent({
   .use(http())
   .build();
 
-app.entrypoints.add({
+agent.entrypoints.add({
   key: 'greet',
   input: z.object({ name: z.string() }),
   async handler({ input }) {
@@ -230,7 +231,7 @@ const agent = await createAgent({
   .build();
 
 export const { runtime: tanStackRuntime, handlers } =
-  await createTanStackRuntime(app);
+  await createTanStackRuntime(agent);
 ```
 
 #### [`@lucid-agents/http`](packages/http/README.md)
@@ -265,11 +266,11 @@ const agent = await createAgent({
   name: 'my-agent',
   version: '1.0.0',
 })
-  .use(wallets({ config: { wallets: walletsFromEnv() } }))
+  .use(wallets({ config: walletsFromEnv() }))
   .build();
 
 const identity = await createAgentIdentity({
-  runtime: app,
+  runtime: agent,
   domain: 'my-agent.example.com',
   autoRegister: true, // Register on-chain if not exists
 });
@@ -311,8 +312,8 @@ const agent = await createAgent({
   .use(a2a())
   .build();
 
-// Access A2A client via app.a2a
-const result = await app.a2a.client.invoke(
+// Access A2A client via agent.a2a
+const result = await agent.a2a.client.invoke(
   'https://other-agent.com',
   'skillId',
   {
@@ -401,7 +402,7 @@ const agent = await createAgent({
   image: 'https://my-agent.example.com/og-image.png',
 })
   .use(http())
-  .use(wallets({ config: { wallets: walletsFromEnv() } }))
+  .use(wallets({ config: walletsFromEnv() }))
   .use(payments({ config: paymentsFromEnv() }))
   .use(identity({ config: identityFromEnv() }))
   .build();

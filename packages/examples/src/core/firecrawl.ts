@@ -337,5 +337,5 @@ const server = Bun.serve({
 });
 
 console.log(
-  `🚀 Agent ready at https://${server.hostname}:${server.port}/.well-known/agent.json`
+  `🚀 Agent ready at http://${server.hostname}:${server.port}/.well-known/agent.json`
 );

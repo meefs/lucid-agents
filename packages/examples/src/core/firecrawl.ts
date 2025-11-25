@@ -5,6 +5,7 @@ import { http } from '@lucid-agents/http';
 import { payments } from '@lucid-agents/payments';
 import type { FetchFunction } from '@lucid-agents/types/http';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
+import type { Resource } from 'x402/types';
 import {
   createSigner,
   decodeXPaymentResponse,
@@ -228,10 +229,14 @@ const siteSummaryFlow = flow<{
     sourceUrl: state.sourceUrl ?? state.url,
   }));
 
+// Use URL to validate and normalize, then get href string
+const facilitatorUrlString =
+  process.env.FACILITATOR_URL ?? 'https://facilitator.daydreams.systems';
+const facilitatorUrl = new URL(facilitatorUrlString).href as Resource;
+
 const paymentsConfig: PaymentsConfig = {
   payTo: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429',
-  facilitatorUrl: (process.env.FACILITATOR_URL ??
-    'https://facilitator.daydreams.systems') as `${string}://${string}`,
+  facilitatorUrl: facilitatorUrl,
   network: 'base',
 };
 

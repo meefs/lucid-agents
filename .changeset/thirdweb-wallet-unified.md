@@ -5,10 +5,10 @@
 
 ## Summary
 
-- Implemented the first thirdweb Engine wallet connector inside the wallets extension. It lazily builds the Engine account → viem wallet, exposes `getWalletClient()` / `getSigner()`, and wires those into the existing `WalletConnector` façade so payments, identity, and contract calls reuse the Engine-managed key.
-- Added a generic signer connector (and runtime wiring) so all connectors share the same `LocalEoaSigner` surface.
-- Created `packages/examples/src/wallet/thirdweb-engine-wallets.ts`, a minimal end-to-end script showing how to configure `wallets({ agent: { type: 'thirdweb', ... } })`, sign the facilitator challenge, and send 0.01 USDC through the SDK-managed wallet client.
-- Documentation (`docs/WALLETS.md`, `README.md`) now covers the thirdweb setup flow, the new connector methods, and the example usage.
+- Added a brand-new thirdweb Engine wallet connector to the wallets extension. It spins up the Engine-managed account, exposes `getWalletClient()` / `getSigner()`, and plugs into the standard `WalletConnector` API so x402, identity, and contract calls share the same Engine key material.
+- Introduced a new signer connector that unifies all connectors on the shared `LocalEoaSigner` surface, giving thirdweb the same runtime affordances as local/Lucid wallets without extra wiring.
+- Added `packages/examples/src/wallet/thirdweb-engine-wallets.ts`, an end-to-end script that configures `wallets({ agent: { type: 'thirdweb', ... } })`, signs the facilitator challenge, and transfers 0.01 USDC via the connector-managed viem client.
+- Updated `docs/WALLETS.md` and the root `README.md` with thirdweb configuration guidance and instructions for reusing the exposed wallet client—no manual Engine client creation required.
 
 ## Breaking Changes
 

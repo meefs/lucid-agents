@@ -1,7 +1,8 @@
 import type {
   AgentWalletConfig,
   DeveloperWalletConfig,
-  LocalWalletWithPrivateKeyOptions,
+  LocalWalletOptions,
+  ThirdwebWalletOptions,
   WalletsConfig,
 } from '@lucid-agents/types/wallets';
 
@@ -76,6 +77,33 @@ export function resolveAgentWalletFromEnv(
     };
   }
 
+  if (type === 'thirdweb' || env.THIRDWEB_SECRET_KEY) {
+    const secretKey = env.THIRDWEB_SECRET_KEY ?? env.AGENT_WALLET_SECRET_KEY;
+    const clientId = env.THIRDWEB_CLIENT_ID ?? env.AGENT_WALLET_CLIENT_ID;
+    const walletLabel =
+      env.THIRDWEB_WALLET_LABEL ?? env.AGENT_WALLET_LABEL ?? 'agent-wallet';
+    const chainIdStr =
+      env.THIRDWEB_CHAIN_ID ?? env.AGENT_WALLET_CHAIN_ID ?? '84532'; // Default to base-sepolia
+
+    if (!secretKey) {
+      return undefined;
+    }
+
+    const chainId = parseInt(chainIdStr, 10);
+    if (isNaN(chainId)) {
+      return undefined;
+    }
+
+    return {
+      type: 'thirdweb',
+      secretKey,
+      clientId,
+      walletLabel,
+      chainId,
+      ...extractThirdwebMetadata(env),
+    };
+  }
+
   if (type === 'lucid' || env.AGENT_WALLET_AGENT_REF) {
     const baseUrl =
       env.AGENT_WALLET_BASE_URL ??
@@ -122,9 +150,9 @@ export function resolveDeveloperWalletFromEnv(
 function extractLocalMetadata(
   env: EnvRecord,
   prefix: string
-): Partial<LocalWalletWithPrivateKeyOptions> {
-  const metadata: Partial<LocalWalletWithPrivateKeyOptions> = {};
-  const map: Record<string, keyof LocalWalletWithPrivateKeyOptions> = {
+): Partial<LocalWalletOptions> {
+  const metadata: Partial<LocalWalletOptions> = {};
+  const map: Record<string, keyof LocalWalletOptions> = {
     ADDRESS: 'address',
     CAIP2: 'caip2',
     CHAIN: 'chain',
@@ -135,6 +163,30 @@ function extractLocalMetadata(
 
   for (const [envKey, targetKey] of Object.entries(map)) {
     const value = env[`${prefix}${envKey}`];
+    if (value && value.trim()) {
+      metadata[targetKey] = value.trim() as never;
+    }
+  }
+
+  return metadata;
+}
+
+function extractThirdwebMetadata(
+  env: EnvRecord
+): Partial<ThirdwebWalletOptions> {
+  const metadata: Partial<ThirdwebWalletOptions> = {};
+  const map: Record<string, keyof ThirdwebWalletOptions> = {
+    ADDRESS: 'address',
+    CAIP2: 'caip2',
+    CHAIN: 'chain',
+    CHAIN_TYPE: 'chainType',
+    LABEL: 'label',
+  };
+
+  // Check both THIRDWEB_ and AGENT_WALLET_ prefixes
+  for (const [envKey, targetKey] of Object.entries(map)) {
+    const value =
+      env[`THIRDWEB_${envKey}`] ?? env[`AGENT_WALLET_${envKey}`] ?? undefined;
     if (value && value.trim()) {
       metadata[targetKey] = value.trim() as never;
     }

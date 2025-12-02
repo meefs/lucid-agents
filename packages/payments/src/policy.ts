@@ -45,12 +45,10 @@ function normalizeUrl(url: string): string {
  * @returns Domain string (lowercase, normalized)
  */
 function extractDomainFromUrlOrDomain(urlOrDomain: string): string {
-  // Try to extract domain from URL first
   const domain = extractDomain(urlOrDomain);
   if (domain) {
     return domain.toLowerCase();
   }
-  // If not a URL, treat as domain and normalize
   return normalizeUrl(urlOrDomain);
 }
 
@@ -64,13 +62,10 @@ function domainsMatch(domain1: string, domain2: string): boolean {
   const normalized1 = normalizeUrl(domain1);
   const normalized2 = normalizeUrl(domain2);
 
-  // Exact match
   if (normalized1 === normalized2) {
     return true;
   }
 
-  // Subdomain match: domain1 ends with .domain2
-  // e.g., "sub.example.com" matches "example.com"
   if (normalized1.endsWith(`.${normalized2}`)) {
     return true;
   }
@@ -90,13 +85,11 @@ export function evaluateRecipient(
   recipientAddress?: string,
   recipientDomain?: string
 ): PolicyEvaluationResult {
-  // Check blacklist first (takes precedence)
   if (group.blockedRecipients && group.blockedRecipients.length > 0) {
     for (const blocked of group.blockedRecipients) {
       const blockedDomain = extractDomainFromUrlOrDomain(blocked);
       const normalizedBlocked = normalizeUrl(blocked);
 
-      // Check address match
       if (recipientAddress && normalizeUrl(recipientAddress) === normalizedBlocked) {
         return {
           allowed: false,
@@ -105,7 +98,6 @@ export function evaluateRecipient(
         };
       }
 
-      // Check domain match
       if (recipientDomain) {
         const normalizedDomain = normalizeUrl(recipientDomain);
         if (domainsMatch(normalizedDomain, blockedDomain)) {
@@ -119,7 +111,6 @@ export function evaluateRecipient(
     }
   }
 
-  // Check whitelist (if provided, only whitelisted recipients are allowed)
   if (group.allowedRecipients && group.allowedRecipients.length > 0) {
     let isAllowed = false;
 
@@ -127,13 +118,11 @@ export function evaluateRecipient(
       const allowedDomain = extractDomainFromUrlOrDomain(allowed);
       const normalizedAllowed = normalizeUrl(allowed);
 
-      // Check address match
       if (recipientAddress && normalizeUrl(recipientAddress) === normalizedAllowed) {
         isAllowed = true;
         break;
       }
 
-      // Check domain match
       if (recipientDomain) {
         const normalizedDomain = normalizeUrl(recipientDomain);
         if (domainsMatch(normalizedDomain, allowedDomain)) {
@@ -186,7 +175,6 @@ function findMostSpecificLimit(
   targetUrl?: string,
   endpointUrl?: string
 ): { limit: SpendingLimit; scope: string } | undefined {
-  // Check endpoint-level limit first (most specific)
   if (endpointUrl && limits.perEndpoint) {
     const normalizedEndpoint = normalizeUrl(endpointUrl);
     for (const [key, limit] of Object.entries(limits.perEndpoint)) {
@@ -196,7 +184,6 @@ function findMostSpecificLimit(
     }
   }
 
-  // Check target-level limit
   if (targetUrl && limits.perTarget) {
     const targetDomain = extractDomain(targetUrl);
     if (targetDomain) {
@@ -212,7 +199,6 @@ function findMostSpecificLimit(
     }
   }
 
-  // Fall back to global limit
   if (limits.global) {
     return { limit: limits.global, scope: 'global' };
   }
@@ -241,7 +227,6 @@ export function evaluateSpendingLimits(
     return { allowed: true };
   }
 
-  // Find the most specific limit (endpoint > target > global)
   const limitInfo = findMostSpecificLimit(
     group.spendingLimits,
     targetUrl,
@@ -254,7 +239,6 @@ export function evaluateSpendingLimits(
 
   const { limit, scope } = limitInfo;
 
-  // Check per-request limit (stateless)
   if (limit.maxPaymentUsd !== undefined) {
     const maxPaymentBaseUnits = BigInt(Math.floor(limit.maxPaymentUsd * 1_000_000));
     if (requestedAmount > maxPaymentBaseUnits) {
@@ -266,7 +250,6 @@ export function evaluateSpendingLimits(
     }
   }
 
-  // Check total spending limit (stateful)
   if (limit.maxTotalUsd !== undefined) {
     const checkResult = spendingTracker.checkLimit(
       group.name,
@@ -311,20 +294,16 @@ export function evaluatePolicyGroups(
   recipientAddress?: string,
   recipientDomain?: string
 ): PolicyEvaluationResult {
-  // Extract domain from target URL if not provided
   if (targetUrl && !recipientDomain) {
     recipientDomain = extractDomain(targetUrl);
   }
 
-  // Evaluate each policy group - all must pass
   for (const group of groups) {
-    // Check recipient whitelist/blacklist
     const recipientResult = evaluateRecipient(group, recipientAddress, recipientDomain);
     if (!recipientResult.allowed) {
       return recipientResult;
     }
 
-    // Check spending limits
     const spendingResult = evaluateSpendingLimits(
       group,
       spendingTracker,
@@ -336,7 +315,6 @@ export function evaluatePolicyGroups(
       return spendingResult;
     }
 
-    // Check rate limits
     const rateResult = evaluateRateLimit(group, rateLimiter);
     if (!rateResult.allowed) {
       return rateResult;

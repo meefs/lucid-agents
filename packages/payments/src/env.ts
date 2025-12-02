@@ -59,7 +59,6 @@ function parseNumber(value: string | undefined): number | undefined {
  * @returns Array of policy groups or undefined if none configured
  */
 export function policiesFromEnv(env: EnvRecord = process.env): PaymentPolicyGroup[] | undefined {
-  // Check for JSON configuration first (takes precedence)
   const jsonConfig = env.PAYMENT_POLICY_GROUPS_JSON;
   if (jsonConfig) {
     try {
@@ -75,12 +74,9 @@ export function policiesFromEnv(env: EnvRecord = process.env): PaymentPolicyGrou
     }
   }
 
-  // Try to parse individual policy groups from env vars
-  // Pattern: PAYMENT_POLICY_GROUP_{N}_{KEY}
   const groups: PaymentPolicyGroup[] = [];
   const groupIndices = new Set<number>();
 
-  // Find all policy group indices
   for (const key of Object.keys(env)) {
     const match = key.match(/^PAYMENT_POLICY_GROUP_(\d+)_NAME$/i);
     if (match) {
@@ -91,7 +87,6 @@ export function policiesFromEnv(env: EnvRecord = process.env): PaymentPolicyGrou
     }
   }
 
-  // Build policy groups from env vars
   for (const index of groupIndices) {
     const nameKey = `PAYMENT_POLICY_GROUP_${index}_NAME`;
     const name = env[nameKey];
@@ -99,7 +94,6 @@ export function policiesFromEnv(env: EnvRecord = process.env): PaymentPolicyGrou
 
     const group: PaymentPolicyGroup = { name };
 
-    // Parse spending limits
     const maxPaymentUsd = parseNumber(env[`PAYMENT_POLICY_GROUP_${index}_GLOBAL_MAX_PAYMENT_USD`]);
     const maxTotalUsd = parseNumber(env[`PAYMENT_POLICY_GROUP_${index}_GLOBAL_MAX_TOTAL_USD`]);
     const windowMs = parseNumber(env[`PAYMENT_POLICY_GROUP_${index}_GLOBAL_WINDOW_MS`]);
@@ -119,7 +113,6 @@ export function policiesFromEnv(env: EnvRecord = process.env): PaymentPolicyGrou
       }
     }
 
-    // Parse whitelist/blacklist
     const allowedRecipients = parseList(env[`PAYMENT_POLICY_GROUP_${index}_ALLOWED_RECIPIENTS`]);
     if (allowedRecipients.length > 0) {
       group.allowedRecipients = allowedRecipients;
@@ -130,7 +123,6 @@ export function policiesFromEnv(env: EnvRecord = process.env): PaymentPolicyGrou
       group.blockedRecipients = blockedRecipients;
     }
 
-    // Parse rate limits
     const maxPayments = parseNumber(env[`PAYMENT_POLICY_GROUP_${index}_RATE_LIMIT_COUNT`]);
     const rateWindowMs = parseNumber(env[`PAYMENT_POLICY_GROUP_${index}_RATE_LIMIT_WINDOW_MS`]);
 

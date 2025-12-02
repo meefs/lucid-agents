@@ -10,6 +10,8 @@ type FetchLike = (
 
 /**
  * Extracts the URL string from fetch input.
+ * @param input - Request info (string, URL, or Request object)
+ * @returns URL string representation
  */
 function getUrlString(input: RequestInfo | URL): string {
   if (typeof input === 'string') return input;
@@ -20,6 +22,8 @@ function getUrlString(input: RequestInfo | URL): string {
 
 /**
  * Extracts the domain from a URL.
+ * @param url - URL string to extract domain from
+ * @returns Hostname if URL is valid, undefined otherwise
  */
 function extractDomain(url: string): string | undefined {
   try {
@@ -32,16 +36,18 @@ function extractDomain(url: string): string | undefined {
 
 /**
  * Parses payment amount from a price string (assumes USDC with 6 decimals).
- * @param price - Price string (e.g., "1.5" = 1.5 USDC)
- * @returns Amount in base units or undefined if invalid
+ * @param price - Price string (e.g., "1.5" for $1.50)
+ * @returns Amount in base units (with 6 decimals), or undefined if invalid
  */
-function parsePriceToBaseUnits(price: string | null | undefined): bigint | undefined {
+function parsePriceToBaseUnits(
+  price: string | null | undefined
+): bigint | undefined {
   if (!price) return undefined;
 
   try {
     const priceNum = parseFloat(price);
     if (!Number.isFinite(priceNum) || priceNum < 0) return undefined;
-    return BigInt(Math.floor(priceNum * 1_000_000)); // USDC has 6 decimals
+    return BigInt(Math.floor(priceNum * 1_000_000));
   } catch {
     return undefined;
   }
@@ -49,7 +55,8 @@ function parsePriceToBaseUnits(price: string | null | undefined): bigint | undef
 
 /**
  * Extracts payment amount from response headers.
- * Checks X-Price header from payment required response (402).
+ * @param response - HTTP response object
+ * @returns Payment amount in base units from X-Price header, or undefined
  */
 function extractPaymentAmount(response: Response): bigint | undefined {
   const priceHeader = response.headers.get('X-Price');
@@ -58,22 +65,19 @@ function extractPaymentAmount(response: Response): bigint | undefined {
 
 /**
  * Extracts recipient address from payment request headers or response.
+ * @param request - HTTP request object
+ * @param response - HTTP response object
+ * @returns Recipient address from X-Pay-To header, or undefined
  */
 function extractRecipientAddress(
   request: Request,
   response: Response
 ): string | undefined {
-  // Try X-Pay-To header from response (payment required)
   const payToHeader = response.headers.get('X-Pay-To');
   if (payToHeader) return payToHeader;
-
-  // Could also check request headers if needed
   return undefined;
 }
 
-/**
- * Payment tracking info stored during the fetch request lifecycle.
- */
 type PaymentInfo = {
   amount: bigint;
   recipientAddress?: string;
@@ -82,16 +86,21 @@ type PaymentInfo = {
 
 /**
  * Creates a policy wrapper around the BASE fetch (before x402 wrapper).
- *
- * Flow:
- * 1. Wrap base fetch with policy checking
- * 2. Intercept 402 responses, extract price, check policies
- * 3. If blocked, return error
- * 4. If allowed, pass through to x402 wrapper (which will handle payment)
- * 5. After successful payment, record spending/rate limits
- *
  * This wrapper is applied BEFORE the x402 wrapper so we can intercept
  * the 402 response and check policies before payment happens.
+ *
+ * Flow:
+ * 1. Wraps the base fetch function
+ * 2. Intercepts 402 responses to extract payment information
+ * 3. Evaluates policies against spending limits and rate limits
+ * 4. Returns 403 if policy violation, otherwise allows payment
+ * 5. Records spending/rate limit data after successful payment
+ *
+ * @param baseFetch - The base fetch function to wrap
+ * @param policyGroups - Array of payment policy groups to evaluate
+ * @param spendingTracker - Tracker for enforcing spending limits
+ * @param rateLimiter - Limiter for enforcing rate limits
+ * @returns Wrapped fetch function that enforces payment policies
  */
 export function wrapBaseFetchWithPolicy(
   baseFetch: FetchLike,
@@ -99,7 +108,6 @@ export function wrapBaseFetchWithPolicy(
   spendingTracker: SpendingTracker,
   rateLimiter: RateLimiter
 ): FetchLike {
-  // Track payment info per request URL for recording after success
   const paymentInfoCache = new Map<string, PaymentInfo>();
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -107,10 +115,8 @@ export function wrapBaseFetchWithPolicy(
     const targetDomain = extractDomain(urlString);
     const requestKey = `${urlString}:${init?.method || 'GET'}`;
 
-    // Make the fetch call (this will go to x402 wrapper after)
     const response = await baseFetch(input, init);
 
-    // If we got a 402 payment required response, check policies BEFORE allowing payment
     if (response.status === 402) {
       const paymentAmount = extractPaymentAmount(response);
       const recipientAddress = extractRecipientAddress(
@@ -119,20 +125,18 @@ export function wrapBaseFetchWithPolicy(
       );
 
       if (paymentAmount !== undefined) {
-        // Evaluate policies BEFORE allowing payment to proceed
         const evaluation = evaluatePolicyGroups(
           policyGroups,
           spendingTracker,
           rateLimiter,
-          urlString, // targetUrl
-          urlString, // endpointUrl (full URL for now)
+          urlString,
+          urlString,
           paymentAmount,
           recipientAddress || undefined,
           targetDomain
         );
 
         if (!evaluation.allowed) {
-          // Block the payment - return a policy violation error
           return new Response(
             JSON.stringify({
               error: {
@@ -150,7 +154,6 @@ export function wrapBaseFetchWithPolicy(
           );
         }
 
-        // Policies passed - store payment info for recording after successful payment
         paymentInfoCache.set(requestKey, {
           amount: paymentAmount,
           recipientAddress: recipientAddress || undefined,
@@ -159,36 +162,34 @@ export function wrapBaseFetchWithPolicy(
       }
     }
 
-    // If response is successful (200-299) and we have cached payment info, record it
-    if (response.ok && response.status >= 200 && response.status < 300) {
-      const paymentInfo = paymentInfoCache.get(requestKey);
-      if (paymentInfo) {
-        // Check if payment was actually made (x402 wrapper adds this header)
-        const paymentResponseHeader = response.headers.get('X-PAYMENT-RESPONSE');
+    const paymentInfo = paymentInfoCache.get(requestKey);
+
+    if (paymentInfo) {
+      if (response.ok && response.status >= 200 && response.status < 300) {
+        const paymentResponseHeader =
+          response.headers.get('X-PAYMENT-RESPONSE');
         if (paymentResponseHeader) {
-          // Payment was made - record spending and rate limits
           for (const group of policyGroups) {
-            // Determine scope - use the URL as scope for now
             const scope = urlString;
 
-            // Record spending if this group has spending limits
             if (group.spendingLimits) {
-              spendingTracker.recordSpending(group.name, scope, paymentInfo.amount);
+              spendingTracker.recordSpending(
+                group.name,
+                scope,
+                paymentInfo.amount
+              );
             }
 
-            // Record rate limit if this group has rate limits
             if (group.rateLimits) {
               rateLimiter.recordPayment(group.name);
             }
           }
         }
-
-        // Clean up cached info
-        paymentInfoCache.delete(requestKey);
       }
+
+      paymentInfoCache.delete(requestKey);
     }
 
     return response;
   };
 }
-

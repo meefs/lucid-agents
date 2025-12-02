@@ -8,7 +8,7 @@ import type {
 } from '@lucid-agents/types/http';
 import { ZodValidationError } from '@lucid-agents/types/core';
 
-import { errorResponse, extractInput, jsonResponse, readJson } from './http-utils';
+import { errorResponse, extractInput, jsonResponse, readJson } from './utils';
 import { createSSEStream, type SSEStreamRunnerContext } from './sse';
 import { parseInput } from './validation';
 

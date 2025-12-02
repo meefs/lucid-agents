@@ -3,17 +3,16 @@
  * Tracks spending per policy group and scope (global, target, endpoint).
  * All state is lost on restart - this is acceptable for now.
  */
-
 type SpendingEntry = {
   amount: bigint;
   timestamp: number;
 };
 
-type ScopeKey = string; // "global", target URL, or endpoint URL
+type ScopeKey = string;
 
 /**
- * Stores spending entries per policy group and scope.
- * Format: Map<groupName, Map<scope, SpendingEntry[]>>
+ * Tracks spending per policy group and scope for enforcing total spending limits.
+ * Maintains in-memory state that is lost on restart.
  */
 class SpendingTracker {
   private spending: Map<string, Map<ScopeKey, SpendingEntry[]>> = new Map();
@@ -34,23 +33,20 @@ class SpendingTracker {
     windowMs: number | undefined,
     requestedAmount: bigint
   ): { allowed: boolean; reason?: string; currentTotal?: bigint } {
-    const maxTotalBaseUnits = BigInt(Math.floor(maxTotalUsd * 1_000_000)); // Convert USD to base units (6 decimals)
+    const maxTotalBaseUnits = BigInt(Math.floor(maxTotalUsd * 1_000_000));
 
-    // Get or create group spending map
     let groupSpending = this.spending.get(groupName);
     if (!groupSpending) {
       groupSpending = new Map();
       this.spending.set(groupName, groupSpending);
     }
 
-    // Get or create scope entries
     let entries = groupSpending.get(scope);
     if (!entries) {
       entries = [];
       groupSpending.set(scope, entries);
     }
 
-    // Clean up expired entries if window is specified
     const now = Date.now();
     if (windowMs !== undefined) {
       const cutoff = now - windowMs;
@@ -59,10 +55,8 @@ class SpendingTracker {
       entries = validEntries;
     }
 
-    // Calculate current total
     const currentTotal = entries.reduce((sum, entry) => sum + entry.amount, 0n);
 
-    // Check if adding requested amount would exceed limit
     const newTotal = currentTotal + requestedAmount;
     if (newTotal > maxTotalBaseUnits) {
       return {
@@ -86,24 +80,21 @@ class SpendingTracker {
    */
   recordSpending(groupName: string, scope: string, amount: bigint): void {
     if (amount <= 0n) {
-      return; // Don't record zero or negative amounts
+      return;
     }
 
-    // Get or create group spending map
     let groupSpending = this.spending.get(groupName);
     if (!groupSpending) {
       groupSpending = new Map();
       this.spending.set(groupName, groupSpending);
     }
 
-    // Get or create scope entries
     let entries = groupSpending.get(scope);
     if (!entries) {
       entries = [];
       groupSpending.set(scope, entries);
     }
 
-    // Add new entry
     entries.push({
       amount,
       timestamp: Date.now(),
@@ -134,7 +125,6 @@ class SpendingTracker {
       return undefined;
     }
 
-    // Filter by time window if provided
     if (windowMs !== undefined) {
       const cutoff = Date.now() - windowMs;
       entries = entries.filter(entry => entry.timestamp > cutoff);
@@ -153,6 +143,10 @@ class SpendingTracker {
 
 export type { SpendingTracker };
 
+/**
+ * Creates a new spending tracker instance.
+ * @returns A new SpendingTracker instance for tracking spending limits
+ */
 export function createSpendingTracker(): SpendingTracker {
   return new SpendingTracker();
 }

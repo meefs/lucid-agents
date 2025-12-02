@@ -2,11 +2,9 @@
  * Rate limiter for tracking payments per time window per policy group.
  * Uses sliding window approach (in-memory).
  * All state is lost on restart - this is acceptable for now.
- */
-
-/**
- * Stores payment timestamps per policy group.
- * Format: Map<groupName, timestamp[]>
+ *
+ * Tracks payment timestamps per policy group and enforces rate limits
+ * based on maximum payments allowed within a time window.
  */
 class RateLimiter {
   private payments: Map<string, number[]> = new Map();
@@ -26,18 +24,15 @@ class RateLimiter {
     const now = Date.now();
     const cutoff = now - windowMs;
 
-    // Get or create payment timestamps for this group
     let timestamps = this.payments.get(groupName);
     if (!timestamps) {
       timestamps = [];
       this.payments.set(groupName, timestamps);
     }
 
-    // Clean up expired timestamps (sliding window)
     const validTimestamps = timestamps.filter(ts => ts > cutoff);
     this.payments.set(groupName, validTimestamps);
 
-    // Check if we've exceeded the limit
     if (validTimestamps.length >= maxPayments) {
       return {
         allowed: false,
@@ -55,14 +50,12 @@ class RateLimiter {
   recordPayment(groupName: string): void {
     const now = Date.now();
 
-    // Get or create payment timestamps for this group
     let timestamps = this.payments.get(groupName);
     if (!timestamps) {
       timestamps = [];
       this.payments.set(groupName, timestamps);
     }
 
-    // Add current timestamp
     timestamps.push(now);
   }
 
@@ -81,7 +74,6 @@ class RateLimiter {
       return 0;
     }
 
-    // Filter by time window
     return timestamps.filter(ts => ts > cutoff).length;
   }
 
@@ -95,7 +87,10 @@ class RateLimiter {
 
 export type { RateLimiter };
 
+/**
+ * Creates a new rate limiter instance.
+ * @returns A new RateLimiter instance for tracking payment rate limits
+ */
 export function createRateLimiter(): RateLimiter {
   return new RateLimiter();
 }
-

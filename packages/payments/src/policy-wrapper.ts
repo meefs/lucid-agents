@@ -165,8 +165,7 @@ export function wrapBaseFetchWithPolicy(
     }
 
     if (response.ok && response.status >= 200 && response.status < 300) {
-      const paymentResponseHeader =
-        response.headers.get('X-PAYMENT-RESPONSE');
+      const paymentResponseHeader = response.headers.get('X-PAYMENT-RESPONSE');
       if (paymentResponseHeader) {
         const paymentInfo = paymentInfoCache.get(requestKey);
         if (paymentInfo) {

@@ -39,6 +39,46 @@ function normalizeUrl(url: string): string {
 }
 
 /**
+ * Extracts domain from a URL string or returns the input if it's already a domain.
+ * Handles both full URLs (https://example.com) and plain domains (example.com).
+ * @param urlOrDomain - URL string or domain
+ * @returns Domain string (lowercase, normalized)
+ */
+function extractDomainFromUrlOrDomain(urlOrDomain: string): string {
+  // Try to extract domain from URL first
+  const domain = extractDomain(urlOrDomain);
+  if (domain) {
+    return domain.toLowerCase();
+  }
+  // If not a URL, treat as domain and normalize
+  return normalizeUrl(urlOrDomain);
+}
+
+/**
+ * Checks if two domains match (exact match or subdomain).
+ * @param domain1 - First domain (already normalized)
+ * @param domain2 - Second domain (already normalized)
+ * @returns True if domains match
+ */
+function domainsMatch(domain1: string, domain2: string): boolean {
+  const normalized1 = normalizeUrl(domain1);
+  const normalized2 = normalizeUrl(domain2);
+
+  // Exact match
+  if (normalized1 === normalized2) {
+    return true;
+  }
+
+  // Subdomain match: domain1 ends with .domain2
+  // e.g., "sub.example.com" matches "example.com"
+  if (normalized1.endsWith(`.${normalized2}`)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Evaluates recipient whitelist/blacklist for a policy group.
  * @param group - Policy group to evaluate
  * @param recipientAddress - Recipient address (EVM or Solana)
@@ -53,6 +93,7 @@ export function evaluateRecipient(
   // Check blacklist first (takes precedence)
   if (group.blockedRecipients && group.blockedRecipients.length > 0) {
     for (const blocked of group.blockedRecipients) {
+      const blockedDomain = extractDomainFromUrlOrDomain(blocked);
       const normalizedBlocked = normalizeUrl(blocked);
 
       // Check address match
@@ -67,7 +108,7 @@ export function evaluateRecipient(
       // Check domain match
       if (recipientDomain) {
         const normalizedDomain = normalizeUrl(recipientDomain);
-        if (normalizedDomain === normalizedBlocked || normalizedDomain.endsWith(`.${normalizedBlocked}`)) {
+        if (domainsMatch(normalizedDomain, blockedDomain)) {
           return {
             allowed: false,
             reason: `Recipient domain "${recipientDomain}" is blocked by policy group "${group.name}"`,
@@ -83,6 +124,7 @@ export function evaluateRecipient(
     let isAllowed = false;
 
     for (const allowed of group.allowedRecipients) {
+      const allowedDomain = extractDomainFromUrlOrDomain(allowed);
       const normalizedAllowed = normalizeUrl(allowed);
 
       // Check address match
@@ -94,7 +136,7 @@ export function evaluateRecipient(
       // Check domain match
       if (recipientDomain) {
         const normalizedDomain = normalizeUrl(recipientDomain);
-        if (normalizedDomain === normalizedAllowed || normalizedDomain.endsWith(`.${normalizedAllowed}`)) {
+        if (domainsMatch(normalizedDomain, allowedDomain)) {
           isAllowed = true;
           break;
         }

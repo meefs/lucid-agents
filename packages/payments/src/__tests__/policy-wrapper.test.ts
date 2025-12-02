@@ -149,9 +149,10 @@ describe('wrapBaseFetchWithPolicy', () => {
     expect(response2.status).toBe(200);
 
     // Check that spending was recorded
-    const total = spendingTracker.getCurrentTotal('test-policy', 'https://example.com');
-    // Note: This depends on the payment info cache working correctly
-    // The actual implementation may need adjustment based on how x402 flow works
+    // Since the policy only has global limits, the scope is 'global'
+    const total = spendingTracker.getCurrentTotal('test-policy', 'global');
+    expect(total).toBeDefined();
+    expect(Number(total) / 1_000_000).toBe(5.0);
   });
 
   it('should extract domain from URL for recipient matching', async () => {
@@ -186,6 +187,229 @@ describe('wrapBaseFetchWithPolicy', () => {
     expect(response.status).toBe(403);
     const data = await response.json();
     expect(data.error.code).toBe('policy_violation');
+  });
+
+  describe('scope resolution for spending limits', () => {
+    beforeEach(() => {
+      spendingTracker.clear();
+    });
+
+    it('should use endpoint URL scope when perEndpoint limit matches', async () => {
+      const endpointUrl = 'https://agent.example.com/entrypoints/process/invoke';
+      policyGroups = [
+        {
+          name: 'endpoint-policy',
+          spendingLimits: {
+            perEndpoint: {
+              [endpointUrl]: {
+                maxTotalUsd: 100.0,
+              },
+            },
+          },
+        },
+      ];
+
+      let callCount = 0;
+      baseFetch = async () => {
+        callCount++;
+        if (callCount === 1) {
+          return new Response(JSON.stringify({ error: 'Payment required' }), {
+            status: 402,
+            headers: {
+              'X-Price': '5.0',
+              'X-Pay-To': '0x123...',
+            },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: {
+            'X-PAYMENT-RESPONSE': 'settled',
+            'X-Price': '5.0',
+          },
+        });
+      };
+
+      const wrappedFetch = wrapBaseFetchWithPolicy(
+        baseFetch,
+        policyGroups,
+        spendingTracker,
+        rateLimiter
+      );
+
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+
+      const total = spendingTracker.getCurrentTotal('endpoint-policy', endpointUrl);
+      expect(total).toBeDefined();
+      expect(Number(total) / 1_000_000).toBe(5.0);
+    });
+
+    it('should use target domain scope when perTarget limit matches', async () => {
+      const targetUrl = 'https://agent.example.com';
+      const endpointUrl = `${targetUrl}/entrypoints/process/invoke`;
+      policyGroups = [
+        {
+          name: 'target-policy',
+          spendingLimits: {
+            perTarget: {
+              [targetUrl]: {
+                maxTotalUsd: 100.0,
+              },
+            },
+          },
+        },
+      ];
+
+      let callCount = 0;
+      baseFetch = async () => {
+        callCount++;
+        if (callCount === 1) {
+          return new Response(JSON.stringify({ error: 'Payment required' }), {
+            status: 402,
+            headers: {
+              'X-Price': '5.0',
+              'X-Pay-To': '0x123...',
+            },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: {
+            'X-PAYMENT-RESPONSE': 'settled',
+            'X-Price': '5.0',
+          },
+        });
+      };
+
+      const wrappedFetch = wrapBaseFetchWithPolicy(
+        baseFetch,
+        policyGroups,
+        spendingTracker,
+        rateLimiter
+      );
+
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+
+      const normalizedKey = targetUrl.trim().toLowerCase().replace(/\/+$/, '');
+      const total = spendingTracker.getCurrentTotal('target-policy', normalizedKey);
+      expect(total).toBeDefined();
+      expect(Number(total) / 1_000_000).toBe(5.0);
+    });
+
+    it('should use global scope when only global limit exists', async () => {
+      const endpointUrl = 'https://agent.example.com/entrypoints/process/invoke';
+      policyGroups = [
+        {
+          name: 'global-policy',
+          spendingLimits: {
+            global: {
+              maxTotalUsd: 100.0,
+            },
+          },
+        },
+      ];
+
+      let callCount = 0;
+      baseFetch = async () => {
+        callCount++;
+        if (callCount === 1) {
+          return new Response(JSON.stringify({ error: 'Payment required' }), {
+            status: 402,
+            headers: {
+              'X-Price': '5.0',
+              'X-Pay-To': '0x123...',
+            },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: {
+            'X-PAYMENT-RESPONSE': 'settled',
+            'X-Price': '5.0',
+          },
+        });
+      };
+
+      const wrappedFetch = wrapBaseFetchWithPolicy(
+        baseFetch,
+        policyGroups,
+        spendingTracker,
+        rateLimiter
+      );
+
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+
+      const total = spendingTracker.getCurrentTotal('global-policy', 'global');
+      expect(total).toBeDefined();
+      expect(Number(total) / 1_000_000).toBe(5.0);
+    });
+
+    it('should use endpoint scope when both endpoint and target limits exist (endpoint takes precedence)', async () => {
+      const targetUrl = 'https://agent.example.com';
+      const endpointUrl = `${targetUrl}/entrypoints/process/invoke`;
+      policyGroups = [
+        {
+          name: 'multi-policy',
+          spendingLimits: {
+            perEndpoint: {
+              [endpointUrl]: {
+                maxTotalUsd: 50.0,
+              },
+            },
+            perTarget: {
+              [targetUrl]: {
+                maxTotalUsd: 100.0,
+              },
+            },
+            global: {
+              maxTotalUsd: 200.0,
+            },
+          },
+        },
+      ];
+
+      let callCount = 0;
+      baseFetch = async () => {
+        callCount++;
+        if (callCount === 1) {
+          return new Response(JSON.stringify({ error: 'Payment required' }), {
+            status: 402,
+            headers: {
+              'X-Price': '5.0',
+              'X-Pay-To': '0x123...',
+            },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: {
+            'X-PAYMENT-RESPONSE': 'settled',
+            'X-Price': '5.0',
+          },
+        });
+      };
+
+      const wrappedFetch = wrapBaseFetchWithPolicy(
+        baseFetch,
+        policyGroups,
+        spendingTracker,
+        rateLimiter
+      );
+
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+      await wrappedFetch(endpointUrl, { method: 'GET' });
+
+      const endpointTotal = spendingTracker.getCurrentTotal('multi-policy', endpointUrl);
+      expect(endpointTotal).toBeDefined();
+      expect(Number(endpointTotal) / 1_000_000).toBe(5.0);
+
+      const normalizedTarget = targetUrl.toLowerCase().replace(/\/+$/, '');
+      const targetTotal = spendingTracker.getCurrentTotal('multi-policy', normalizedTarget);
+      expect(targetTotal).toBeUndefined();
+    });
   });
 });
 

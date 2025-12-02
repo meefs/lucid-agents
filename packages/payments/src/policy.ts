@@ -39,6 +39,16 @@ function normalizeUrl(url: string): string {
 }
 
 /**
+ * Formats a BigInt amount (in base units with 6 decimals) to a human-friendly USDC string.
+ * @param amount - Amount in base units (USDC has 6 decimals)
+ * @returns Formatted string (e.g., "1.5" for 1.5 USDC, "1" for 1.0 USDC)
+ */
+function formatUsdcAmount(amount: bigint): string {
+  const usdc = Number(amount) / 1_000_000;
+  return usdc.toFixed(6).replace(/\.?0+$/, '');
+}
+
+/**
  * Extracts domain from a URL string or returns the input if it's already a domain.
  * Handles both full URLs (https://example.com) and plain domains (example.com).
  * @param urlOrDomain - URL string or domain
@@ -90,7 +100,10 @@ export function evaluateRecipient(
       const blockedDomain = extractDomainFromUrlOrDomain(blocked);
       const normalizedBlocked = normalizeUrl(blocked);
 
-      if (recipientAddress && normalizeUrl(recipientAddress) === normalizedBlocked) {
+      if (
+        recipientAddress &&
+        normalizeUrl(recipientAddress) === normalizedBlocked
+      ) {
         return {
           allowed: false,
           reason: `Recipient address "${recipientAddress}" is blocked by policy group "${group.name}"`,
@@ -118,7 +131,10 @@ export function evaluateRecipient(
       const allowedDomain = extractDomainFromUrlOrDomain(allowed);
       const normalizedAllowed = normalizeUrl(allowed);
 
-      if (recipientAddress && normalizeUrl(recipientAddress) === normalizedAllowed) {
+      if (
+        recipientAddress &&
+        normalizeUrl(recipientAddress) === normalizedAllowed
+      ) {
         isAllowed = true;
         break;
       }
@@ -168,9 +184,9 @@ export function evaluateRateLimit(
  * @param limits - Spending limits configuration
  * @param targetUrl - Target agent URL (optional)
  * @param endpointUrl - Full endpoint URL (optional)
- * @returns Most specific spending limit or undefined
+ * @returns Most specific spending limit with resolved scope, or undefined
  */
-function findMostSpecificLimit(
+export function findMostSpecificLimit(
   limits: SpendingLimitsConfig,
   targetUrl?: string,
   endpointUrl?: string
@@ -192,7 +208,17 @@ function findMostSpecificLimit(
 
       for (const [key, limit] of Object.entries(limits.perTarget)) {
         const normalizedKey = normalizeUrl(key);
-        if (normalizedKey === normalizedTarget || normalizedKey === normalizedDomain) {
+        const keyDomain = extractDomain(key);
+        const normalizedKeyDomain = keyDomain
+          ? normalizeUrl(keyDomain)
+          : undefined;
+
+        if (
+          normalizedKey === normalizedTarget ||
+          normalizedKey === normalizedDomain ||
+          (normalizedKeyDomain && normalizedKeyDomain === normalizedDomain) ||
+          (keyDomain && normalizeUrl(keyDomain) === normalizedDomain)
+        ) {
           return { limit, scope: normalizedKey };
         }
       }
@@ -240,11 +266,13 @@ export function evaluateSpendingLimits(
   const { limit, scope } = limitInfo;
 
   if (limit.maxPaymentUsd !== undefined) {
-    const maxPaymentBaseUnits = BigInt(Math.floor(limit.maxPaymentUsd * 1_000_000));
+    const maxPaymentBaseUnits = BigInt(
+      Math.floor(limit.maxPaymentUsd * 1_000_000)
+    );
     if (requestedAmount > maxPaymentBaseUnits) {
       return {
         allowed: false,
-        reason: `Per-request spending limit exceeded for policy group "${group.name}" at scope "${scope}". Requested: ${requestedAmount / 1000000n} USDC, Limit: ${limit.maxPaymentUsd} USDC`,
+        reason: `Per-request spending limit exceeded for policy group "${group.name}" at scope "${scope}". Requested: ${formatUsdcAmount(requestedAmount)} USDC, Limit: ${limit.maxPaymentUsd} USDC`,
         groupName: group.name,
       };
     }
@@ -299,7 +327,11 @@ export function evaluatePolicyGroups(
   }
 
   for (const group of groups) {
-    const recipientResult = evaluateRecipient(group, recipientAddress, recipientDomain);
+    const recipientResult = evaluateRecipient(
+      group,
+      recipientAddress,
+      recipientDomain
+    );
     if (!recipientResult.allowed) {
       return recipientResult;
     }
@@ -323,4 +355,3 @@ export function evaluatePolicyGroups(
 
   return { allowed: true };
 }
-

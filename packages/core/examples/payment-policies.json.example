@@ -1,0 +1,41 @@
+[
+  {
+    "name": "Daily Spending Limit",
+    "spendingLimits": {
+      "global": {
+        "maxPaymentUsd": 10.0,
+        "maxTotalUsd": 100.0,
+        "windowMs": 86400000
+      }
+    }
+  },
+  {
+    "name": "API Usage Policy",
+    "spendingLimits": {
+      "global": {
+        "maxPaymentUsd": 5.0
+      },
+      "perTarget": {
+        "https://trusted-api.example.com": {
+          "maxPaymentUsd": 10.0,
+          "maxTotalUsd": 50.0
+        }
+      }
+    },
+    "allowedRecipients": [
+      "https://trusted-api.example.com",
+      "https://another-trusted-api.example.com"
+    ],
+    "rateLimits": {
+      "maxPayments": 100,
+      "windowMs": 3600000
+    }
+  },
+  {
+    "name": "Blocked Services",
+    "blockedRecipients": [
+      "https://blocked-service.example.com",
+      "0x1234567890123456789012345678901234567890"
+    ]
+  }
+]

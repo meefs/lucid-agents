@@ -16,7 +16,6 @@ export {
   type RuntimePaymentOptions,
 } from './runtime';
 export { paymentsFromEnv } from './utils';
-export { policiesFromEnv } from './env';
 export {
   createX402Fetch,
   accountFromPrivateKey,
@@ -38,10 +37,7 @@ export {
   createSpendingTracker,
   type SpendingTracker,
 } from './spending-tracker';
-export {
-  createRateLimiter,
-  type RateLimiter,
-} from './rate-limiter';
+export { createRateLimiter, type RateLimiter } from './rate-limiter';
 export {
   evaluatePolicyGroups,
   evaluateRecipient,

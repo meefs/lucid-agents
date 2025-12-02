@@ -11,6 +11,16 @@ type SpendingEntry = {
 type ScopeKey = string;
 
 /**
+ * Formats a BigInt amount (in base units with 6 decimals) to a human-friendly USDC string.
+ * @param amount - Amount in base units (USDC has 6 decimals)
+ * @returns Formatted string (e.g., "1.5" for 1.5 USDC, "1" for 1.0 USDC)
+ */
+function formatUsdcAmount(amount: bigint): string {
+  const usdc = Number(amount) / 1_000_000;
+  return usdc.toFixed(6).replace(/\.?0+$/, '');
+}
+
+/**
  * Tracks spending per policy group and scope for enforcing total spending limits.
  * Maintains in-memory state that is lost on restart.
  */
@@ -61,7 +71,7 @@ class SpendingTracker {
     if (newTotal > maxTotalBaseUnits) {
       return {
         allowed: false,
-        reason: `Total spending limit exceeded for policy group "${groupName}" at scope "${scope}". Current: ${currentTotal / 1000000n} USDC, Requested: ${requestedAmount / 1000000n} USDC, Limit: ${maxTotalUsd} USDC`,
+        reason: `Total spending limit exceeded for policy group "${groupName}" at scope "${scope}". Current: ${formatUsdcAmount(currentTotal)} USDC, Requested: ${formatUsdcAmount(requestedAmount)} USDC, Limit: ${maxTotalUsd} USDC`,
         currentTotal,
       };
     }

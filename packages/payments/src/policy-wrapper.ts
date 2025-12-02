@@ -1,7 +1,7 @@
 import type { PaymentPolicyGroup } from '@lucid-agents/types/payments';
 import type { SpendingTracker } from './spending-tracker';
 import type { RateLimiter } from './rate-limiter';
-import { evaluatePolicyGroups } from './policy';
+import { evaluatePolicyGroups, findMostSpecificLimit } from './policy';
 
 type FetchLike = (
   input: RequestInfo | URL,
@@ -112,6 +112,8 @@ export function wrapBaseFetchWithPolicy(
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlString = getUrlString(input);
+    const targetUrl = urlString;
+    const endpointUrl = urlString;
     const targetDomain = extractDomain(urlString);
     const requestKey = `${urlString}:${init?.method || 'GET'}`;
 
@@ -162,17 +164,21 @@ export function wrapBaseFetchWithPolicy(
       }
     }
 
-    const paymentInfo = paymentInfoCache.get(requestKey);
-
-    if (paymentInfo) {
-      if (response.ok && response.status >= 200 && response.status < 300) {
-        const paymentResponseHeader =
-          response.headers.get('X-PAYMENT-RESPONSE');
-        if (paymentResponseHeader) {
+    if (response.ok && response.status >= 200 && response.status < 300) {
+      const paymentResponseHeader =
+        response.headers.get('X-PAYMENT-RESPONSE');
+      if (paymentResponseHeader) {
+        const paymentInfo = paymentInfoCache.get(requestKey);
+        if (paymentInfo) {
           for (const group of policyGroups) {
-            const scope = urlString;
-
             if (group.spendingLimits) {
+              const limitInfo = findMostSpecificLimit(
+                group.spendingLimits,
+                targetUrl,
+                endpointUrl
+              );
+              const scope = limitInfo?.scope ?? 'global';
+
               spendingTracker.recordSpending(
                 group.name,
                 scope,
@@ -184,10 +190,10 @@ export function wrapBaseFetchWithPolicy(
               rateLimiter.recordPayment(group.name);
             }
           }
+
+          paymentInfoCache.delete(requestKey);
         }
       }
-
-      paymentInfoCache.delete(requestKey);
     }
 
     return response;

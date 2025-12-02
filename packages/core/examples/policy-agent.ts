@@ -1,13 +1,13 @@
-import { z } from 'zod';
 import { createAgent } from '@lucid-agents/core';
-import { http } from '@lucid-agents/http';
-import { payments } from '@lucid-agents/payments';
-import { paymentsFromEnv } from '@lucid-agents/payments';
-import { wallets } from '@lucid-agents/wallet';
-import { walletsFromEnv } from '@lucid-agents/wallet';
 import { createAgentApp } from '@lucid-agents/hono';
-import { createRuntimePaymentContext } from '@lucid-agents/payments';
-import type { PaymentPolicyGroup } from '@lucid-agents/types/payments';
+import { http } from '@lucid-agents/http';
+import {
+  createRuntimePaymentContext,
+  payments,
+  paymentsFromEnv,
+} from '@lucid-agents/payments';
+import { wallets, walletsFromEnv } from '@lucid-agents/wallet';
+import { z } from 'zod';
 
 /**
  * Example agent demonstrating payment policy enforcement.
@@ -23,50 +23,11 @@ import type { PaymentPolicyGroup } from '@lucid-agents/types/payments';
  *   - PAYMENTS_RECEIVABLE_ADDRESS - Address that receives payments
  *   - NETWORK - Network identifier (e.g., base-sepolia)
  *   - WALLET_PRIVATE_KEY - Private key for agent wallet (for making payments)
+ *
+ * Policy configuration:
+ *   - Policies are loaded from payment-policies.json in the project root
+ *   - See payment-policies.json.example for the policy structure
  */
-
-// Define policy groups
-const policyGroups: PaymentPolicyGroup[] = [
-  {
-    name: 'Daily Spending Limit',
-    spendingLimits: {
-      global: {
-        maxPaymentUsd: 10.0, // Max $10 per individual payment
-        maxTotalUsd: 100.0, // Max $100 total per day
-        windowMs: 24 * 60 * 60 * 1000, // 24 hours
-      },
-    },
-  },
-  {
-    name: 'API Usage Policy',
-    spendingLimits: {
-      global: {
-        maxPaymentUsd: 5.0, // Max $5 per API call
-      },
-      perTarget: {
-        'https://trusted-api.example.com': {
-          maxPaymentUsd: 10.0, // Higher limit for trusted API
-          maxTotalUsd: 50.0,
-        },
-      },
-    },
-    allowedRecipients: [
-      'https://trusted-api.example.com',
-      'https://another-trusted-api.example.com',
-    ],
-    rateLimits: {
-      maxPayments: 100, // Max 100 payments
-      windowMs: 60 * 60 * 1000, // Per hour
-    },
-  },
-  {
-    name: 'Blocked Services',
-    blockedRecipients: [
-      'https://blocked-service.example.com',
-      '0x1234567890123456789012345678901234567890', // Block specific address
-    ],
-  },
-];
 
 const agent = await createAgent({
   name: 'policy-agent',
@@ -76,10 +37,8 @@ const agent = await createAgent({
   .use(http())
   .use(
     payments({
-      config: {
-        ...paymentsFromEnv(),
-        policyGroups, // Add policy groups to payment config
-      },
+      config: paymentsFromEnv(),
+      policies: 'payment-policies.json', // Load policies from file
     })
   )
   .use(wallets({ config: walletsFromEnv() }))
@@ -124,7 +83,7 @@ addEntrypoint({
     }
 
     // Use payment-enabled fetch - policies will check before allowing payment
-    // If policy violation, an error will be thrown
+    // If policy violation, returns 403 response
     try {
       const response = await paymentContext.fetchWithPayment(
         `${ctx.input.targetUrl}/entrypoints/${ctx.input.endpoint}/invoke`,
@@ -141,7 +100,9 @@ addEntrypoint({
         // Check if it's a policy violation
         if (response.status === 403) {
           const error = await response.json().catch(() => ({}));
-          throw new Error(error.error?.message || 'Payment blocked by policy');
+          throw new Error(
+            error.error?.message || error.reason || 'Payment blocked by policy'
+          );
         }
         throw new Error(`Request failed: ${response.status}`);
       }
@@ -215,6 +176,11 @@ addEntrypoint({
 
         if (response.status === 403) {
           // Policy violation
+          const error = await response.json().catch(() => ({}));
+          console.warn(
+            `Policy violation for item ${item}:`,
+            error.reason || error.error?.message
+          );
           blocked++;
           continue;
         }
@@ -255,24 +221,50 @@ const server = Bun.serve({
 console.log(
   `🚀 Policy agent ready at http://${server.hostname}:${server.port}/.well-known/agent.json`
 );
-console.log('📋 Payment policies configured:');
-policyGroups.forEach(group => {
-  console.log(`  - ${group.name}`);
-  if (group.spendingLimits?.global) {
-    console.log(
-      `    - Max payment: $${group.spendingLimits.global.maxPaymentUsd}`
-    );
-    console.log(`    - Max total: $${group.spendingLimits.global.maxTotalUsd}`);
-  }
-  if (group.allowedRecipients) {
-    console.log(`    - Allowed recipients: ${group.allowedRecipients.length}`);
-  }
-  if (group.blockedRecipients) {
-    console.log(`    - Blocked recipients: ${group.blockedRecipients.length}`);
-  }
-  if (group.rateLimits) {
-    console.log(
-      `    - Rate limit: ${group.rateLimits.maxPayments} per ${group.rateLimits.windowMs}ms`
-    );
-  }
-});
+
+// Display policy information if available
+if (agent.payments?.policyGroups) {
+  console.log('📋 Payment policies configured:');
+  agent.payments.policyGroups.forEach(group => {
+    console.log(`  - ${group.name}`);
+    if (group.spendingLimits?.global) {
+      if (group.spendingLimits.global.maxPaymentUsd) {
+        console.log(
+          `    - Max payment: $${group.spendingLimits.global.maxPaymentUsd}`
+        );
+      }
+      if (group.spendingLimits.global.maxTotalUsd) {
+        console.log(
+          `    - Max total: $${group.spendingLimits.global.maxTotalUsd}`
+        );
+      }
+      if (group.spendingLimits.global.windowMs) {
+        const hours = group.spendingLimits.global.windowMs / (60 * 60 * 1000);
+        console.log(`    - Window: ${hours} hours`);
+      }
+    }
+    if (group.spendingLimits?.perTarget) {
+      const targetCount = Object.keys(group.spendingLimits.perTarget).length;
+      console.log(`    - Per-target limits: ${targetCount} targets`);
+    }
+    if (group.allowedRecipients) {
+      console.log(
+        `    - Allowed recipients: ${group.allowedRecipients.length}`
+      );
+    }
+    if (group.blockedRecipients) {
+      console.log(
+        `    - Blocked recipients: ${group.blockedRecipients.length}`
+      );
+    }
+    if (group.rateLimits) {
+      const hours = group.rateLimits.windowMs / (60 * 60 * 1000);
+      console.log(
+        `    - Rate limit: ${group.rateLimits.maxPayments} per ${hours} hour(s)`
+      );
+    }
+  });
+} else {
+  console.log('⚠️  No payment policies configured');
+  console.log('   Create payment-policies.json to enable policy enforcement');
+}

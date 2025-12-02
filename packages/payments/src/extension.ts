@@ -12,16 +12,27 @@ import type {
 
 import { createAgentCardWithPayments } from './manifest';
 import { createPaymentsRuntime, entrypointHasExplicitPrice } from './payments';
+import { policiesFromConfig } from './env';
 
 export function payments(options?: {
   config?: PaymentsConfig | false;
+  policies?: string;
 }): Extension<{ payments?: PaymentsRuntime }> {
   let paymentsRuntime: PaymentsRuntime | undefined;
 
   return {
     name: 'payments',
     build(ctx: BuildContext): { payments?: PaymentsRuntime } {
-      paymentsRuntime = createPaymentsRuntime(options?.config);
+      let config = options?.config;
+
+      if (config !== false && config !== undefined && options?.policies) {
+        const policyGroups = policiesFromConfig(options.policies);
+        if (policyGroups) {
+          config = { ...config, policyGroups };
+        }
+      }
+
+      paymentsRuntime = createPaymentsRuntime(config);
       return { payments: paymentsRuntime };
     },
     onEntrypointAdded(entrypoint: EntrypointDef, runtime: AgentRuntime) {

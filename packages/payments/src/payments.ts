@@ -173,10 +173,10 @@ export function createPaymentsRuntime(
     // Check if any group needs spending tracking
     const needsSpendingTracker = policyGroups.some(
       group => group.spendingLimits?.global?.maxTotalUsd !== undefined ||
-               Object.values(group.spendingLimits?.perTarget || {}).some(
+               Object.values(group.spendingLimits?.perTarget ?? {}).some(
                  limit => limit.maxTotalUsd !== undefined
                ) ||
-               Object.values(group.spendingLimits?.perEndpoint || {}).some(
+               Object.values(group.spendingLimits?.perEndpoint ?? {}).some(
                  limit => limit.maxTotalUsd !== undefined
                )
     );

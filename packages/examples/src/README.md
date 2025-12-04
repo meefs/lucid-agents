@@ -104,3 +104,111 @@ SCOPES       # Comma-separated scopes fed into the runtime (default agents.read)
 
 Because the auth server is mocked, no real credentials are required—the
 `signChallenge` implementation simply echoes the challenge ID.
+
+## Payment Policy Enforcement
+
+Four-agent example demonstrating payment policy enforcement with realistic testnet-friendly prices:
+
+**Agent A (`paid-service/`)** - Allowed service agent with paid entrypoints:
+
+- `echo` - $0.01 per call (1 cent)
+- `process` - $0.05 per call (5 cents)
+- `expensive` - $0.15 per call (15 cents, designed to be blocked by spending limit)
+
+**Agent B (`blocked-domain/`)** - Service blocked by domain policy:
+
+- `test-endpoint` - $0.01 per call
+- Runs on port 3002 (NOT in allowedRecipients whitelist)
+- Uses valid wallet address (OK)
+- **Blocked by**: Domain not in allowedRecipients
+
+**Agent C (`blocked-wallet/`)** - Service blocked by wallet address policy:
+
+- `test-endpoint` - $0.01 per call
+- Runs on port 3003
+- Uses address `0x1234...` (in blockedRecipients blacklist)
+- **Blocked by**: Wallet address in blockedRecipients
+
+**Agent D (`policy-agent/`)** - Consumer agent with payment policies:
+
+- **Spending limits**: Max $0.10 per payment, $1.00 total per day
+- **Recipient controls**: Whitelist (localhost:3001 only), Blacklist (0x1234... address)
+- **Rate limiting**: Max payments per time window
+- **Stateful tracking**: In-memory spending/rate tracking
+
+### Setup:
+
+```bash
+# 1. Configure paid-service (allowed)
+cd packages/examples/src/payments/paid-service
+cp env.example .env
+# Edit .env with your payment address
+
+# 2. Configure blocked-domain
+cd ../blocked-domain
+cp env.example .env
+# Uses valid address, runs on port 3002 (not whitelisted)
+
+# 3. Configure blocked-wallet
+cd ../blocked-wallet
+cp env.example .env
+# Uses blocked address 0x1234... (in blacklist)
+
+# 4. Configure policy-agent
+cd ../policy-agent
+cp env.example .env
+# Edit .env with your wallet private key (for making payments)
+```
+
+### Run:
+
+```bash
+# Terminal 1: Start the allowed service
+cd packages/examples/src/payments/paid-service
+bun run index.ts
+
+# Terminal 2: Start the blocked domain service
+cd ../blocked-domain
+bun run index.ts
+
+# Terminal 3: Start the blocked wallet service
+cd ../blocked-wallet
+bun run index.ts
+
+# Terminal 4: Start the policy agent
+cd ../policy-agent
+bun run index.ts
+
+# Terminal 5: Test spending limit policies
+curl -X POST http://localhost:3000/entrypoints/test-policies/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"input": {}}'
+
+# Terminal 5: Test domain blocking policy
+curl -X POST http://localhost:3000/entrypoints/test-blocked-domain/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"input": {}}'
+
+# Terminal 5: Test wallet blocking policy
+curl -X POST http://localhost:3000/entrypoints/test-blocked-wallet/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"input": {}}'
+```
+
+**Expected results:**
+
+Test 1 - Spending limits:
+
+- `echo` ($0.01) succeeds - within limits
+- `process` ($0.05) succeeds - within limits
+- `expensive` ($0.15) BLOCKED - exceeds $0.10 per-payment limit
+
+Test 2 - Domain blocking (test-blocked-domain):
+
+- `test-endpoint` BLOCKED - domain http://localhost:3002 not in allowedRecipients
+
+Test 3 - Wallet blocking (test-blocked-wallet):
+
+- `test-endpoint` BLOCKED - wallet address 0x1234... in blockedRecipients
+
+Policy configuration is in `packages/examples/src/payments/payment-policies.json`. Prices are kept low to work with $10/day testnet USDC faucet limits.

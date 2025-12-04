@@ -1,5 +1,14 @@
 # @lucid-agents/http
 
+## 1.9.2
+
+### Patch Changes
+
+- Updated dependencies [2e95dcf]
+  - @lucid-agents/payments@1.9.2
+  - @lucid-agents/types@1.5.1
+  - @lucid-agents/core@1.9.2
+
 ## 1.9.1
 
 ### Patch Changes

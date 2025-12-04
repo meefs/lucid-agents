@@ -33,3 +33,16 @@ export {
   type Hex,
 } from './crypto';
 export { payments } from './extension';
+export {
+  createSpendingTracker,
+  type SpendingTracker,
+} from './spending-tracker';
+export { createRateLimiter, type RateLimiter } from './rate-limiter';
+export {
+  evaluatePolicyGroups,
+  evaluateRecipient,
+  evaluateRateLimit,
+  evaluateSpendingLimits,
+  type PolicyEvaluationResult,
+} from './policy';
+export { wrapBaseFetchWithPolicy } from './policy-wrapper';

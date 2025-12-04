@@ -7,7 +7,7 @@ import type {
 } from '@lucid-agents/types/core';
 import { ZodValidationError } from '@lucid-agents/types/core';
 
-import { errorResponse, extractInput, jsonResponse, readJson } from './http-utils';
+import { errorResponse, extractInput, jsonResponse, readJson } from './utils';
 import { parseInput, parseOutput } from './validation';
 
 export type InvokeResult = {

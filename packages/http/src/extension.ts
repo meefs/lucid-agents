@@ -26,8 +26,9 @@ import {
   errorResponse,
   extractInput,
   jsonResponse,
+  normalizeOrigin,
   readJson,
-} from './http-utils';
+} from './utils';
 import { renderLandingPage } from './landing-page';
 import { stream } from './stream';
 import { createSSEStream, type SSEStreamRunnerContext } from './sse';
@@ -141,12 +142,12 @@ export function http(
           return jsonResponse({ items: runtime.entrypoints.list() });
         },
         manifest: async req => {
-          const origin = new URL(req.url).origin;
+          const origin = normalizeOrigin(req);
           return jsonResponse(runtime.manifest.build(origin));
         },
         landing: landingEnabled
           ? async req => {
-              const origin = new URL(req.url).origin;
+              const origin = normalizeOrigin(req);
               const entrypoints = runtime.entrypoints.snapshot();
               const html = await renderLandingPage({
                 meta,

@@ -177,6 +177,21 @@ describe('manifest building', () => {
     expect(manifest3.url).toBe('https://different.example/');
   });
 
+  it('uses URL protocol when no proxy headers present', async () => {
+    const agent = await createAgent(meta)
+      .use(http())
+      .addEntrypoint({
+        key: 'test',
+        description: 'test entrypoint',
+      })
+      .build();
+    const { app } = await createAgentApp(agent);
+
+    const res = await app.request('https://example.com/.well-known/agent.json');
+    const manifest = await res.json();
+    expect(manifest.url).toBe('https://example.com/');
+  });
+
   it('invalidates manifest cache when entrypoint added before first request', async () => {
     const agent = await createAgent(meta)
       .use(http())

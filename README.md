@@ -1,3 +1,5 @@
+![info](./info.jpeg)
+
 <div align="center">
   <h1>Lucid Agents</h1>
   <p><strong>The Protocol-Agnostic Multi-Runtime Framework for Building and Monetizing AI Agents</strong></p>

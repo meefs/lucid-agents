@@ -3,6 +3,8 @@ import type {
   WalletConnector,
   WalletMetadata,
 } from '@lucid-agents/types';
+import type { A2AClient } from '@lucid-agents/types/a2a';
+import type { FetchFunction } from '@lucid-agents/types/http';
 
 export type JsonValue =
   | string
@@ -57,19 +59,16 @@ export type AgentRef = {
  *
  * The hire links:
  * - The agent to call (via agent card URL)
- * - The payer's wallet (who pays for the calls)
+ * - Optional payer wallet metadata (for auditing/tracking)
  * - The schedule and parameters for invocations
  *
- * Payment flow:
- * 1. The payer's wallet (`wallet`) is used to sign/pay for calls
- * 2. The agent's payee address comes from the agent card's `payments` field
- * 3. On each scheduled invocation, funds flow from payer → agent
+ * Payment is handled by the paymentContext provided to the scheduler runtime.
  */
 export type Hire = {
   id: string;
   agent: AgentRef;
-  /** The PAYER's wallet - used to pay for invoking the agent */
-  wallet: WalletRef;
+  /** Optional wallet metadata for auditing/tracking. Payment is handled by paymentContext. */
+  wallet?: WalletRef;
   status: 'active' | 'paused' | 'canceled';
   metadata?: Record<string, JsonValue>;
 };
@@ -113,13 +112,10 @@ export type SchedulerStore = {
 /**
  * Arguments passed to the invoke function when executing a scheduled job.
  *
- * The invoke function is responsible for:
- * 1. Making the HTTP call to the agent's entrypoint
- * 2. Handling payment (using walletConnector to pay the agent)
+ * For the simple API (a2aClient + paymentContext), only manifest, entrypointKey,
+ * input, and jobId are used. Payment is handled automatically by paymentContext.
  *
- * Payment info:
- * - `walletRef` / `walletConnector` = the PAYER's wallet (signs/pays)
- * - `manifest.payments[].payee` = the AGENT's address (receives payment)
+ * For the legacy custom invoke API, walletRef and walletConnector are also available.
  */
 export type InvokeArgs = {
   /** The agent's manifest/card containing entrypoints and payment info */
@@ -128,14 +124,14 @@ export type InvokeArgs = {
   entrypointKey: string;
   /** Input data for the entrypoint */
   input: JsonValue;
-  /** The PAYER's wallet reference (metadata for identification) */
-  walletRef: WalletRef;
-  /** The PAYER's wallet connector for signing/paying (if walletResolver provided) */
-  walletConnector?: WalletConnector;
   /** Unique job ID for tracking */
   jobId: string;
   /** Optional idempotency key to prevent duplicate executions */
   idempotencyKey?: string;
+  /** @deprecated Wallet metadata - only used with custom invoke function */
+  walletRef?: WalletRef;
+  /** @deprecated Wallet connector - only used with custom invoke + walletResolver */
+  walletConnector?: WalletConnector;
 };
 
 export type InvokeFn = (args: InvokeArgs) => Promise<void>;
@@ -160,19 +156,19 @@ export type SchedulerRuntime = {
   /**
    * Create a new hire to schedule agent invocations.
    *
-   * @param input.agentCardUrl - URL to fetch the agent's card (contains payee info)
-   * @param input.wallet - The PAYER's wallet that will pay for invocations
+   * @param input.agentCardUrl - URL to fetch the agent's card
    * @param input.entrypointKey - Which entrypoint to invoke on the agent
    * @param input.schedule - When/how often to invoke
    * @param input.jobInput - Input data to pass to the entrypoint
+   * @param input.wallet - Optional wallet metadata for auditing (payment handled by paymentContext)
    */
   createHire(input: {
     agentCardUrl: string;
-    /** The PAYER's wallet - will be used to pay the agent for each invocation */
-    wallet: WalletRef;
     entrypointKey: string;
     schedule: Schedule;
     jobInput: JsonValue;
+    /** Optional wallet metadata for auditing. Payment is handled by paymentContext. */
+    wallet?: WalletRef;
     maxRetries?: number;
     idempotencyKey?: string;
     metadata?: Record<string, JsonValue>;
@@ -194,20 +190,81 @@ export type SchedulerRuntime = {
   recoverExpiredLeases(): Promise<number>;
 };
 
+/**
+ * Payment context from createRuntimePaymentContext.
+ * Contains the x402-enabled fetch function for making paid calls.
+ */
+export type PaymentContext = {
+  fetchWithPayment: FetchFunction | null;
+  walletAddress: `0x${string}` | null;
+  chainId: number | null;
+};
+
+/**
+ * Options for creating a scheduler runtime.
+ *
+ * There are two ways to configure the scheduler:
+ *
+ * 1. Simple API (recommended): Provide `a2aClient` and `paymentContext`
+ *    The scheduler handles invocation internally using A2A client with x402 payments.
+ *
+ * 2. Custom API: Provide a custom `invoke` function
+ *    For advanced use cases where you need full control over invocation.
+ */
 export type SchedulerRuntimeOptions = {
+  /** Storage backend for hires and jobs */
   store: SchedulerStore;
-  invoke: InvokeFn;
+
+  // ---- Simple API (recommended) ----
+
+  /**
+   * A2A client for invoking agent entrypoints.
+   * If provided along with paymentContext, the scheduler handles invocation internally.
+   */
+  a2aClient?: A2AClient;
+
+  /**
+   * Payment context from createRuntimePaymentContext.
+   * Provides x402-enabled fetch for making paid calls to agents.
+   */
+  paymentContext?: PaymentContext;
+
+  // ---- Custom API (advanced) ----
+
+  /**
+   * Custom invoke function for full control over job execution.
+   * If provided, this overrides the built-in A2A invocation.
+   * @deprecated Use a2aClient + paymentContext instead for simpler setup.
+   */
+  invoke?: InvokeFn;
+
   /**
    * Optional resolver to get a WalletConnector from a WalletRef.
-   * If provided, the resolved connector will be passed to the invoke function.
-   * This enables signing transactions during job execution.
+   * Only used with custom invoke function.
+   * @deprecated Use paymentContext instead.
    */
   walletResolver?: WalletResolver;
+
+  // ---- Common options ----
+
+  /** Custom function to fetch agent cards. Defaults to fetching from agentCardUrl. */
   fetchAgentCard?: (url: string) => Promise<AgentCardWithEntrypoints>;
+
+  /** Custom clock function for testing. Defaults to Date.now(). */
   clock?: () => number;
+
+  /** Default max retries for jobs. Defaults to 3. */
   defaultMaxRetries?: number;
+
+  /** Lease duration in ms. Defaults to 30000. */
   leaseMs?: number;
+
+  /** Max jobs to fetch per tick. Defaults to 25. */
   maxDueBatch?: number;
+
+  /** TTL for cached agent cards in ms. Defaults to 5 minutes. */
   agentCardTtlMs?: number;
+
+  /** Max concurrent job processing. Defaults to 5. */
   defaultConcurrency?: number;
 };

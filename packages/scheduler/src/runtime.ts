@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { fetchAgentCardWithEntrypoints } from './agent-card';
 import type {
   Hire,
+  InvokeArgs,
   Job,
   OperationResult,
   Schedule,
@@ -20,12 +21,15 @@ export function createSchedulerRuntime(
   const agentCardTtlMs = options.agentCardTtlMs ?? 5 * 60_000;
   const defaultConcurrency = options.defaultConcurrency ?? 5;
 
+  // Determine invoke function: custom or built-in A2A
+  const invokeJob = resolveInvokeFn(options);
+
   async function createHire(input: {
     agentCardUrl: string;
-    wallet: Hire['wallet'];
     entrypointKey: string;
     schedule: Schedule;
     jobInput: Job['input'];
+    wallet?: Hire['wallet'];
     maxRetries?: number;
     idempotencyKey?: string;
     metadata?: Hire['metadata'];
@@ -258,19 +262,21 @@ export function createSchedulerRuntime(
       }
 
       try {
-        // Resolve wallet connector if resolver is provided
-        const walletConnector = options.walletResolver
-          ? await options.walletResolver(hire.wallet)
-          : undefined;
+        // Resolve wallet connector if resolver is provided (legacy API)
+        const walletConnector =
+          options.walletResolver && hire.wallet
+            ? await options.walletResolver(hire.wallet)
+            : undefined;
 
-        await options.invoke({
+        await invokeJob({
           manifest: card,
           entrypointKey: claimedJob.entrypointKey,
           input: claimedJob.input,
-          walletRef: hire.wallet,
-          walletConnector,
           jobId: claimedJob.id,
           idempotencyKey: claimedJob.idempotencyKey,
+          // Legacy API fields (optional)
+          walletRef: hire.wallet,
+          walletConnector,
         });
 
         const nextRunAt = computeNextRun(claimedJob.schedule, now);
@@ -445,4 +451,41 @@ function computeBackoffMs(attempts: number): number {
   // Add jitter (±20%) to prevent thundering herd
   const jitter = base * 0.2 * (Math.random() * 2 - 1);
   return Math.min(60_000, base + jitter);
+}
+
+/**
+ * Resolves the invoke function based on options.
+ *
+ * Priority:
+ * 1. Custom invoke function (legacy API)
+ * 2. Built-in A2A client invoke (simple API)
+ * 3. Throws if neither is configured
+ */
+function resolveInvokeFn(
+  options: SchedulerRuntimeOptions
+): (args: InvokeArgs) => Promise<void> {
+  // Legacy: custom invoke function
+  if (options.invoke) {
+    return options.invoke;
+  }
+
+  // Simple API: A2A client with payment context
+  if (options.a2aClient) {
+    const { a2aClient, paymentContext } = options;
+    const fetchFn = paymentContext?.fetchWithPayment ?? undefined;
+
+    return async (args: InvokeArgs) => {
+      await a2aClient.invoke(
+        args.manifest,
+        args.entrypointKey,
+        args.input,
+        fetchFn
+      );
+    };
+  }
+
+  throw new Error(
+    'Scheduler requires either a2aClient or invoke function. ' +
+      'Use a2aClient + paymentContext for simple setup, or provide a custom invoke function.'
+  );
 }

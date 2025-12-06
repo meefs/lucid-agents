@@ -11,6 +11,7 @@ export type {
   JobStatus,
   JsonValue,
   OperationResult,
+  PaymentContext,
   Schedule,
   SchedulerRuntime,
   SchedulerRuntimeOptions,

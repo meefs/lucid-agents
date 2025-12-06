@@ -5,10 +5,12 @@ import type {
   InvokeArgs,
   Job,
   OperationResult,
+  PaymentContext,
   SchedulerStore,
   WalletRef,
 } from './types';
 import type { AgentCardWithEntrypoints } from '@lucid-agents/types';
+import type { A2AClient } from '@lucid-agents/types/a2a';
 
 function expectError(result: OperationResult, substring: string): void {
   expect(result.success).toBe(false);
@@ -877,6 +879,220 @@ describe('createSchedulerRuntime', () => {
       });
 
       expect(fetchCount).toBe(1);
+    });
+  });
+
+  describe('simple API (a2aClient + paymentContext)', () => {
+    function createMockA2AClient(): {
+      client: A2AClient;
+      invocations: Array<{
+        card: unknown;
+        skillId: string;
+        input: unknown;
+        fetchFn: unknown;
+      }>;
+    } {
+      const invocations: Array<{
+        card: unknown;
+        skillId: string;
+        input: unknown;
+        fetchFn: unknown;
+      }> = [];
+
+      const client: A2AClient = {
+        invoke: async (card, skillId, input, fetchFn) => {
+          invocations.push({ card, skillId, input, fetchFn });
+          return { output: { success: true } };
+        },
+        stream: async () => {},
+        sendMessage: async () => ({
+          taskId: 'task-1',
+          contextId: 'ctx-1',
+        }),
+        getTask: async () => ({
+          id: 'task-1',
+          status: 'completed',
+          contextId: 'ctx-1',
+        }),
+        subscribeTask: async () => {},
+        listTasks: async () => ({ tasks: [], total: 0 }),
+        cancelTask: async () => ({
+          id: 'task-1',
+          status: 'cancelled',
+          contextId: 'ctx-1',
+        }),
+      };
+
+      return { client, invocations };
+    }
+
+    function createMockPaymentContext(): PaymentContext {
+      const mockFetch = async () => new Response('{}');
+      return {
+        fetchWithPayment: mockFetch as unknown as PaymentContext['fetchWithPayment'],
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        chainId: 84532,
+      };
+    }
+
+    it('creates runtime with a2aClient and paymentContext', () => {
+      const { client } = createMockA2AClient();
+      const paymentContext = createMockPaymentContext();
+
+      const runtime = createSchedulerRuntime({
+        store: createMemoryStore(),
+        a2aClient: client,
+        paymentContext,
+        fetchAgentCard: async () => mockAgentCard,
+      });
+
+      expect(runtime).toBeDefined();
+      expect(runtime.createHire).toBeDefined();
+      expect(runtime.tick).toBeDefined();
+    });
+
+    it('invokes agent via a2aClient during tick', async () => {
+      const now = 1000000;
+      const { client, invocations } = createMockA2AClient();
+      const paymentContext = createMockPaymentContext();
+
+      const runtime = createSchedulerRuntime({
+        store: createMemoryStore(),
+        a2aClient: client,
+        paymentContext,
+        clock: () => now,
+        fetchAgentCard: async () => mockAgentCard,
+      });
+
+      await runtime.createHire({
+        agentCardUrl: 'https://example.com/agent',
+        wallet: mockWallet,
+        entrypointKey: 'default',
+        schedule: { kind: 'once', at: now },
+        jobInput: { message: 'hello' },
+      });
+
+      await runtime.tick();
+
+      expect(invocations).toHaveLength(1);
+      expect(invocations[0].skillId).toBe('default');
+      expect(invocations[0].input).toEqual({ message: 'hello' });
+      expect(invocations[0].fetchFn).toBe(paymentContext.fetchWithPayment);
+    });
+
+    it('uses a2aClient without paymentContext (unpaid calls)', async () => {
+      const now = 1000000;
+      const { client, invocations } = createMockA2AClient();
+
+      const runtime = createSchedulerRuntime({
+        store: createMemoryStore(),
+        a2aClient: client,
+        // No paymentContext - unpaid calls
+        clock: () => now,
+        fetchAgentCard: async () => mockAgentCard,
+      });
+
+      await runtime.createHire({
+        agentCardUrl: 'https://example.com/agent',
+        wallet: mockWallet,
+        entrypointKey: 'default',
+        schedule: { kind: 'once', at: now },
+        jobInput: {},
+      });
+
+      await runtime.tick();
+
+      expect(invocations).toHaveLength(1);
+      expect(invocations[0].fetchFn).toBeUndefined();
+    });
+
+    it('throws when neither invoke nor a2aClient is provided', () => {
+      expect(() =>
+        createSchedulerRuntime({
+          store: createMemoryStore(),
+          fetchAgentCard: async () => mockAgentCard,
+        })
+      ).toThrow('Scheduler requires either a2aClient or invoke function');
+    });
+
+    it('prefers custom invoke over a2aClient', async () => {
+      const now = 1000000;
+      const customInvocations: InvokeArgs[] = [];
+      const { client, invocations: a2aInvocations } = createMockA2AClient();
+
+      const runtime = createSchedulerRuntime({
+        store: createMemoryStore(),
+        invoke: async args => {
+          customInvocations.push(args);
+        },
+        a2aClient: client,
+        clock: () => now,
+        fetchAgentCard: async () => mockAgentCard,
+      });
+
+      await runtime.createHire({
+        agentCardUrl: 'https://example.com/agent',
+        wallet: mockWallet,
+        entrypointKey: 'default',
+        schedule: { kind: 'once', at: now },
+        jobInput: {},
+      });
+
+      await runtime.tick();
+
+      expect(customInvocations).toHaveLength(1);
+      expect(a2aInvocations).toHaveLength(0);
+    });
+
+    it('handles a2aClient errors with retry logic', async () => {
+      const now = 1000000;
+      let callCount = 0;
+
+      const failingClient: A2AClient = {
+        invoke: async () => {
+          callCount++;
+          throw new Error('A2A invocation failed');
+        },
+        stream: async () => {},
+        sendMessage: async () => ({ taskId: 'task-1', contextId: 'ctx-1' }),
+        getTask: async () => ({
+          id: 'task-1',
+          status: 'completed',
+          contextId: 'ctx-1',
+        }),
+        subscribeTask: async () => {},
+        listTasks: async () => ({ tasks: [], total: 0 }),
+        cancelTask: async () => ({
+          id: 'task-1',
+          status: 'cancelled',
+          contextId: 'ctx-1',
+        }),
+      };
+
+      const store = createMemoryStore();
+      const runtime = createSchedulerRuntime({
+        store,
+        a2aClient: failingClient,
+        clock: () => now,
+        fetchAgentCard: async () => mockAgentCard,
+      });
+
+      const { job } = await runtime.createHire({
+        agentCardUrl: 'https://example.com/agent',
+        wallet: mockWallet,
+        entrypointKey: 'default',
+        schedule: { kind: 'once', at: now },
+        jobInput: {},
+        maxRetries: 2,
+      });
+
+      await runtime.tick();
+
+      expect(callCount).toBe(1);
+      const updatedJob = await store.getJob(job.id);
+      expect(updatedJob?.status).toBe('pending');
+      expect(updatedJob?.attempts).toBe(1);
+      expect(updatedJob?.lastError).toBe('A2A invocation failed');
     });
   });
 });

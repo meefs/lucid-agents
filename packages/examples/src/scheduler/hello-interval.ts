@@ -1,7 +1,7 @@
 /*
  * Scheduler Example - Hiring an Agent on a Schedule
  *
- * This example demonstrates the scheduler's payment model:
+ * This example demonstrates the scheduler's simplified API:
  *
  * ARCHITECTURE:
  * - AGENT: Provides a paid service (the "hello" entrypoint)
@@ -10,13 +10,12 @@
  *
  * - SCHEDULER: Hires the agent to run on a schedule
  *   - Has a PAYER wallet to PAY for each invocation (configured via wallets extension)
- *   - Uses createRuntimePaymentContext to get x402-enabled fetch
- *   - Makes paid HTTP calls to the agent on schedule
+ *   - Uses a2aClient + paymentContext for automatic x402 payments
  *
- * PAYMENT FLOW (per invocation):
+ * PAYMENT FLOW (handled automatically by scheduler):
  *   1. Scheduler checks if job is due
- *   2. Scheduler uses fetchWithPayment (x402-enabled)
- *   3. x402 handles payment signing with payer's wallet
+ *   2. Scheduler invokes via a2aClient with x402-enabled fetch
+ *   3. Payment is signed and sent automatically
  *   4. Agent receives payment and executes entrypoint
  *
  * Run with: bun run src/scheduler/hello-interval.ts
@@ -126,41 +125,24 @@ async function main() {
   );
 
   // ============================================================================
-  // STEP 3: Create the SCHEDULER runtime
+  // STEP 3: Create the SCHEDULER runtime (simplified API)
   // ============================================================================
   console.log('\n[example] Creating scheduler runtime...');
 
-  const store = createMemoryStore();
   const scheduler = createSchedulerRuntime({
-    store,
-    invoke: async args => {
-      const skillResult = await schedulerClient.a2a.client.invoke(
-        agentCard,
-        args.entrypointKey,
-        args.input,
-        paymentContext.fetchWithPayment // x402-enabled fetch, ready to go
-      );
-
-      const result = await skillResult.output;
-      console.log('[scheduler] Result:', result);
-    },
+    store: createMemoryStore(),
+    a2aClient: schedulerClient.a2a.client,
+    paymentContext,
     fetchAgentCard: async () => agentCard,
   });
 
   // ============================================================================
-  // STEP 4: Create a HIRE (schedule agent calls with payer wallet)
+  // STEP 4: Create a HIRE (schedule agent calls)
   // ============================================================================
   console.log('\n[example] Creating hire (scheduling agent calls)...');
 
   const { hire, job } = await scheduler.createHire({
     agentCardUrl: agentOrigin,
-    wallet: {
-      id: 'scheduler-payer',
-      address: paymentContext.walletAddress!,
-      chain: process.env.NETWORK || 'base-sepolia',
-      chainType: 'ethereum',
-      provider: 'local',
-    },
     entrypointKey: 'hello',
     schedule: { kind: 'interval', everyMs: 10_000 },
     jobInput: { name: 'Scheduler' },

@@ -35,7 +35,7 @@ import {
   paymentsFromEnv,
   createRuntimePaymentContext,
 } from '@lucid-agents/payments';
-import { wallets, walletsFromEnv } from '@lucid-agents/wallet';
+import { wallets } from '@lucid-agents/wallet';
 import {
   createSchedulerRuntime,
   createSchedulerWorker,
@@ -109,12 +109,25 @@ async function main() {
   // ============================================================================
   console.log('\n[example] Creating scheduler client (payer)...');
 
+  const schedulerWalletPrivateKey = process.env.AGENT_WALLET_PRIVATE_KEY;
+  if (!schedulerWalletPrivateKey) {
+    throw new Error(
+      'AGENT_WALLET_PRIVATE_KEY environment variable is required for the scheduler client wallet'
+    );
+  }
+
   const schedulerClient = await createAgent({
     name: 'scheduler-client',
     version: '1.0.0',
     description: 'Scheduler client that pays for agent calls',
   })
-    .use(wallets({ config: walletsFromEnv() }))
+    .use(
+      wallets({
+        config: {
+          agent: { type: 'local', privateKey: schedulerWalletPrivateKey },
+        },
+      })
+    )
     .use(a2a())
     .build();
 
@@ -134,9 +147,9 @@ async function main() {
 
   const scheduler = createSchedulerRuntime({
     store: createMemoryStore(),
-    a2aClient: schedulerClient.a2a.client,
+    runtime: schedulerClient,
     paymentContext,
-    fetchAgentCard: async () => agentCard,
+    fetchAgentCard: async (_url: string) => agentCard,
   });
 
   // ============================================================================

@@ -10,7 +10,8 @@ import type {
   WalletRef,
 } from './types';
 import type { AgentCardWithEntrypoints } from '@lucid-agents/types';
-import type { A2AClient } from '@lucid-agents/types/a2a';
+import type { A2AClient, A2ARuntime } from '@lucid-agents/types/a2a';
+import type { AgentRuntime } from '@lucid-agents/types/core';
 
 function expectError(result: OperationResult, substring: string): void {
   expect(result.success).toBe(false);
@@ -109,20 +110,6 @@ describe('createSchedulerRuntime', () => {
           jobInput: {},
         })
       ).rejects.toThrow('Entrypoint nonexistent not found');
-    });
-
-    it('throws when cron schedule is used', async () => {
-      const { runtime } = createTestRuntime();
-
-      await expect(
-        runtime.createHire({
-          agentCardUrl: 'https://example.com/agent',
-          wallet: mockWallet,
-          entrypointKey: 'default',
-          schedule: { kind: 'cron', expr: '0 * * * *' },
-          jobInput: {},
-        })
-      ).rejects.toThrow('Cron schedules are not supported yet');
     });
 
     it('sets nextRunAt correctly for once schedule', async () => {
@@ -253,26 +240,6 @@ describe('createSchedulerRuntime', () => {
       ).rejects.toThrow(`Hire ${hire.id} is canceled`);
     });
 
-    it('throws when cron schedule is used', async () => {
-      const { runtime } = createTestRuntime();
-
-      const { hire } = await runtime.createHire({
-        agentCardUrl: 'https://example.com/agent',
-        wallet: mockWallet,
-        entrypointKey: 'default',
-        schedule: { kind: 'once', at: Date.now() },
-        jobInput: {},
-      });
-
-      await expect(
-        runtime.addJob({
-          hireId: hire.id,
-          entrypointKey: 'default',
-          schedule: { kind: 'cron', expr: '0 * * * *' },
-          jobInput: {},
-        })
-      ).rejects.toThrow('Cron schedules are not supported yet');
-    });
   });
 
   describe('pauseHire', () => {
@@ -787,8 +754,8 @@ describe('createSchedulerRuntime', () => {
         putJob: job => baseStore.putJob(job),
         getJob: id => baseStore.getJob(id),
         getDueJobs: (now, limit) => baseStore.getDueJobs(now, limit),
-        claimJob: (jobId, workerId, leaseMs) =>
-          baseStore.claimJob(jobId, workerId, leaseMs),
+        claimJob: (jobId, workerId, leaseMs, now) =>
+          baseStore.claimJob(jobId, workerId, leaseMs, now),
         getExpiredLeases: async () => expiredJobs,
       };
 
@@ -826,8 +793,8 @@ describe('createSchedulerRuntime', () => {
         putJob: job => baseStore.putJob(job),
         getJob: id => baseStore.getJob(id),
         getDueJobs: (now, limit) => baseStore.getDueJobs(now, limit),
-        claimJob: (jobId, workerId, leaseMs) =>
-          baseStore.claimJob(jobId, workerId, leaseMs),
+        claimJob: (jobId, workerId, leaseMs, now) =>
+          baseStore.claimJob(jobId, workerId, leaseMs, now),
         getExpiredLeases: async () => [],
       };
 
@@ -882,7 +849,7 @@ describe('createSchedulerRuntime', () => {
     });
   });
 
-  describe('simple API (a2aClient + paymentContext)', () => {
+  describe('simple API (runtime + paymentContext)', () => {
     function createMockA2AClient(): {
       client: A2AClient;
       invocations: Array<{
@@ -899,31 +866,51 @@ describe('createSchedulerRuntime', () => {
         fetchFn: unknown;
       }> = [];
 
-      const client: A2AClient = {
-        invoke: async (card, skillId, input, fetchFn) => {
+      const client = {
+        invoke: async (card: unknown, skillId: string, input: unknown, fetchFn: unknown) => {
           invocations.push({ card, skillId, input, fetchFn });
-          return { output: { success: true } };
+          return { output: { success: true }, status: 'completed' };
         },
         stream: async () => {},
         sendMessage: async () => ({
           taskId: 'task-1',
           contextId: 'ctx-1',
+          status: 'pending',
         }),
         getTask: async () => ({
+          taskId: 'task-1',
           id: 'task-1',
           status: 'completed',
           contextId: 'ctx-1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }),
         subscribeTask: async () => {},
         listTasks: async () => ({ tasks: [], total: 0 }),
         cancelTask: async () => ({
+          taskId: 'task-1',
           id: 'task-1',
           status: 'cancelled',
           contextId: 'ctx-1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }),
-      };
+      } as unknown as A2AClient;
 
       return { client, invocations };
+    }
+
+    function createMockAgentRuntime(a2aClient: A2AClient): AgentRuntime {
+      return {
+        agent: {},
+        a2a: {
+          buildCard: () => mockAgentCard,
+          fetchCard: async () => mockAgentCard,
+          client: a2aClient,
+        },
+        entrypoints: { list: () => [], add: () => {}, snapshot: () => ({}) },
+        manifest: { build: () => mockAgentCard },
+      } as unknown as AgentRuntime;
     }
 
     function createMockPaymentContext(): PaymentContext {
@@ -935,36 +922,38 @@ describe('createSchedulerRuntime', () => {
       };
     }
 
-    it('creates runtime with a2aClient and paymentContext', () => {
+    it('creates runtime with AgentRuntime and paymentContext', () => {
       const { client } = createMockA2AClient();
+      const mockAgentRuntime = createMockAgentRuntime(client);
       const paymentContext = createMockPaymentContext();
 
-      const runtime = createSchedulerRuntime({
+      const schedulerRuntime = createSchedulerRuntime({
         store: createMemoryStore(),
-        a2aClient: client,
+        runtime: mockAgentRuntime,
         paymentContext,
         fetchAgentCard: async () => mockAgentCard,
       });
 
-      expect(runtime).toBeDefined();
-      expect(runtime.createHire).toBeDefined();
-      expect(runtime.tick).toBeDefined();
+      expect(schedulerRuntime).toBeDefined();
+      expect(schedulerRuntime.createHire).toBeDefined();
+      expect(schedulerRuntime.tick).toBeDefined();
     });
 
-    it('invokes agent via a2aClient during tick', async () => {
+    it('invokes agent via runtime.a2a.client during tick', async () => {
       const now = 1000000;
       const { client, invocations } = createMockA2AClient();
+      const mockAgentRuntime = createMockAgentRuntime(client);
       const paymentContext = createMockPaymentContext();
 
-      const runtime = createSchedulerRuntime({
+      const schedulerRuntime = createSchedulerRuntime({
         store: createMemoryStore(),
-        a2aClient: client,
+        runtime: mockAgentRuntime,
         paymentContext,
         clock: () => now,
         fetchAgentCard: async () => mockAgentCard,
       });
 
-      await runtime.createHire({
+      await schedulerRuntime.createHire({
         agentCardUrl: 'https://example.com/agent',
         wallet: mockWallet,
         entrypointKey: 'default',
@@ -972,7 +961,7 @@ describe('createSchedulerRuntime', () => {
         jobInput: { message: 'hello' },
       });
 
-      await runtime.tick();
+      await schedulerRuntime.tick();
 
       expect(invocations).toHaveLength(1);
       expect(invocations[0].skillId).toBe('default');
@@ -980,19 +969,20 @@ describe('createSchedulerRuntime', () => {
       expect(invocations[0].fetchFn).toBe(paymentContext.fetchWithPayment);
     });
 
-    it('uses a2aClient without paymentContext (unpaid calls)', async () => {
+    it('uses runtime without paymentContext (unpaid calls)', async () => {
       const now = 1000000;
       const { client, invocations } = createMockA2AClient();
+      const mockAgentRuntime = createMockAgentRuntime(client);
 
-      const runtime = createSchedulerRuntime({
+      const schedulerRuntime = createSchedulerRuntime({
         store: createMemoryStore(),
-        a2aClient: client,
+        runtime: mockAgentRuntime,
         // No paymentContext - unpaid calls
         clock: () => now,
         fetchAgentCard: async () => mockAgentCard,
       });
 
-      await runtime.createHire({
+      await schedulerRuntime.createHire({
         agentCardUrl: 'https://example.com/agent',
         wallet: mockWallet,
         entrypointKey: 'default',
@@ -1000,37 +990,53 @@ describe('createSchedulerRuntime', () => {
         jobInput: {},
       });
 
-      await runtime.tick();
+      await schedulerRuntime.tick();
 
       expect(invocations).toHaveLength(1);
       expect(invocations[0].fetchFn).toBeUndefined();
     });
 
-    it('throws when neither invoke nor a2aClient is provided', () => {
+    it('throws when neither invoke nor runtime is provided', () => {
       expect(() =>
         createSchedulerRuntime({
           store: createMemoryStore(),
           fetchAgentCard: async () => mockAgentCard,
-        })
-      ).toThrow('Scheduler requires either a2aClient or invoke function');
+        } as any)
+      ).toThrow('Scheduler requires either runtime or invoke function');
     });
 
-    it('prefers custom invoke over a2aClient', async () => {
+    it('throws when runtime lacks A2A extension', () => {
+      const runtimeWithoutA2A = {
+        agent: {},
+        entrypoints: { list: () => [], add: () => {}, snapshot: () => ({}) },
+        manifest: { build: () => mockAgentCard },
+      } as unknown as AgentRuntime;
+
+      expect(() =>
+        createSchedulerRuntime({
+          store: createMemoryStore(),
+          runtime: runtimeWithoutA2A,
+          fetchAgentCard: async () => mockAgentCard,
+        })
+      ).toThrow('Scheduler runtime requires A2A extension');
+    });
+
+    it('prefers custom invoke over runtime', async () => {
       const now = 1000000;
       const customInvocations: InvokeArgs[] = [];
       const { client, invocations: a2aInvocations } = createMockA2AClient();
+      const mockAgentRuntime = createMockAgentRuntime(client);
 
-      const runtime = createSchedulerRuntime({
+      const schedulerRuntime = createSchedulerRuntime({
         store: createMemoryStore(),
         invoke: async args => {
           customInvocations.push(args);
         },
-        a2aClient: client,
         clock: () => now,
         fetchAgentCard: async () => mockAgentCard,
       });
 
-      await runtime.createHire({
+      await schedulerRuntime.createHire({
         agentCardUrl: 'https://example.com/agent',
         wallet: mockWallet,
         entrypointKey: 'default',
@@ -1038,46 +1044,57 @@ describe('createSchedulerRuntime', () => {
         jobInput: {},
       });
 
-      await runtime.tick();
+      await schedulerRuntime.tick();
 
       expect(customInvocations).toHaveLength(1);
       expect(a2aInvocations).toHaveLength(0);
     });
 
-    it('handles a2aClient errors with retry logic', async () => {
+    it('handles runtime.a2a.client errors with retry logic', async () => {
       const now = 1000000;
       let callCount = 0;
 
-      const failingClient: A2AClient = {
+      const failingClient = {
         invoke: async () => {
           callCount++;
           throw new Error('A2A invocation failed');
         },
         stream: async () => {},
-        sendMessage: async () => ({ taskId: 'task-1', contextId: 'ctx-1' }),
+        sendMessage: async () => ({
+          taskId: 'task-1',
+          contextId: 'ctx-1',
+          status: 'pending',
+        }),
         getTask: async () => ({
+          taskId: 'task-1',
           id: 'task-1',
           status: 'completed',
           contextId: 'ctx-1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }),
         subscribeTask: async () => {},
         listTasks: async () => ({ tasks: [], total: 0 }),
         cancelTask: async () => ({
+          taskId: 'task-1',
           id: 'task-1',
           status: 'cancelled',
           contextId: 'ctx-1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }),
-      };
+      } as unknown as A2AClient;
 
+      const mockAgentRuntime = createMockAgentRuntime(failingClient);
       const store = createMemoryStore();
-      const runtime = createSchedulerRuntime({
+      const schedulerRuntime = createSchedulerRuntime({
         store,
-        a2aClient: failingClient,
+        runtime: mockAgentRuntime,
         clock: () => now,
         fetchAgentCard: async () => mockAgentCard,
       });
 
-      const { job } = await runtime.createHire({
+      const { job } = await schedulerRuntime.createHire({
         agentCardUrl: 'https://example.com/agent',
         wallet: mockWallet,
         entrypointKey: 'default',
@@ -1086,7 +1103,7 @@ describe('createSchedulerRuntime', () => {
         maxRetries: 2,
       });
 
-      await runtime.tick();
+      await schedulerRuntime.tick();
 
       expect(callCount).toBe(1);
       const updatedJob = await store.getJob(job.id);

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { fetchAgentCardWithEntrypoints } from './agent-card';
+import { fetchAgentCardWithEntrypoints } from '@lucid-agents/a2a';
 import type {
   Hire,
   InvokeArgs,
@@ -24,6 +24,27 @@ export function createSchedulerRuntime(
   // Determine invoke function: custom or built-in A2A
   const invokeJob = resolveInvokeFn(options);
 
+  const buildJob = (input: {
+    hireId: string;
+    entrypointKey: string;
+    schedule: Schedule;
+    jobInput: Job['input'];
+    now: number;
+    maxRetries?: number;
+    idempotencyKey?: string;
+  }): Job => ({
+    id: randomUUID(),
+    hireId: input.hireId,
+    entrypointKey: input.entrypointKey,
+    input: input.jobInput,
+    schedule: input.schedule,
+    nextRunAt: computeInitialNextRun(input.schedule, input.now),
+    attempts: 0,
+    maxRetries: input.maxRetries ?? defaultMaxRetries,
+    status: 'pending',
+    idempotencyKey: input.idempotencyKey,
+  });
+
   async function createHire(input: {
     agentCardUrl: string;
     entrypointKey: string;
@@ -34,10 +55,10 @@ export function createSchedulerRuntime(
     idempotencyKey?: string;
     metadata?: Hire['metadata'];
   }): Promise<{ hire: Hire; job: Job }> {
+    const now = clock();
     // Validate schedule early to fail fast
     validateSchedule(input.schedule);
 
-    const now = clock();
     const card = await fetchCard(input.agentCardUrl);
     validateEntrypoint(card, input.entrypointKey);
 
@@ -53,18 +74,15 @@ export function createSchedulerRuntime(
       metadata: input.metadata,
     };
 
-    const job: Job = {
-      id: randomUUID(),
+    const job = buildJob({
       hireId: hire.id,
       entrypointKey: input.entrypointKey,
-      input: input.jobInput,
       schedule: input.schedule,
-      nextRunAt: computeInitialNextRun(input.schedule, now),
-      attempts: 0,
-      maxRetries: input.maxRetries ?? defaultMaxRetries,
-      status: 'pending',
+      jobInput: input.jobInput,
+      now,
+      maxRetries: input.maxRetries,
       idempotencyKey: input.idempotencyKey,
-    };
+    });
 
     await options.store.putHire(hire);
     try {
@@ -86,9 +104,6 @@ export function createSchedulerRuntime(
     maxRetries?: number;
     idempotencyKey?: string;
   }): Promise<Job> {
-    // Validate schedule early to fail fast
-    validateSchedule(input.schedule);
-
     const existingHire = await options.store.getHire(input.hireId);
     if (!existingHire) {
       throw new Error(`Hire ${input.hireId} not found`);
@@ -98,21 +113,21 @@ export function createSchedulerRuntime(
     }
 
     const now = clock();
+    // Validate schedule early to fail fast
+    validateSchedule(input.schedule);
+
     const { card, hire } = await ensureCard(existingHire, now);
     validateEntrypoint(card, input.entrypointKey);
 
-    const job: Job = {
-      id: randomUUID(),
+    const job = buildJob({
       hireId: hire.id,
       entrypointKey: input.entrypointKey,
-      input: input.jobInput,
       schedule: input.schedule,
-      nextRunAt: computeInitialNextRun(input.schedule, now),
-      attempts: 0,
-      maxRetries: input.maxRetries ?? defaultMaxRetries,
-      status: 'pending',
+      jobInput: input.jobInput,
+      now,
+      maxRetries: input.maxRetries,
       idempotencyKey: input.idempotencyKey,
-    };
+    });
 
     await options.store.putJob(job);
     return job;
@@ -207,7 +222,12 @@ export function createSchedulerRuntime(
 
     // Process jobs in parallel with concurrency limit
     const processJob = async (job: Job): Promise<void> => {
-      const claimed = await options.store.claimJob(job.id, workerId, leaseMs);
+      const claimed = await options.store.claimJob(
+        job.id,
+        workerId,
+        leaseMs,
+        now
+      );
       if (!claimed) {
         return;
       }
@@ -392,33 +412,11 @@ export function createSchedulerRuntime(
 }
 
 function computeInitialNextRun(schedule: Schedule, now: number): number {
-  switch (schedule.kind) {
-    case 'once':
-      return schedule.at;
-    case 'interval':
-      return now;
-    case 'cron':
-      throw new Error('cron schedules are not supported yet');
-    default: {
-      const exhaustive: never = schedule;
-      return exhaustive;
-    }
-  }
+  return schedule.kind === 'once' ? schedule.at : now;
 }
 
 function computeNextRun(schedule: Schedule, now: number): number | null {
-  switch (schedule.kind) {
-    case 'once':
-      return null;
-    case 'interval':
-      return now + schedule.everyMs;
-    case 'cron':
-      throw new Error('cron schedules are not supported yet');
-    default: {
-      const exhaustive: never = schedule;
-      return exhaustive;
-    }
-  }
+  return schedule.kind === 'once' ? null : now + schedule.everyMs;
 }
 
 function validateEntrypoint(
@@ -433,12 +431,15 @@ function validateEntrypoint(
 function validateSchedule(schedule: Schedule): void {
   switch (schedule.kind) {
     case 'once':
-    case 'interval':
+      if (!Number.isFinite(schedule.at) || schedule.at < 0) {
+        throw new Error('Once schedule requires a non-negative timestamp');
+      }
       return;
-    case 'cron':
-      throw new Error(
-        'Cron schedules are not supported yet. Use "once" or "interval" schedule kinds.'
-      );
+    case 'interval':
+      if (!Number.isFinite(schedule.everyMs) || schedule.everyMs <= 0) {
+        throw new Error('Interval schedule requires everyMs > 0');
+      }
+      return;
     default: {
       const exhaustive: never = schedule;
       throw new Error(`Unknown schedule kind: ${(exhaustive as Schedule).kind}`);
@@ -457,22 +458,26 @@ function computeBackoffMs(attempts: number): number {
  * Resolves the invoke function based on options.
  *
  * Priority:
- * 1. Custom invoke function (legacy API)
- * 2. Built-in A2A client invoke (simple API)
+ * 1. Custom invoke function (advanced API)
+ * 2. Built-in A2A client invoke (simple API via runtime)
  * 3. Throws if neither is configured
  */
 function resolveInvokeFn(
   options: SchedulerRuntimeOptions
 ): (args: InvokeArgs) => Promise<void> {
-  // Legacy: custom invoke function
-  if (options.invoke) {
+  if ('invoke' in options) {
     return options.invoke;
   }
 
-  // Simple API: A2A client with payment context
-  if (options.a2aClient) {
-    const { a2aClient, paymentContext } = options;
-    const fetchFn = paymentContext?.fetchWithPayment ?? undefined;
+  if ('runtime' in options) {
+    const a2aClient = options.runtime.a2a?.client;
+    if (!a2aClient) {
+      throw new Error(
+        'Scheduler runtime requires A2A extension. Add .use(a2a()) to your agent.'
+      );
+    }
+
+    const fetchFn = options.paymentContext?.fetchWithPayment ?? undefined;
 
     return async (args: InvokeArgs) => {
       await a2aClient.invoke(
@@ -485,7 +490,7 @@ function resolveInvokeFn(
   }
 
   throw new Error(
-    'Scheduler requires either a2aClient or invoke function. ' +
-      'Use a2aClient + paymentContext for simple setup, or provide a custom invoke function.'
+    'Scheduler requires either runtime or invoke function. ' +
+      'Use runtime + paymentContext for simple setup, or provide a custom invoke function.'
   );
 }

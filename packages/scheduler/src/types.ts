@@ -3,7 +3,7 @@ import type {
   WalletConnector,
   WalletMetadata,
 } from '@lucid-agents/types';
-import type { A2AClient } from '@lucid-agents/types/a2a';
+import type { AgentRuntime } from '@lucid-agents/types/core';
 import type { FetchFunction } from '@lucid-agents/types/http';
 
 export type JsonValue =
@@ -16,8 +16,7 @@ export type JsonValue =
 
 export type Schedule =
   | { kind: 'interval'; everyMs: number }
-  | { kind: 'once'; at: number }
-  | { kind: 'cron'; expr: string };
+  | { kind: 'once'; at: number };
 
 /**
  * Serializable reference to the PAYER's wallet stored with a Hire.
@@ -105,7 +104,12 @@ export type SchedulerStore = {
   putJob(job: Job): Promise<void>;
   getJob(id: string): Promise<Job | undefined>;
   getDueJobs(now: number, limit: number): Promise<Job[]>;
-  claimJob(jobId: string, workerId: string, leaseMs: number): Promise<boolean>;
+  claimJob(
+    jobId: string,
+    workerId: string,
+    leaseMs: number,
+    now: number
+  ): Promise<boolean>;
   getExpiredLeases?(now: number): Promise<Job[]>;
 };
 
@@ -211,41 +215,9 @@ export type PaymentContext = {
  * 2. Custom API: Provide a custom `invoke` function
  *    For advanced use cases where you need full control over invocation.
  */
-export type SchedulerRuntimeOptions = {
+type BaseSchedulerRuntimeOptions = {
   /** Storage backend for hires and jobs */
   store: SchedulerStore;
-
-  // ---- Simple API (recommended) ----
-
-  /**
-   * A2A client for invoking agent entrypoints.
-   * If provided along with paymentContext, the scheduler handles invocation internally.
-   */
-  a2aClient?: A2AClient;
-
-  /**
-   * Payment context from createRuntimePaymentContext.
-   * Provides x402-enabled fetch for making paid calls to agents.
-   */
-  paymentContext?: PaymentContext;
-
-  // ---- Custom API (advanced) ----
-
-  /**
-   * Custom invoke function for full control over job execution.
-   * If provided, this overrides the built-in A2A invocation.
-   * @deprecated Use a2aClient + paymentContext instead for simpler setup.
-   */
-  invoke?: InvokeFn;
-
-  /**
-   * Optional resolver to get a WalletConnector from a WalletRef.
-   * Only used with custom invoke function.
-   * @deprecated Use paymentContext instead.
-   */
-  walletResolver?: WalletResolver;
-
-  // ---- Common options ----
 
   /** Custom function to fetch agent cards. Defaults to fetching from agentCardUrl. */
   fetchAgentCard?: (url: string) => Promise<AgentCardWithEntrypoints>;
@@ -268,3 +240,24 @@ export type SchedulerRuntimeOptions = {
   /** Max concurrent job processing. Defaults to 5. */
   defaultConcurrency?: number;
 };
+
+type A2AInvokeOptions = {
+  /** Agent runtime with A2A client for invoking agent entrypoints. */
+  runtime: AgentRuntime;
+  /** Payment context from createRuntimePaymentContext. Provides x402-enabled fetch. */
+  paymentContext?: PaymentContext;
+  invoke?: never;
+  walletResolver?: never;
+};
+
+type CustomInvokeOptions = {
+  /** Custom invoke function for full control over job execution. */
+  invoke: InvokeFn;
+  /** Optional resolver to get a WalletConnector from a WalletRef. */
+  walletResolver?: WalletResolver;
+  runtime?: never;
+  paymentContext?: never;
+};
+
+export type SchedulerRuntimeOptions = BaseSchedulerRuntimeOptions &
+  (A2AInvokeOptions | CustomInvokeOptions);

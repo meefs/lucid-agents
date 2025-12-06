@@ -300,7 +300,7 @@ describe('createMemoryStore', () => {
       const job = createMockJob({ id: 'test-job', status: 'pending' });
 
       await store.putJob(job);
-      const claimed = await store.claimJob('test-job', 'worker-1', 30000);
+      const claimed = await store.claimJob('test-job', 'worker-1', 30000, Date.now());
 
       expect(claimed).toBe(true);
 
@@ -313,7 +313,7 @@ describe('createMemoryStore', () => {
     it('returns false for non-existent job', async () => {
       const store = createMemoryStore();
 
-      const claimed = await store.claimJob('nonexistent', 'worker-1', 30000);
+      const claimed = await store.claimJob('nonexistent', 'worker-1', 30000, Date.now());
 
       expect(claimed).toBe(false);
     });
@@ -327,7 +327,7 @@ describe('createMemoryStore', () => {
       });
 
       await store.putJob(job);
-      const claimed = await store.claimJob('test-job', 'worker-2', 30000);
+      const claimed = await store.claimJob('test-job', 'worker-2', 30000, Date.now());
 
       expect(claimed).toBe(false);
     });
@@ -341,7 +341,12 @@ describe('createMemoryStore', () => {
         const job = createMockJob({ id: `job-${status}`, status });
         await store.putJob(job);
 
-        const claimed = await store.claimJob(`job-${status}`, 'worker-1', 30000);
+        const claimed = await store.claimJob(
+          `job-${status}`,
+          'worker-1',
+          30000,
+          Date.now()
+        );
         expect(claimed).toBe(false);
       }
     });
@@ -355,7 +360,7 @@ describe('createMemoryStore', () => {
       });
 
       await store.putJob(job);
-      const claimed = await store.claimJob('test-job', 'worker-2', 30000);
+      const claimed = await store.claimJob('test-job', 'worker-2', 30000, Date.now());
 
       expect(claimed).toBe(true);
 

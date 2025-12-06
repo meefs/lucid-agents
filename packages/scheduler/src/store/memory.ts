@@ -39,11 +39,15 @@ class MemoryStore implements SchedulerStore {
     return due.slice(0, limit);
   }
 
-  async claimJob(jobId: string, workerId: string, leaseMs: number): Promise<boolean> {
+  async claimJob(
+    jobId: string,
+    workerId: string,
+    leaseMs: number,
+    now: number
+  ): Promise<boolean> {
     const job = this.jobs.get(jobId);
     if (!job) return false;
 
-    const now = Date.now();
     if (job.status === 'leased' && job.lease && job.lease.expiresAt > now) {
       return false;
     }

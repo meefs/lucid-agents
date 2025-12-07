@@ -71,7 +71,7 @@ addEntrypoint({
   key: 'test-policies',
   description: 'Test payment policies by calling paid-service agent',
   input: z.object({
-    serviceUrl: z.string().url().default('http://localhost:3001').optional(),
+    serviceUrl: z.string().url().default('http://localhost:3001'),
   }),
   output: z.object({
     tests: z.array(
@@ -90,7 +90,7 @@ addEntrypoint({
       throw new Error('Payments not configured');
     }
 
-    const serviceUrl = ctx.input?.serviceUrl || 'http://localhost:3001';
+    const serviceUrl = ctx.input.serviceUrl;
     const paymentContext = await createRuntimePaymentContext({
       runtime,
       network: runtime.payments.config.network,

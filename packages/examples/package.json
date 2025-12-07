@@ -26,7 +26,7 @@
     "@lucid-agents/wallet": "workspace:*",
     "@lucid-dreams/agent-auth": "latest",
     "thirdweb": "^5.113.0",
-    "viem": "^2.38.5",
+    "viem": "catalog:",
     "x402": "^0.7.1",
     "x402-fetch": "catalog:",
     "zod": "catalog:"

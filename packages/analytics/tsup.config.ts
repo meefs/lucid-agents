@@ -6,6 +6,7 @@ export default definePackageConfig({
   external: [
     '@lucid-agents/core',
     '@lucid-agents/types',
+    'viem',
   ],
 });
 

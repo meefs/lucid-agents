@@ -1,3 +1,4 @@
+import { formatUnits } from 'viem';
 import type {
   PaymentRecord,
   PaymentTracker,
@@ -10,10 +11,11 @@ import type {
 
 /**
  * Formats a BigInt amount (in base units with 6 decimals) to a human-friendly USDC string.
+ * Uses viem's formatUnits to preserve precision for very large amounts.
  */
-function formatUsdcAmount(amount: bigint): string {
-  const usdc = Number(amount) / 1_000_000;
-  return usdc.toFixed(6).replace(/\.?0+$/, '');
+export function formatUsdcAmount(amount: bigint): string {
+  const formatted = formatUnits(amount, 6);
+  return formatted.replace(/\.?0+$/, '');
 }
 
 /**

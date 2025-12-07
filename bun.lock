@@ -43,6 +43,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@lucid-agents/types": "workspace:*",
+        "viem": "catalog:",
       },
       "devDependencies": {
         "tsup": "catalog:",
@@ -90,7 +91,7 @@
         "@lucid-dreams/agent-auth": "latest",
         "@lucid-dreams/client": "latest",
         "hono": "catalog:",
-        "viem": "^2.38.5",
+        "viem": "catalog:",
         "x402": "^0.7.1",
         "x402-fetch": "catalog:",
         "zod": "catalog:",
@@ -122,7 +123,7 @@
         "@lucid-agents/wallet": "workspace:*",
         "@lucid-dreams/agent-auth": "latest",
         "thirdweb": "^5.113.0",
-        "viem": "^2.38.5",
+        "viem": "catalog:",
         "x402": "^0.7.1",
         "x402-fetch": "catalog:",
         "zod": "catalog:",
@@ -198,7 +199,7 @@
       "dependencies": {
         "@lucid-agents/types": "workspace:*",
         "@lucid-agents/wallet": "workspace:*",
-        "viem": "^2.38.1",
+        "viem": "catalog:",
       },
       "devDependencies": {
         "@lucid-agents/eslint-config": "workspace:*",
@@ -215,7 +216,7 @@
         "@lucid-agents/types": "workspace:*",
         "better-sqlite3": "^11.7.0",
         "pg": "^8.13.1",
-        "viem": "^2.38.5",
+        "viem": "catalog:",
         "x402": "^0.7.1",
         "x402-fetch": "catalog:",
         "zod": "catalog:",
@@ -239,7 +240,7 @@
         "@lucid-agents/payments": "workspace:*",
         "@lucid-agents/types": "workspace:*",
         "@tanstack/react-start": "^1.134.13",
-        "viem": "^2.21.26",
+        "viem": "catalog:",
         "x402": "catalog:",
         "zod": "catalog:",
       },
@@ -267,7 +268,7 @@
       "version": "0.5.1",
       "dependencies": {
         "@lucid-agents/types": "workspace:*",
-        "viem": "^2.38.5",
+        "viem": "catalog:",
       },
       "devDependencies": {
         "tsup": "catalog:",
@@ -284,7 +285,7 @@
     "hono": "4.10.1",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
-    "viem": "latest",
+    "viem": "^2.38.5",
     "x402": "latest",
     "x402-fetch": "latest",
     "zod": "^4.1.12",

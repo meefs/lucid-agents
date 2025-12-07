@@ -222,11 +222,11 @@ export function createPaymentsRuntime(
       group =>
         group.incomingLimits?.global?.maxTotalUsd !== undefined ||
         Object.values(group.incomingLimits?.perSender ?? {}).some(
-          limit => limit.maxTotalUsd !== undefined
-        ) ||
+                 limit => limit.maxTotalUsd !== undefined
+               ) ||
         Object.values(group.incomingLimits?.perEndpoint ?? {}).some(
-          limit => limit.maxTotalUsd !== undefined
-        )
+                 limit => limit.maxTotalUsd !== undefined
+               )
     );
 
     // Check if any group needs rate limiting

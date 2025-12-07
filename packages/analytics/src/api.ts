@@ -15,6 +15,29 @@ function formatUsdcAmount(amount: bigint): string {
 }
 
 /**
+ * Escapes a CSV field to prevent malformed output and formula injection.
+ * @param value - The value to escape
+ * @returns Escaped value safe for CSV output
+ */
+function escapeCSVField(value: string): string {
+  const hasSpecialChars =
+    value.includes(',') ||
+    value.includes('"') ||
+    value.includes('\n') ||
+    value.includes('\r');
+  const needsFormulaProtection = /^[=+\-@\t\r]/.test(value);
+  const escapedQuotes = value.replace(/"/g, '""');
+
+  if (needsFormulaProtection) {
+    return `"'${escapedQuotes}"`;
+  }
+  if (hasSpecialChars) {
+    return `"${escapedQuotes}"`;
+  }
+  return value;
+}
+
+/**
  * Gets outgoing payment summary for a time window.
  */
 export async function getOutgoingSummary(
@@ -122,13 +145,13 @@ export async function exportToCSV(
 
   const rows = transactions.map(t => {
     return [
-      t.id ?? '',
-      t.groupName,
-      t.scope,
-      t.direction,
-      t.amountUsdc,
+      escapeCSVField(t.id?.toString() ?? ''),
+      escapeCSVField(t.groupName),
+      escapeCSVField(t.scope),
+      escapeCSVField(t.direction),
+      escapeCSVField(t.amountUsdc),
       t.timestamp.toString(),
-      t.timestampIso,
+      escapeCSVField(t.timestampIso),
     ].join(',');
   });
 

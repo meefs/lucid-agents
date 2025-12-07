@@ -158,7 +158,7 @@ export function withPayments({
   });
 
   if (policyGroups && policyGroups.length > 0 && paymentTracker) {
-    app.use((req, res, next) => {
+    app.use(async (req, res, next) => {
       const reqPath = req.path ?? req.url ?? '';
       if (
         reqPath === path ||
@@ -166,62 +166,79 @@ export function withPayments({
         req.originalUrl === path ||
         req.originalUrl?.startsWith(`${path}?`)
       ) {
-        const originalJson = res.json.bind(res);
-        res.json = async function (body: any) {
-          const paymentResponseHeader = res.getHeader('X-PAYMENT-RESPONSE') as
-            | string
-            | undefined;
-          if (
-            paymentResponseHeader &&
-            res.statusCode >= 200 &&
-            res.statusCode < 300
-          ) {
-            try {
-              const payerAddress = extractPayerAddress(paymentResponseHeader);
-              const senderDomain = extractSenderDomain(
-                req.headers.origin,
-                req.headers.referer
-              );
-              const paymentAmount = parsePriceAmount(price);
+        const originalEnd = res.end.bind(res);
+        let recordingPromise: Promise<void> | undefined;
 
-              if (payerAddress && paymentAmount !== undefined) {
-                const recordPromises: Promise<void>[] = [];
-                for (const group of policyGroups) {
-                  if (group.incomingLimits) {
-                    const limitInfo = findMostSpecificIncomingLimit(
-                      group.incomingLimits,
-                      payerAddress,
-                      senderDomain,
-                      req.url
-                    );
-                    const scope = limitInfo?.scope ?? 'global';
+        res.end = function (chunk?: any, encoding?: any, cb?: any) {
+          if (recordingPromise) {
+            recordingPromise
+              .then(() => {
+                originalEnd(chunk, encoding, cb);
+              })
+              .catch(error => {
+                console.error(
+                  '[paywall] Error in payment recording, sending response anyway:',
+                  error
+                );
+                originalEnd(chunk, encoding, cb);
+              });
+            return res;
+          }
+          return originalEnd(chunk, encoding, cb);
+        };
 
-                    recordPromises.push(
-                      paymentTracker.recordIncoming(
-                        group.name,
-                        scope,
-                        paymentAmount
-                      ).catch(error => {
+        await next();
+
+        const paymentResponseHeader = res.getHeader('X-PAYMENT-RESPONSE') as
+          | string
+          | undefined;
+        if (
+          paymentResponseHeader &&
+          res.statusCode >= 200 &&
+          res.statusCode < 300
+        ) {
+          try {
+            const payerAddress = extractPayerAddress(paymentResponseHeader);
+            const senderDomain = extractSenderDomain(
+              req.headers.origin,
+              req.headers.referer
+            );
+            const paymentAmount = parsePriceAmount(price);
+
+            if (payerAddress && paymentAmount !== undefined) {
+              const recordPromises: Promise<void>[] = [];
+              for (const group of policyGroups) {
+                if (group.incomingLimits) {
+                  const limitInfo = findMostSpecificIncomingLimit(
+                    group.incomingLimits,
+                    payerAddress,
+                    senderDomain,
+                    req.url
+                  );
+                  const scope = limitInfo?.scope ?? 'global';
+
+                  recordPromises.push(
+                    paymentTracker
+                      .recordIncoming(group.name, scope, paymentAmount)
+                      .catch(error => {
                         console.error(
                           `[paywall] Error recording incoming payment for group "${group.name}":`,
                           error
                         );
                       })
-                    );
-                  }
+                  );
                 }
-                await Promise.all(recordPromises);
               }
-            } catch (error) {
-              console.error(
-                '[paywall] Error processing incoming payment:',
-                error
-              );
+              recordingPromise = Promise.all(recordPromises).then(() => {});
             }
+          } catch (error) {
+            console.error(
+              '[paywall] Error processing incoming payment:',
+              error
+            );
           }
-
-          return originalJson(body);
-        };
+        }
+        return;
       }
       return next();
     });

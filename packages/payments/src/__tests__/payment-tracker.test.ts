@@ -168,4 +168,24 @@ describe('PaymentTracker', () => {
       expect(result.reason).toContain('limit exceeded');
     });
   });
+
+  describe('group names with colons', () => {
+    it('should handle group names containing colons correctly', async () => {
+      const groupNameWithColon = 'group:name:with:colons';
+      await tracker.recordOutgoing(groupNameWithColon, 'global', 50_000_000n);
+      const total = await tracker.getOutgoingTotal(
+        groupNameWithColon,
+        'global'
+      );
+      expect(total).toBe(50_000_000n);
+
+      const allRecords = await tracker.getAllData();
+      const matchingRecords = allRecords.filter(
+        r => r.groupName === groupNameWithColon
+      );
+      expect(matchingRecords.length).toBe(1);
+      expect(matchingRecords[0].direction).toBe('outgoing');
+      expect(matchingRecords[0].amount).toBe(50_000_000n);
+    });
+  });
 });

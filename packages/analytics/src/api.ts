@@ -1,9 +1,5 @@
 import type { PaymentTracker, PaymentRecord } from '@lucid-agents/payments';
-import type {
-  AnalyticsSummary,
-  Transaction,
-  AnalyticsData,
-} from './types';
+import type { AnalyticsSummary, Transaction, AnalyticsData } from './types';
 
 /**
  * Formats a BigInt amount (in base units with 6 decimals) to a human-friendly USDC string.
@@ -142,12 +138,15 @@ export async function exportToJSON(
   windowMs?: number
 ): Promise<string> {
   const data = await getAnalyticsData(paymentTracker, windowMs);
-  return JSON.stringify(data, (key, value) => {
-    // Convert bigint to string for JSON serialization
-    if (typeof value === 'bigint') {
-      return value.toString();
-    }
-    return value;
-  }, 2);
+  return JSON.stringify(
+    data,
+    (key, value) => {
+      // Convert bigint to string for JSON serialization
+      if (typeof value === 'bigint') {
+        return value.toString();
+      }
+      return value;
+    },
+    2
+  );
 }
-

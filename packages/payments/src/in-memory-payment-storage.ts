@@ -19,7 +19,9 @@ type ScopeKey = string;
 export class InMemoryPaymentStorage implements PaymentStorage {
   private payments: Map<string, Map<ScopeKey, PaymentEntry[]>> = new Map();
 
-  async recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): Promise<void> {
+  async recordPayment(
+    record: Omit<PaymentRecord, 'id' | 'timestamp'>
+  ): Promise<void> {
     if (record.amount <= 0n) {
       return;
     }
@@ -66,7 +68,9 @@ export class InMemoryPaymentStorage implements PaymentStorage {
       entries = entries.filter(entry => entry.timestamp > cutoff);
     }
 
-    return Promise.resolve(entries.reduce((sum, entry) => sum + entry.amount, 0n));
+    return Promise.resolve(
+      entries.reduce((sum, entry) => sum + entry.amount, 0n)
+    );
   }
 
   async getAllRecords(
@@ -79,10 +83,15 @@ export class InMemoryPaymentStorage implements PaymentStorage {
     const cutoff = windowMs !== undefined ? Date.now() - windowMs : undefined;
 
     for (const [key, groupPayments] of this.payments.entries()) {
-      const [keyGroupName, keyDirection] = key.split(':') as [
-        string,
-        PaymentDirection,
-      ];
+      const lastColonIndex = key.lastIndexOf(':');
+      if (lastColonIndex === -1) {
+        continue;
+      }
+
+      const keyGroupName = key.substring(0, lastColonIndex);
+      const keyDirection = key.substring(
+        lastColonIndex + 1
+      ) as PaymentDirection;
 
       if (groupName && keyGroupName !== groupName) {
         continue;

@@ -279,5 +279,66 @@ describe('Express Paywall - Incoming Payment Recording', () => {
     expect(total1).toBe(initialTotal1 + 1000n);
     expect(total2).toBe(initialTotal2 + 1000n);
   });
+
+  it('normalizes array headers to single string values', async () => {
+    const { extractSenderDomain } = await import('@lucid-agents/payments');
+
+    // Test normalization logic directly
+    const normalizeHeader = (
+      header: string | string[] | undefined
+    ): string | undefined => {
+      return typeof header === 'string'
+        ? header
+        : Array.isArray(header)
+          ? header[0]
+          : undefined;
+    };
+
+    // Test with array origin
+    const originArray = ['https://example.com', 'https://other.com'];
+    const refererString = 'https://referer.com';
+    const normalizedOrigin = normalizeHeader(originArray);
+    const normalizedReferer = normalizeHeader(refererString);
+    const domain1 = extractSenderDomain(normalizedOrigin, normalizedReferer);
+    expect(normalizedOrigin).toBe('https://example.com');
+    expect(domain1).toBe('example.com');
+
+    // Test with array referer
+    const originString = 'https://origin.com';
+    const refererArray = ['https://example.com', 'https://other.com'];
+    const normalizedOrigin2 = normalizeHeader(originString);
+    const normalizedReferer2 = normalizeHeader(refererArray);
+    const domain2 = extractSenderDomain(normalizedOrigin2, normalizedReferer2);
+    expect(normalizedReferer2).toBe('https://example.com');
+    expect(domain2).toBe('origin.com'); // origin takes precedence
+
+    // Test with both as arrays
+    const originArray2 = ['https://first.com', 'https://second.com'];
+    const refererArray2 = ['https://third.com', 'https://fourth.com'];
+    const normalizedOrigin3 = normalizeHeader(originArray2);
+    const normalizedReferer3 = normalizeHeader(refererArray2);
+    const domain3 = extractSenderDomain(normalizedOrigin3, normalizedReferer3);
+    expect(normalizedOrigin3).toBe('https://first.com');
+    expect(normalizedReferer3).toBe('https://third.com');
+    expect(domain3).toBe('first.com');
+
+    // Test with string headers (should work normally)
+    const originString2 = 'https://string.com';
+    const refererString2 = 'https://string-referer.com';
+    const normalizedOrigin4 = normalizeHeader(originString2);
+    const normalizedReferer4 = normalizeHeader(refererString2);
+    const domain4 = extractSenderDomain(normalizedOrigin4, normalizedReferer4);
+    expect(normalizedOrigin4).toBe('https://string.com');
+    expect(normalizedReferer4).toBe('https://string-referer.com');
+    expect(domain4).toBe('string.com');
+
+    // Test with undefined headers
+    const normalizedOrigin5 = normalizeHeader(undefined);
+    const normalizedReferer5 = normalizeHeader(undefined);
+    const domain5 = extractSenderDomain(normalizedOrigin5, normalizedReferer5);
+    expect(normalizedOrigin5).toBeUndefined();
+    expect(normalizedReferer5).toBeUndefined();
+    expect(domain5).toBeUndefined();
+  });
 });
 

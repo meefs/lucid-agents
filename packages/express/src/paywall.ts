@@ -167,7 +167,7 @@ export function withPayments({
         req.originalUrl?.startsWith(`${path}?`)
       ) {
         const originalJson = res.json.bind(res);
-        res.json = function (body: any) {
+        res.json = async function (body: any) {
           const paymentResponseHeader = res.getHeader('X-PAYMENT-RESPONSE') as
             | string
             | undefined;
@@ -185,6 +185,7 @@ export function withPayments({
               const paymentAmount = parsePriceAmount(price);
 
               if (payerAddress && paymentAmount !== undefined) {
+                const recordPromises: Promise<void>[] = [];
                 for (const group of policyGroups) {
                   if (group.incomingLimits) {
                     const limitInfo = findMostSpecificIncomingLimit(
@@ -195,19 +196,25 @@ export function withPayments({
                     );
                     const scope = limitInfo?.scope ?? 'global';
 
-                    (async () => {
-                      await paymentTracker.recordIncoming(
+                    recordPromises.push(
+                      paymentTracker.recordIncoming(
                         group.name,
                         scope,
                         paymentAmount
-                      );
-                    })();
+                      ).catch(error => {
+                        console.error(
+                          `[paywall] Error recording incoming payment for group "${group.name}":`,
+                          error
+                        );
+                      })
+                    );
                   }
                 }
+                await Promise.all(recordPromises);
               }
             } catch (error) {
               console.error(
-                '[paywall] Error recording incoming payment:',
+                '[paywall] Error processing incoming payment:',
                 error
               );
             }

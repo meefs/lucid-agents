@@ -39,8 +39,7 @@
     "viem": "^2.38.5",
     "zod": "catalog:",
     "better-sqlite3": "^11.7.0",
-    "pg": "^8.13.1",
-    "deasync": "^0.1.28"
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "tsup": "catalog:",

@@ -125,12 +125,12 @@ describe('Policy Evaluation', () => {
   });
 
   describe('evaluateOutgoingLimits', () => {
-    it('should allow when no outgoing limits configured', () => {
+    it('should allow when no outgoing limits configured', async () => {
       const group: PaymentPolicyGroup = {
         name: 'test',
       };
 
-      const result = evaluateOutgoingLimits(
+      const result = await evaluateOutgoingLimits(
         group,
         paymentTracker,
         undefined,
@@ -140,7 +140,7 @@ describe('Policy Evaluation', () => {
       expect(result.allowed).toBe(true);
     });
 
-    it('should enforce per-request limit', () => {
+    it('should enforce per-request limit', async () => {
       const group: PaymentPolicyGroup = {
         name: 'test',
         outgoingLimits: {
@@ -150,7 +150,7 @@ describe('Policy Evaluation', () => {
         },
       };
 
-      const result = evaluateOutgoingLimits(
+      const result = await evaluateOutgoingLimits(
         group,
         paymentTracker,
         undefined,
@@ -161,7 +161,7 @@ describe('Policy Evaluation', () => {
       expect(result.reason).toContain('Per-request outgoing limit exceeded');
     });
 
-    it('should enforce total outgoing limit', () => {
+    it('should enforce total outgoing limit', async () => {
       const group: PaymentPolicyGroup = {
         name: 'test',
         outgoingLimits: {
@@ -171,9 +171,9 @@ describe('Policy Evaluation', () => {
         },
       };
 
-      paymentTracker.recordOutgoing('test', 'global', 80_000_000n);
+      await paymentTracker.recordOutgoing('test', 'global', 80_000_000n);
 
-      const result = evaluateOutgoingLimits(
+      const result = await evaluateOutgoingLimits(
         group,
         paymentTracker,
         undefined,
@@ -183,7 +183,7 @@ describe('Policy Evaluation', () => {
       expect(result.allowed).toBe(false);
     });
 
-    it('should prefer endpoint limit over target limit over global', () => {
+    it('should prefer endpoint limit over target limit over global', async () => {
       const group: PaymentPolicyGroup = {
         name: 'test',
         outgoingLimits: {
@@ -205,7 +205,7 @@ describe('Policy Evaluation', () => {
 
       const endpointUrl =
         'https://target.example.com/entrypoints/process/invoke';
-      const result = evaluateOutgoingLimits(
+      const result = await evaluateOutgoingLimits(
         group,
         paymentTracker,
         'https://target.example.com',
@@ -218,7 +218,7 @@ describe('Policy Evaluation', () => {
   });
 
   describe('evaluatePolicyGroups', () => {
-    it('should pass when all groups pass', () => {
+    it('should pass when all groups pass', async () => {
       const groups: PaymentPolicyGroup[] = [
         {
           name: 'group1',
@@ -232,7 +232,7 @@ describe('Policy Evaluation', () => {
         },
       ];
 
-      const result = evaluatePolicyGroups(
+      const result = await evaluatePolicyGroups(
         groups,
         paymentTracker,
         rateLimiter,
@@ -245,7 +245,7 @@ describe('Policy Evaluation', () => {
       expect(result.allowed).toBe(true);
     });
 
-    it('should fail when any group fails', () => {
+    it('should fail when any group fails', async () => {
       const groups: PaymentPolicyGroup[] = [
         {
           name: 'group1',
@@ -259,7 +259,7 @@ describe('Policy Evaluation', () => {
         },
       ];
 
-      const result = evaluatePolicyGroups(
+      const result = await evaluatePolicyGroups(
         groups,
         paymentTracker,
         rateLimiter,

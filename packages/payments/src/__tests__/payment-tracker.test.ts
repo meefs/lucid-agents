@@ -11,8 +11,8 @@ describe('PaymentTracker', () => {
   });
 
   describe('checkOutgoingLimit', () => {
-    it('should allow outgoing payment within limit', () => {
-      const result = tracker.checkOutgoingLimit(
+    it('should allow outgoing payment within limit', async () => {
+      const result = await tracker.checkOutgoingLimit(
         'group1',
         'global',
         100.0,
@@ -23,8 +23,8 @@ describe('PaymentTracker', () => {
       expect(result.reason).toBeUndefined();
     });
 
-    it('should block outgoing payment over limit', () => {
-      const result = tracker.checkOutgoingLimit(
+    it('should block outgoing payment over limit', async () => {
+      const result = await tracker.checkOutgoingLimit(
         'group1',
         'global',
         100.0,
@@ -35,8 +35,8 @@ describe('PaymentTracker', () => {
       expect(result.reason).toContain('limit exceeded');
     });
 
-    it('should track outgoing payments across multiple requests', () => {
-      const result1 = tracker.checkOutgoingLimit(
+    it('should track outgoing payments across multiple requests', async () => {
+      const result1 = await tracker.checkOutgoingLimit(
         'group1',
         'global',
         100.0,
@@ -44,9 +44,9 @@ describe('PaymentTracker', () => {
         50_000_000n
       );
       expect(result1.allowed).toBe(true);
-      tracker.recordOutgoing('group1', 'global', 50_000_000n);
+      await tracker.recordOutgoing('group1', 'global', 50_000_000n);
 
-      const result2 = tracker.checkOutgoingLimit(
+      const result2 = await tracker.checkOutgoingLimit(
         'group1',
         'global',
         100.0,
@@ -54,9 +54,9 @@ describe('PaymentTracker', () => {
         30_000_000n
       );
       expect(result2.allowed).toBe(true);
-      tracker.recordOutgoing('group1', 'global', 30_000_000n);
+      await tracker.recordOutgoing('group1', 'global', 30_000_000n);
 
-      const result3 = tracker.checkOutgoingLimit(
+      const result3 = await tracker.checkOutgoingLimit(
         'group1',
         'global',
         100.0,
@@ -66,9 +66,9 @@ describe('PaymentTracker', () => {
       expect(result3.allowed).toBe(false);
     });
 
-    it('should enforce time window limits', () => {
+    it('should enforce time window limits', async () => {
       const windowMs = 1000;
-      const result1 = tracker.checkOutgoingLimit(
+      const result1 = await tracker.checkOutgoingLimit(
         'group1',
         'global',
         100.0,
@@ -76,75 +76,77 @@ describe('PaymentTracker', () => {
         50_000_000n
       );
       expect(result1.allowed).toBe(true);
-      tracker.recordOutgoing('group1', 'global', 50_000_000n);
+      await tracker.recordOutgoing('group1', 'global', 50_000_000n);
     });
 
-    it('should track outgoing payments per scope', () => {
-      tracker.recordOutgoing('group1', 'global', 50_000_000n);
-      const globalTotal = tracker.getOutgoingTotal('group1', 'global');
+    it('should track outgoing payments per scope', async () => {
+      await tracker.recordOutgoing('group1', 'global', 50_000_000n);
+      const globalTotal = await tracker.getOutgoingTotal('group1', 'global');
       expect(globalTotal).toBe(50_000_000n);
 
-      tracker.recordOutgoing(
+      await tracker.recordOutgoing(
         'group1',
         'https://target.example.com',
         30_000_000n
       );
-      const targetTotal = tracker.getOutgoingTotal(
+      const targetTotal = await tracker.getOutgoingTotal(
         'group1',
         'https://target.example.com'
       );
       expect(targetTotal).toBe(30_000_000n);
 
-      expect(tracker.getOutgoingTotal('group1', 'global')).toBe(50_000_000n);
+      expect(await tracker.getOutgoingTotal('group1', 'global')).toBe(
+        50_000_000n
+      );
     });
 
-    it('should handle zero amounts gracefully', () => {
-      tracker.recordOutgoing('group1', 'global', 0n);
-      const total = tracker.getOutgoingTotal('group1', 'global');
+    it('should handle zero amounts gracefully', async () => {
+      await tracker.recordOutgoing('group1', 'global', 0n);
+      const total = await tracker.getOutgoingTotal('group1', 'global');
       expect(total).toBe(0n);
     });
 
-    it('should clear all data', () => {
-      tracker.recordOutgoing('group1', 'global', 50_000_000n);
-      tracker.clear();
-      const total = tracker.getOutgoingTotal('group1', 'global');
+    it('should clear all data', async () => {
+      await tracker.recordOutgoing('group1', 'global', 50_000_000n);
+      await tracker.clear();
+      const total = await tracker.getOutgoingTotal('group1', 'global');
       expect(total).toBe(0n);
     });
   });
 
   describe('recordOutgoing', () => {
-    it('should record outgoing payment correctly', () => {
-      tracker.recordOutgoing('group1', 'global', 100_000_000n);
-      const total = tracker.getOutgoingTotal('group1', 'global');
+    it('should record outgoing payment correctly', async () => {
+      await tracker.recordOutgoing('group1', 'global', 100_000_000n);
+      const total = await tracker.getOutgoingTotal('group1', 'global');
       expect(total).toBe(100_000_000n);
     });
 
-    it('should accumulate outgoing payments', () => {
-      tracker.recordOutgoing('group1', 'global', 50_000_000n);
-      tracker.recordOutgoing('group1', 'global', 30_000_000n);
-      const total = tracker.getOutgoingTotal('group1', 'global');
+    it('should accumulate outgoing payments', async () => {
+      await tracker.recordOutgoing('group1', 'global', 50_000_000n);
+      await tracker.recordOutgoing('group1', 'global', 30_000_000n);
+      const total = await tracker.getOutgoingTotal('group1', 'global');
       expect(total).toBe(80_000_000n);
     });
   });
 
   describe('recordIncoming', () => {
-    it('should record incoming payment correctly', () => {
-      tracker.recordIncoming('group1', 'global', 100_000_000n);
-      const total = tracker.getIncomingTotal('group1', 'global');
+    it('should record incoming payment correctly', async () => {
+      await tracker.recordIncoming('group1', 'global', 100_000_000n);
+      const total = await tracker.getIncomingTotal('group1', 'global');
       expect(total).toBe(100_000_000n);
     });
 
-    it('should accumulate incoming payments', () => {
-      tracker.recordIncoming('group1', 'global', 50_000_000n);
-      tracker.recordIncoming('group1', 'global', 30_000_000n);
-      const total = tracker.getIncomingTotal('group1', 'global');
+    it('should accumulate incoming payments', async () => {
+      await tracker.recordIncoming('group1', 'global', 50_000_000n);
+      await tracker.recordIncoming('group1', 'global', 30_000_000n);
+      const total = await tracker.getIncomingTotal('group1', 'global');
       expect(total).toBe(80_000_000n);
     });
   });
 
   describe('checkIncomingLimit', () => {
-    it('should allow incoming payment within limit', () => {
-      const result = tracker.checkIncomingLimit(
+    it('should allow incoming payment within limit', async () => {
+      const result = await tracker.checkIncomingLimit(
         'group1',
         'global',
         100.0,
@@ -154,8 +156,8 @@ describe('PaymentTracker', () => {
       expect(result.allowed).toBe(true);
     });
 
-    it('should block incoming payment over limit', () => {
-      const result = tracker.checkIncomingLimit(
+    it('should block incoming payment over limit', async () => {
+      const result = await tracker.checkIncomingLimit(
         'group1',
         'global',
         100.0,

@@ -195,11 +195,13 @@ export function withPayments({
                     );
                     const scope = limitInfo?.scope ?? 'global';
 
-                    paymentTracker.recordIncoming(
-                      group.name,
-                      scope,
-                      paymentAmount
-                    );
+                    (async () => {
+                      await paymentTracker.recordIncoming(
+                        group.name,
+                        scope,
+                        paymentAmount
+                      );
+                    })();
                   }
                 }
               }

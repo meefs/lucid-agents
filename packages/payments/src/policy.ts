@@ -366,13 +366,13 @@ export function findMostSpecificIncomingLimit(
  * @param requestedAmount - Requested payment amount in base units
  * @returns Evaluation result
  */
-export function evaluateOutgoingLimits(
+export async function evaluateOutgoingLimits(
   group: PaymentPolicyGroup,
   paymentTracker: PaymentTracker,
   targetUrl?: string,
   endpointUrl?: string,
   requestedAmount?: bigint
-): PolicyEvaluationResult {
+): Promise<PolicyEvaluationResult> {
   if (!group.outgoingLimits || requestedAmount === undefined) {
     return { allowed: true };
   }
@@ -403,7 +403,7 @@ export function evaluateOutgoingLimits(
   }
 
   if (limit.maxTotalUsd !== undefined) {
-    const checkResult = paymentTracker.checkOutgoingLimit(
+    const checkResult = await paymentTracker.checkOutgoingLimit(
       group.name,
       scope,
       limit.maxTotalUsd,
@@ -434,14 +434,14 @@ export function evaluateOutgoingLimits(
  * @param requestedAmount - Requested payment amount in base units
  * @returns Evaluation result
  */
-export function evaluateIncomingLimits(
+export async function evaluateIncomingLimits(
   group: PaymentPolicyGroup,
   paymentTracker: PaymentTracker,
   senderAddress?: string,
   senderDomain?: string,
   endpointUrl?: string,
   requestedAmount?: bigint
-): PolicyEvaluationResult {
+): Promise<PolicyEvaluationResult> {
   if (!group.incomingLimits || requestedAmount === undefined) {
     return { allowed: true };
   }
@@ -473,7 +473,7 @@ export function evaluateIncomingLimits(
   }
 
   if (limit.maxTotalUsd !== undefined) {
-    const checkResult = paymentTracker.checkIncomingLimit(
+    const checkResult = await paymentTracker.checkIncomingLimit(
       group.name,
       scope,
       limit.maxTotalUsd,
@@ -506,7 +506,7 @@ export function evaluateIncomingLimits(
  * @param recipientDomain - Recipient domain (optional)
  * @returns Evaluation result (first violation blocks)
  */
-export function evaluatePolicyGroups(
+export async function evaluatePolicyGroups(
   groups: PaymentPolicyGroup[],
   paymentTracker: PaymentTracker,
   rateLimiter: RateLimiter,
@@ -515,7 +515,7 @@ export function evaluatePolicyGroups(
   requestedAmount?: bigint,
   recipientAddress?: string,
   recipientDomain?: string
-): PolicyEvaluationResult {
+): Promise<PolicyEvaluationResult> {
   if (targetUrl && !recipientDomain) {
     recipientDomain = extractDomain(targetUrl);
   }
@@ -530,7 +530,7 @@ export function evaluatePolicyGroups(
       return recipientResult;
     }
 
-    const outgoingResult = evaluateOutgoingLimits(
+    const outgoingResult = await evaluateOutgoingLimits(
       group,
       paymentTracker,
       targetUrl,
@@ -561,21 +561,21 @@ export function evaluatePolicyGroups(
  * @param requestedAmount - Requested payment amount in base units
  * @returns Evaluation result (first violation blocks)
  */
-export function evaluateIncomingPolicyGroups(
+export async function evaluateIncomingPolicyGroups(
   groups: PaymentPolicyGroup[],
   paymentTracker: PaymentTracker,
   senderAddress?: string,
   senderDomain?: string,
   endpointUrl?: string,
   requestedAmount?: bigint
-): PolicyEvaluationResult {
+): Promise<PolicyEvaluationResult> {
   for (const group of groups) {
     const senderResult = evaluateSender(group, senderAddress, senderDomain);
     if (!senderResult.allowed) {
       return senderResult;
     }
 
-    const incomingResult = evaluateIncomingLimits(
+    const incomingResult = await evaluateIncomingLimits(
       group,
       paymentTracker,
       senderAddress,

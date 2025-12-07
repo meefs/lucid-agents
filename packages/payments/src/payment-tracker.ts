@@ -27,16 +27,16 @@ export class PaymentTracker {
    * @param requestedAmount - Amount requested in base units (USDC has 6 decimals)
    * @returns Result indicating if allowed and current total
    */
-  checkOutgoingLimit(
+  async checkOutgoingLimit(
     groupName: string,
     scope: string,
     maxTotalUsd: number,
     windowMs: number | undefined,
     requestedAmount: bigint
-  ): { allowed: boolean; reason?: string; currentTotal?: bigint } {
+  ): Promise<{ allowed: boolean; reason?: string; currentTotal?: bigint }> {
     const maxTotalBaseUnits = BigInt(Math.floor(maxTotalUsd * 1_000_000));
 
-    const currentTotal = this.storage.getTotal(
+    const currentTotal = await this.storage.getTotal(
       groupName,
       scope,
       'outgoing',
@@ -67,16 +67,16 @@ export class PaymentTracker {
    * @param requestedAmount - Amount requested in base units (USDC has 6 decimals)
    * @returns Result indicating if allowed and current total
    */
-  checkIncomingLimit(
+  async checkIncomingLimit(
     groupName: string,
     scope: string,
     maxTotalUsd: number,
     windowMs: number | undefined,
     requestedAmount: bigint
-  ): { allowed: boolean; reason?: string; currentTotal?: bigint } {
+  ): Promise<{ allowed: boolean; reason?: string; currentTotal?: bigint }> {
     const maxTotalBaseUnits = BigInt(Math.floor(maxTotalUsd * 1_000_000));
 
-    const currentTotal = this.storage.getTotal(
+    const currentTotal = await this.storage.getTotal(
       groupName,
       scope,
       'incoming',
@@ -104,8 +104,8 @@ export class PaymentTracker {
    * @param scope - Scope key ("global", target URL, or endpoint URL)
    * @param amount - Amount spent in base units
    */
-  recordOutgoing(groupName: string, scope: string, amount: bigint): void {
-    this.storage.recordPayment({
+  async recordOutgoing(groupName: string, scope: string, amount: bigint): Promise<void> {
+    await this.storage.recordPayment({
       groupName,
       scope,
       direction: 'outgoing',
@@ -119,8 +119,8 @@ export class PaymentTracker {
    * @param scope - Scope key ("global", sender address, or endpoint URL)
    * @param amount - Amount received in base units
    */
-  recordIncoming(groupName: string, scope: string, amount: bigint): void {
-    this.storage.recordPayment({
+  async recordIncoming(groupName: string, scope: string, amount: bigint): Promise<void> {
+    await this.storage.recordPayment({
       groupName,
       scope,
       direction: 'incoming',
@@ -135,12 +135,12 @@ export class PaymentTracker {
    * @param windowMs - Optional time window to filter entries
    * @returns Current total in base units
    */
-  getOutgoingTotal(
+  async getOutgoingTotal(
     groupName: string,
     scope: string,
     windowMs?: number
-  ): bigint {
-    return this.storage.getTotal(groupName, scope, 'outgoing', windowMs);
+  ): Promise<bigint> {
+    return await this.storage.getTotal(groupName, scope, 'outgoing', windowMs);
   }
 
   /**
@@ -150,27 +150,27 @@ export class PaymentTracker {
    * @param windowMs - Optional time window to filter entries
    * @returns Current total in base units
    */
-  getIncomingTotal(
+  async getIncomingTotal(
     groupName: string,
     scope: string,
     windowMs?: number
-  ): bigint {
-    return this.storage.getTotal(groupName, scope, 'incoming', windowMs);
+  ): Promise<bigint> {
+    return await this.storage.getTotal(groupName, scope, 'incoming', windowMs);
   }
 
   /**
    * Gets all payment data (both outgoing and incoming).
    * @returns Array of all payment records
    */
-  getAllData() {
-    return this.storage.getAllRecords();
+  async getAllData() {
+    return await this.storage.getAllRecords();
   }
 
   /**
    * Clears all payment data (useful for testing or reset).
    */
-  clear(): void {
-    this.storage.clear();
+  async clear(): Promise<void> {
+    await this.storage.clear();
   }
 }
 

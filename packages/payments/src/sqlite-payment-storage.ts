@@ -46,7 +46,7 @@ export class SQLitePaymentStorage implements PaymentStorage {
     `);
   }
 
-  recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): void {
+  async recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): Promise<void> {
     if (record.amount <= 0n) {
       return;
     }
@@ -63,14 +63,15 @@ export class SQLitePaymentStorage implements PaymentStorage {
       record.amount.toString(),
       Date.now()
     );
+    return Promise.resolve();
   }
 
-  getTotal(
+  async getTotal(
     groupName: string,
     scope: string,
     direction: PaymentDirection,
     windowMs?: number
-  ): bigint {
+  ): Promise<bigint> {
     let query = `
       SELECT SUM(CAST(amount AS TEXT)) as total
       FROM payments
@@ -88,15 +89,15 @@ export class SQLitePaymentStorage implements PaymentStorage {
       total: string | null;
     };
 
-    return result.total ? BigInt(result.total) : 0n;
+    return Promise.resolve(result.total ? BigInt(result.total) : 0n);
   }
 
-  getAllRecords(
+  async getAllRecords(
     groupName?: string,
     scope?: string,
     direction?: PaymentDirection,
     windowMs?: number
-  ): PaymentRecord[] {
+  ): Promise<PaymentRecord[]> {
     let query = 'SELECT * FROM payments WHERE 1=1';
     const params: unknown[] = [];
 
@@ -128,18 +129,19 @@ export class SQLitePaymentStorage implements PaymentStorage {
       timestamp: number;
     }>;
 
-    return rows.map(row => ({
+    return Promise.resolve(rows.map(row => ({
       id: row.id,
       groupName: row.group_name,
       scope: row.scope,
       direction: row.direction as PaymentDirection,
       amount: BigInt(row.amount),
       timestamp: row.timestamp,
-    }));
+    })));
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     this.db.exec('DELETE FROM payments');
+    return Promise.resolve();
   }
 
   /**

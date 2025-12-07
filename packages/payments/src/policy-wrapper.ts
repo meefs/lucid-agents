@@ -127,7 +127,7 @@ export function wrapBaseFetchWithPolicy(
       );
 
       if (paymentAmount !== undefined) {
-        const evaluation = evaluatePolicyGroups(
+        const evaluation = await evaluatePolicyGroups(
           policyGroups,
           paymentTracker,
           rateLimiter,
@@ -178,7 +178,7 @@ export function wrapBaseFetchWithPolicy(
               );
               const scope = limitInfo?.scope ?? 'global';
 
-              paymentTracker.recordOutgoing(
+              await paymentTracker.recordOutgoing(
                 group.name,
                 scope,
                 paymentInfo.amount

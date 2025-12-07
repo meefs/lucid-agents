@@ -141,7 +141,10 @@ describe('wrapBaseFetchWithPolicy', () => {
     const response2 = await wrappedFetch('https://example.com');
     expect(response2.status).toBe(200);
 
-    const total = paymentTracker.getOutgoingTotal('test-policy', 'global');
+    const total = await paymentTracker.getOutgoingTotal(
+      'test-policy',
+      'global'
+    );
     expect(total).toBeDefined();
     expect(Number(total) / 1_000_000).toBe(5.0);
   });
@@ -178,8 +181,8 @@ describe('wrapBaseFetchWithPolicy', () => {
   });
 
   describe('scope resolution for outgoing limits', () => {
-    beforeEach(() => {
-      paymentTracker.clear();
+    beforeEach(async () => {
+      await paymentTracker.clear();
     });
 
     it('should use endpoint URL scope when perEndpoint limit matches', async () => {
@@ -229,7 +232,7 @@ describe('wrapBaseFetchWithPolicy', () => {
       await wrappedFetch(endpointUrl, { method: 'GET' });
       await wrappedFetch(endpointUrl, { method: 'GET' });
 
-      const total = paymentTracker.getOutgoingTotal(
+      const total = await paymentTracker.getOutgoingTotal(
         'endpoint-policy',
         endpointUrl
       );
@@ -285,7 +288,7 @@ describe('wrapBaseFetchWithPolicy', () => {
       await wrappedFetch(endpointUrl, { method: 'GET' });
 
       const normalizedKey = targetUrl.trim().toLowerCase().replace(/\/+$/, '');
-      const total = paymentTracker.getOutgoingTotal(
+      const total = await paymentTracker.getOutgoingTotal(
         'target-policy',
         normalizedKey
       );
@@ -338,7 +341,10 @@ describe('wrapBaseFetchWithPolicy', () => {
       await wrappedFetch(endpointUrl, { method: 'GET' });
       await wrappedFetch(endpointUrl, { method: 'GET' });
 
-      const total = paymentTracker.getOutgoingTotal('global-policy', 'global');
+      const total = await paymentTracker.getOutgoingTotal(
+        'global-policy',
+        'global'
+      );
       expect(total).toBeDefined();
       expect(Number(total) / 1_000_000).toBe(5.0);
     });
@@ -398,7 +404,7 @@ describe('wrapBaseFetchWithPolicy', () => {
       await wrappedFetch(endpointUrl, { method: 'GET' });
       await wrappedFetch(endpointUrl, { method: 'GET' });
 
-      const endpointTotal = paymentTracker.getOutgoingTotal(
+      const endpointTotal = await paymentTracker.getOutgoingTotal(
         'multi-policy',
         endpointUrl
       );
@@ -406,7 +412,7 @@ describe('wrapBaseFetchWithPolicy', () => {
       expect(Number(endpointTotal) / 1_000_000).toBe(5.0);
 
       const normalizedTarget = targetUrl.toLowerCase().replace(/\/+$/, '');
-      const targetTotal = paymentTracker.getOutgoingTotal(
+      const targetTotal = await paymentTracker.getOutgoingTotal(
         'multi-policy',
         normalizedTarget
       );

@@ -167,7 +167,11 @@ export function withPayments({
                 );
                 const scope = limitInfo?.scope ?? 'global';
 
-                paymentTracker.recordIncoming(group.name, scope, paymentAmount);
+                await paymentTracker.recordIncoming(
+                  group.name,
+                  scope,
+                  paymentAmount
+                );
               }
             }
           }

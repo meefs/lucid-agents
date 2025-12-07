@@ -16,11 +16,11 @@ function formatUsdcAmount(amount: bigint): string {
 /**
  * Gets outgoing payment summary for a time window.
  */
-export function getOutgoingSummary(
+export async function getOutgoingSummary(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): AnalyticsSummary {
-  const allRecords = paymentTracker.getAllData();
+): Promise<AnalyticsSummary> {
+  const allRecords = await paymentTracker.getAllData();
   const cutoff = windowMs !== undefined ? Date.now() - windowMs : undefined;
 
   const filtered = cutoff
@@ -47,32 +47,31 @@ export function getOutgoingSummary(
 /**
  * Gets incoming payment summary for a time window.
  */
-export function getIncomingSummary(
+export async function getIncomingSummary(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): AnalyticsSummary {
-  // Same as outgoing summary, but this is for API consistency
-  return getOutgoingSummary(paymentTracker, windowMs);
+): Promise<AnalyticsSummary> {
+  return await getOutgoingSummary(paymentTracker, windowMs);
 }
 
 /**
  * Gets combined summary (outgoing + incoming) for a time window.
  */
-export function getSummary(
+export async function getSummary(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): AnalyticsSummary {
-  return getOutgoingSummary(paymentTracker, windowMs);
+): Promise<AnalyticsSummary> {
+  return await getOutgoingSummary(paymentTracker, windowMs);
 }
 
 /**
  * Gets all transactions for a time window.
  */
-export function getAllTransactions(
+export async function getAllTransactions(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): Transaction[] {
-  const allRecords = paymentTracker.getAllData();
+): Promise<Transaction[]> {
+  const allRecords = await paymentTracker.getAllData();
   const cutoff = windowMs !== undefined ? Date.now() - windowMs : undefined;
 
   const filtered = cutoff
@@ -91,24 +90,24 @@ export function getAllTransactions(
 /**
  * Gets full analytics data (summary + transactions).
  */
-export function getAnalyticsData(
+export async function getAnalyticsData(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): AnalyticsData {
+): Promise<AnalyticsData> {
   return {
-    summary: getSummary(paymentTracker, windowMs),
-    transactions: getAllTransactions(paymentTracker, windowMs),
+    summary: await getSummary(paymentTracker, windowMs),
+    transactions: await getAllTransactions(paymentTracker, windowMs),
   };
 }
 
 /**
  * Exports analytics data to CSV format.
  */
-export function exportToCSV(
+export async function exportToCSV(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): string {
-  const transactions = getAllTransactions(paymentTracker, windowMs);
+): Promise<string> {
+  const transactions = await getAllTransactions(paymentTracker, windowMs);
 
   const headers = [
     'id',
@@ -138,11 +137,11 @@ export function exportToCSV(
 /**
  * Exports analytics data to JSON format.
  */
-export function exportToJSON(
+export async function exportToJSON(
   paymentTracker: PaymentTracker,
   windowMs?: number
-): string {
-  const data = getAnalyticsData(paymentTracker, windowMs);
+): Promise<string> {
+  const data = await getAnalyticsData(paymentTracker, windowMs);
   return JSON.stringify(data, (key, value) => {
     // Convert bigint to string for JSON serialization
     if (typeof value === 'bigint') {

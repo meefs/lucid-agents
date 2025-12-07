@@ -24,7 +24,7 @@ export interface PaymentStorage {
    * Records a payment (outgoing or incoming).
    * @param record - Payment record (id and timestamp are auto-generated)
    */
-  recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): void;
+  recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): Promise<void>;
 
   /**
    * Gets the total amount for a specific group, scope, and direction.
@@ -39,7 +39,7 @@ export interface PaymentStorage {
     scope: string,
     direction: PaymentDirection,
     windowMs?: number
-  ): bigint;
+  ): Promise<bigint>;
 
   /**
    * Gets all payment records matching the filters.
@@ -54,10 +54,10 @@ export interface PaymentStorage {
     scope?: string,
     direction?: PaymentDirection,
     windowMs?: number
-  ): PaymentRecord[];
+  ): Promise<PaymentRecord[]>;
 
   /**
    * Clears all payment data (useful for testing or reset).
    */
-  clear(): void;
+  clear(): Promise<void>;
 }

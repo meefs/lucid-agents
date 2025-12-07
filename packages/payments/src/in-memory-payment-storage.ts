@@ -19,7 +19,7 @@ type ScopeKey = string;
 export class InMemoryPaymentStorage implements PaymentStorage {
   private payments: Map<string, Map<ScopeKey, PaymentEntry[]>> = new Map();
 
-  recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): void {
+  async recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): Promise<void> {
     if (record.amount <= 0n) {
       return;
     }
@@ -41,23 +41,24 @@ export class InMemoryPaymentStorage implements PaymentStorage {
       amount: record.amount,
       timestamp: Date.now(),
     });
+    return Promise.resolve();
   }
 
-  getTotal(
+  async getTotal(
     groupName: string,
     scope: string,
     direction: PaymentDirection,
     windowMs?: number
-  ): bigint {
+  ): Promise<bigint> {
     const key = `${groupName}:${direction}`;
     const groupPayments = this.payments.get(key);
     if (!groupPayments) {
-      return 0n;
+      return Promise.resolve(0n);
     }
 
     let entries = groupPayments.get(scope);
     if (!entries || entries.length === 0) {
-      return 0n;
+      return Promise.resolve(0n);
     }
 
     if (windowMs !== undefined) {
@@ -65,15 +66,15 @@ export class InMemoryPaymentStorage implements PaymentStorage {
       entries = entries.filter(entry => entry.timestamp > cutoff);
     }
 
-    return entries.reduce((sum, entry) => sum + entry.amount, 0n);
+    return Promise.resolve(entries.reduce((sum, entry) => sum + entry.amount, 0n));
   }
 
-  getAllRecords(
+  async getAllRecords(
     groupName?: string,
     scope?: string,
     direction?: PaymentDirection,
     windowMs?: number
-  ): PaymentRecord[] {
+  ): Promise<PaymentRecord[]> {
     const records: PaymentRecord[] = [];
     const cutoff = windowMs !== undefined ? Date.now() - windowMs : undefined;
 
@@ -112,11 +113,12 @@ export class InMemoryPaymentStorage implements PaymentStorage {
       }
     }
 
-    return records;
+    return Promise.resolve(records);
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     this.payments.clear();
+    return Promise.resolve();
   }
 }
 

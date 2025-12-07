@@ -1,4 +1,5 @@
-export { analytics, type AnalyticsRuntime } from './extension';
+export { analytics } from './extension';
+export type { AnalyticsRuntime } from '@lucid-agents/types/analytics';
 export {
   getOutgoingSummary,
   getIncomingSummary,

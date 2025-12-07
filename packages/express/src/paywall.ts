@@ -111,16 +111,18 @@ export function withPayments({
         req.originalUrl === path ||
         req.originalUrl?.startsWith(`${path}?`)
       ) {
-        const origin = typeof req.headers.origin === 'string' 
-          ? req.headers.origin 
-          : Array.isArray(req.headers.origin) 
-            ? req.headers.origin[0] 
-            : undefined;
-        const referer = typeof req.headers.referer === 'string'
-          ? req.headers.referer
-          : Array.isArray(req.headers.referer)
-            ? req.headers.referer[0]
-            : undefined;
+        const origin =
+          typeof req.headers.origin === 'string'
+            ? req.headers.origin
+            : Array.isArray(req.headers.origin)
+              ? req.headers.origin[0]
+              : undefined;
+        const referer =
+          typeof req.headers.referer === 'string'
+            ? req.headers.referer
+            : Array.isArray(req.headers.referer)
+              ? req.headers.referer[0]
+              : undefined;
         const senderDomain = extractSenderDomain(origin, referer);
 
         for (const group of policyGroups) {
@@ -206,16 +208,18 @@ export function withPayments({
         ) {
           try {
             const payerAddress = extractPayerAddress(paymentResponseHeader);
-            const origin = typeof req.headers.origin === 'string'
-              ? req.headers.origin
-              : Array.isArray(req.headers.origin)
-                ? req.headers.origin[0]
-                : undefined;
-            const referer = typeof req.headers.referer === 'string'
-              ? req.headers.referer
-              : Array.isArray(req.headers.referer)
-                ? req.headers.referer[0]
-                : undefined;
+            const origin =
+              typeof req.headers.origin === 'string'
+                ? req.headers.origin
+                : Array.isArray(req.headers.origin)
+                  ? req.headers.origin[0]
+                  : undefined;
+            const referer =
+              typeof req.headers.referer === 'string'
+                ? req.headers.referer
+                : Array.isArray(req.headers.referer)
+                  ? req.headers.referer[0]
+                  : undefined;
             const senderDomain = extractSenderDomain(origin, referer);
             const paymentAmount = parsePriceAmount(price);
 

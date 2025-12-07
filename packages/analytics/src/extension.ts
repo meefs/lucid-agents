@@ -1,21 +1,14 @@
 import type {
-  AgentRuntime,
   BuildContext,
   Extension,
 } from '@lucid-agents/types/core';
-import type { PaymentTracker } from '@lucid-agents/payments';
-
-/**
- * Analytics runtime that reads from payment tracker.
- */
-export type AnalyticsRuntime = {
-  /** Payment tracker instance */
-  readonly paymentTracker: PaymentTracker | undefined;
-};
+import type { AnalyticsRuntime } from '@lucid-agents/types/analytics';
+import type { PaymentTracker } from '@lucid-agents/types/payments';
 
 /**
  * Analytics extension function.
  * Reads payment data from runtime.payments.paymentTracker.
+ * Does not depend on payments package - just reads from runtime.
  */
 export function analytics(): Extension<AnalyticsRuntime> {
   return {
@@ -23,9 +16,7 @@ export function analytics(): Extension<AnalyticsRuntime> {
     build(ctx: BuildContext): AnalyticsRuntime {
       return {
         get paymentTracker() {
-          return ctx.runtime.payments?.paymentTracker as
-            | PaymentTracker
-            | undefined;
+          return ctx.runtime.payments?.paymentTracker as PaymentTracker | undefined;
         },
       };
     },

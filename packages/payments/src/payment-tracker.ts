@@ -1,4 +1,4 @@
-import type { PaymentDirection } from '@lucid-agents/types/payments';
+import type { PaymentDirection, PaymentTracker as PaymentTrackerInterface } from '@lucid-agents/types/payments';
 import type { PaymentStorage } from './payment-storage';
 import { createSQLitePaymentStorage } from './sqlite-payment-storage';
 
@@ -16,7 +16,7 @@ function formatUsdcAmount(amount: bigint): string {
  * Tracks payments (both outgoing and incoming) per policy group and scope.
  * Uses storage abstraction to support different backends (SQLite, In-Memory, Postgres).
  */
-export class PaymentTracker {
+export class PaymentTracker implements PaymentTrackerInterface {
   constructor(private storage: PaymentStorage) {}
 
   /**

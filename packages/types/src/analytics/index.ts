@@ -1,4 +1,12 @@
-import type { PaymentRecord } from '../payments';
+import type { PaymentRecord, PaymentTracker } from '../payments';
+
+/**
+ * Analytics runtime that reads from payment tracker.
+ */
+export type AnalyticsRuntime = {
+  /** Payment tracker instance */
+  readonly paymentTracker: PaymentTracker | undefined;
+};
 
 /**
  * Analytics summary for a time window.

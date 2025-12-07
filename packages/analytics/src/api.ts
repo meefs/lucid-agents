@@ -1,5 +1,4 @@
-import type { PaymentTracker } from '@lucid-agents/payments';
-import type { PaymentRecord } from '@lucid-agents/types/payments';
+import type { PaymentRecord, PaymentTracker } from '@lucid-agents/types/payments';
 import type {
   AnalyticsSummary,
   Transaction,

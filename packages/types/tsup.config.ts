@@ -7,4 +7,3 @@ export default definePackageConfig({
   },
   external: ['zod', 'x402'],
 });
-

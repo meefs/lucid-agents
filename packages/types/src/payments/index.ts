@@ -71,6 +71,13 @@ export type PaymentRecord = {
 };
 
 /**
+ * Payment tracker interface for reading payment data.
+ */
+export interface PaymentTracker {
+  getAllData(): Promise<PaymentRecord[]>;
+}
+
+/**
  * Rate limiting configuration for a policy group.
  */
 export type RateLimitConfig = {

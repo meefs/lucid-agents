@@ -5,6 +5,8 @@ import type { WalletsRuntime } from '../wallets';
 import type { A2ARuntime } from '../a2a';
 import type { AP2Runtime } from '../ap2';
 import type { EntrypointsRuntime } from './entrypoint';
+import type { AnalyticsRuntime } from '../analytics';
+import type { AgentCore } from './agent';
 
 /**
  * Agent runtime interface.
@@ -15,17 +17,15 @@ import type { EntrypointsRuntime } from './entrypoint';
  */
 export type AgentRuntime = {
   /**
-   * Agent core instance. The actual type is AgentCore from @lucid-agents/core.
-   * Using `any` here to avoid circular dependency - the type will be properly
-   * inferred when used with the actual runtime implementation.
+   * Agent core instance.
    */
-  agent: any;
+  agent: AgentCore;
   wallets?: WalletsRuntime;
   payments?: PaymentsRuntime;
+  analytics?: AnalyticsRuntime;
   a2a?: A2ARuntime;
   ap2?: AP2Runtime;
   handlers?: AgentHttpHandlers;
   entrypoints: EntrypointsRuntime;
   manifest: ManifestRuntime;
 };
-

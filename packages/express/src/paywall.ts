@@ -1,10 +1,19 @@
-import type { Express, RequestHandler } from 'express';
+import type { Express, RequestHandler, Request, Response } from 'express';
 import { paymentMiddleware } from 'x402-express';
 import type { FacilitatorConfig } from 'x402/types';
 import { z } from 'zod';
-import type { EntrypointDef } from '@lucid-agents/types/core';
+import type { EntrypointDef, AgentRuntime } from '@lucid-agents/types/core';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
-import { resolvePrice, validatePaymentsConfig } from '@lucid-agents/payments';
+import {
+  resolvePrice,
+  validatePaymentsConfig,
+  evaluateSender,
+  findMostSpecificIncomingLimit,
+  extractSenderDomain,
+  extractPayerAddress,
+  parsePriceAmount,
+  type PaymentTracker,
+} from '@lucid-agents/payments';
 
 type PaymentMiddlewareFactory = typeof paymentMiddleware;
 
@@ -16,6 +25,7 @@ export type WithPaymentsParams = {
   payments?: PaymentsConfig;
   facilitator?: FacilitatorConfig;
   middlewareFactory?: PaymentMiddlewareFactory;
+  runtime?: AgentRuntime;
 };
 
 export function withPayments({
@@ -26,6 +36,7 @@ export function withPayments({
   payments,
   facilitator,
   middlewareFactory = paymentMiddleware,
+  runtime,
 }: WithPaymentsParams): boolean {
   if (!payments) return false;
 
@@ -86,6 +97,44 @@ export function withPayments({
     },
   };
 
+  const policyGroups = runtime?.payments?.policyGroups;
+  const paymentTracker = runtime?.payments?.paymentTracker as
+    | PaymentTracker
+    | undefined;
+
+  if (policyGroups && policyGroups.length > 0) {
+    app.use((req, res, next) => {
+      const reqPath = req.path ?? req.url ?? '';
+      if (
+        reqPath === path ||
+        reqPath.startsWith(`${path}/`) ||
+        req.originalUrl === path ||
+        req.originalUrl?.startsWith(`${path}?`)
+      ) {
+        const senderDomain = extractSenderDomain(
+          req.headers.origin,
+          req.headers.referer
+        );
+
+        for (const group of policyGroups) {
+          if (group.blockedSenders || group.allowedSenders) {
+            const result = evaluateSender(group, undefined, senderDomain);
+            if (!result.allowed) {
+              return res.status(403).json({
+                error: {
+                  code: 'policy_violation',
+                  message: result.reason || 'Payment blocked by policy',
+                  groupName: result.groupName,
+                },
+              });
+            }
+          }
+        }
+      }
+      return next();
+    });
+  }
+
   const middleware = middlewareFactory(
     payments.payTo as Parameters<PaymentMiddlewareFactory>[0],
     {
@@ -107,5 +156,67 @@ export function withPayments({
     }
     return next();
   });
+
+  if (policyGroups && policyGroups.length > 0 && paymentTracker) {
+    app.use((req, res, next) => {
+      const reqPath = req.path ?? req.url ?? '';
+      if (
+        reqPath === path ||
+        reqPath.startsWith(`${path}/`) ||
+        req.originalUrl === path ||
+        req.originalUrl?.startsWith(`${path}?`)
+      ) {
+        const originalJson = res.json.bind(res);
+        res.json = function (body: any) {
+          const paymentResponseHeader = res.getHeader('X-PAYMENT-RESPONSE') as
+            | string
+            | undefined;
+          if (
+            paymentResponseHeader &&
+            res.statusCode >= 200 &&
+            res.statusCode < 300
+          ) {
+            try {
+              const payerAddress = extractPayerAddress(paymentResponseHeader);
+              const senderDomain = extractSenderDomain(
+                req.headers.origin,
+                req.headers.referer
+              );
+              const paymentAmount = parsePriceAmount(price);
+
+              if (payerAddress && paymentAmount !== undefined) {
+                for (const group of policyGroups) {
+                  if (group.incomingLimits) {
+                    const limitInfo = findMostSpecificIncomingLimit(
+                      group.incomingLimits,
+                      payerAddress,
+                      senderDomain,
+                      req.url
+                    );
+                    const scope = limitInfo?.scope ?? 'global';
+
+                    paymentTracker.recordIncoming(
+                      group.name,
+                      scope,
+                      paymentAmount
+                    );
+                  }
+                }
+              }
+            } catch (error) {
+              console.error(
+                '[paywall] Error recording incoming payment:',
+                error
+              );
+            }
+          }
+
+          return originalJson(body);
+        };
+      }
+      return next();
+    });
+  }
+
   return true;
 }

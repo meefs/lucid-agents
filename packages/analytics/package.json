@@ -1,11 +1,11 @@
 {
-  "name": "@lucid-agents/payments",
-  "version": "1.9.2",
-  "description": "Payment logic for bidirectional agent-to-agent payments",
+  "name": "@lucid-agents/analytics",
+  "version": "0.1.0",
+  "description": "Analytics and reporting for payment tracking data",
   "repository": {
     "type": "git",
     "url": "https://github.com/daydreamsai/lucid-agents",
-    "directory": "packages/payments"
+    "directory": "packages/analytics"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -32,20 +32,12 @@
     "type-check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ax-llm/ax": "catalog:",
     "@lucid-agents/types": "workspace:*",
-    "x402-fetch": "catalog:",
-    "x402": "^0.7.1",
-    "viem": "^2.38.5",
-    "zod": "catalog:",
-    "better-sqlite3": "^11.7.0",
-    "pg": "^8.13.1",
-    "deasync": "^0.1.28"
+    "@lucid-agents/payments": "workspace:*"
   },
   "devDependencies": {
     "tsup": "catalog:",
-    "typescript": "catalog:",
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/pg": "^8.11.10"
+    "typescript": "catalog:"
   }
 }
+

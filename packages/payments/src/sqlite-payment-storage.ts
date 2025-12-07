@@ -1,0 +1,161 @@
+import Database from 'better-sqlite3';
+import { mkdirSync } from 'fs';
+import { dirname } from 'path';
+import type {
+  PaymentStorage,
+  PaymentRecord,
+  PaymentDirection,
+} from './payment-storage';
+
+/**
+ * SQLite payment storage implementation.
+ * Default storage - persistent, zero configuration, auto-creates database.
+ */
+export class SQLitePaymentStorage implements PaymentStorage {
+  private db: Database.Database;
+
+  constructor(dbPath?: string) {
+    const path = dbPath ?? '.data/payments.db';
+
+    const dir = dirname(path);
+    if (dir && dir !== '.') {
+      try {
+        mkdirSync(dir, { recursive: true });
+      } catch (error) {
+        // Ignore error
+      }
+    }
+
+    this.db = new Database(path);
+    this.initSchema();
+  }
+
+  private initSchema(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_name TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        amount TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_group_scope ON payments(group_name, scope);
+      CREATE INDEX IF NOT EXISTS idx_timestamp ON payments(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_direction ON payments(direction);
+    `);
+  }
+
+  recordPayment(record: Omit<PaymentRecord, 'id' | 'timestamp'>): void {
+    if (record.amount <= 0n) {
+      return;
+    }
+
+    const stmt = this.db.prepare(`
+      INSERT INTO payments (group_name, scope, direction, amount, timestamp)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      record.groupName,
+      record.scope,
+      record.direction,
+      record.amount.toString(),
+      Date.now()
+    );
+  }
+
+  getTotal(
+    groupName: string,
+    scope: string,
+    direction: PaymentDirection,
+    windowMs?: number
+  ): bigint {
+    let query = `
+      SELECT SUM(CAST(amount AS TEXT)) as total
+      FROM payments
+      WHERE group_name = ? AND scope = ? AND direction = ?
+    `;
+
+    const params: unknown[] = [groupName, scope, direction];
+
+    if (windowMs !== undefined) {
+      query += ' AND timestamp > ?';
+      params.push(Date.now() - windowMs);
+    }
+
+    const result = this.db.prepare(query).get(...params) as {
+      total: string | null;
+    };
+
+    return result.total ? BigInt(result.total) : 0n;
+  }
+
+  getAllRecords(
+    groupName?: string,
+    scope?: string,
+    direction?: PaymentDirection,
+    windowMs?: number
+  ): PaymentRecord[] {
+    let query = 'SELECT * FROM payments WHERE 1=1';
+    const params: unknown[] = [];
+
+    if (groupName) {
+      query += ' AND group_name = ?';
+      params.push(groupName);
+    }
+    if (scope) {
+      query += ' AND scope = ?';
+      params.push(scope);
+    }
+    if (direction) {
+      query += ' AND direction = ?';
+      params.push(direction);
+    }
+    if (windowMs !== undefined) {
+      query += ' AND timestamp > ?';
+      params.push(Date.now() - windowMs);
+    }
+
+    query += ' ORDER BY timestamp DESC';
+
+    const rows = this.db.prepare(query).all(...params) as Array<{
+      id: number;
+      group_name: string;
+      scope: string;
+      direction: string;
+      amount: string;
+      timestamp: number;
+    }>;
+
+    return rows.map(row => ({
+      id: row.id,
+      groupName: row.group_name,
+      scope: row.scope,
+      direction: row.direction as PaymentDirection,
+      amount: BigInt(row.amount),
+      timestamp: row.timestamp,
+    }));
+  }
+
+  clear(): void {
+    this.db.exec('DELETE FROM payments');
+  }
+
+  /**
+   * Closes the database connection.
+   * Should be called when the storage is no longer needed.
+   */
+  close(): void {
+    this.db.close();
+  }
+}
+
+/**
+ * Creates a new SQLite payment storage instance.
+ * @param dbPath - Optional custom database path (defaults to `.data/payments.db`)
+ * @returns A new SQLitePaymentStorage instance
+ */
+export function createSQLitePaymentStorage(dbPath?: string): PaymentStorage {
+  return new SQLitePaymentStorage(dbPath);
+}

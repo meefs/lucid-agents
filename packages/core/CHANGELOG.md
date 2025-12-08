@@ -1,5 +1,17 @@
 # @lucid-agents/core
 
+## 1.10.0
+
+### Patch Changes
+
+- Updated dependencies [222485f]
+  - @lucid-agents/payments@1.10.0
+  - @lucid-agents/a2a@0.5.0
+  - @lucid-agents/types@1.5.2
+  - @lucid-agents/ap2@0.3.3
+  - @lucid-agents/identity@1.10.0
+  - @lucid-agents/wallet@0.5.2
+
 ## 1.9.2
 
 ### Patch Changes

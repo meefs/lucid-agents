@@ -1,5 +1,12 @@
 # @lucid-agents/ap2
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [222485f]
+  - @lucid-agents/types@1.5.2
+
 ## 0.3.2
 
 ### Patch Changes

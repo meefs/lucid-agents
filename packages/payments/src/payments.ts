@@ -1,5 +1,9 @@
 import type { Network } from 'x402/types';
-import type { EntrypointDef, AgentCore } from '@lucid-agents/types/core';
+import type {
+  EntrypointDef,
+  AgentCore,
+  AgentRuntime,
+} from '@lucid-agents/types/core';
 import type { EntrypointPrice } from '@lucid-agents/types/payments';
 import type {
   PaymentsConfig,
@@ -222,11 +226,11 @@ export function createPaymentsRuntime(
       group =>
         group.incomingLimits?.global?.maxTotalUsd !== undefined ||
         Object.values(group.incomingLimits?.perSender ?? {}).some(
-                 limit => limit.maxTotalUsd !== undefined
-               ) ||
+          limit => limit.maxTotalUsd !== undefined
+        ) ||
         Object.values(group.incomingLimits?.perEndpoint ?? {}).some(
-                 limit => limit.maxTotalUsd !== undefined
-               )
+          limit => limit.maxTotalUsd !== undefined
+        )
     );
 
     // Check if any group needs rate limiting
@@ -281,6 +285,22 @@ export function createPaymentsRuntime(
       if (entrypointHasExplicitPrice(entrypoint)) {
         isActive = true;
       }
+    },
+    async getFetchWithPayment(
+      runtime: AgentRuntime,
+      network?: string
+    ): Promise<
+      | ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>)
+      | null
+    > {
+      const { createRuntimePaymentContext } = await import('./runtime');
+      const paymentContext = await createRuntimePaymentContext({
+        runtime,
+        network,
+      });
+      return paymentContext.fetchWithPayment as
+        | ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>)
+        | null;
     },
   };
 }

@@ -7,4 +7,5 @@ export * from './ap2';
 export * from './http';
 export * from './identity';
 export * from './payments';
+export * from './scheduler';
 export * from './wallets';

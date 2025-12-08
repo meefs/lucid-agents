@@ -6,6 +6,7 @@ import type { A2ARuntime } from '../a2a';
 import type { AP2Runtime } from '../ap2';
 import type { EntrypointsRuntime } from './entrypoint';
 import type { AnalyticsRuntime } from '../analytics';
+import type { SchedulerRuntime } from '../scheduler';
 import type { AgentCore } from './agent';
 
 /**
@@ -25,6 +26,7 @@ export type AgentRuntime = {
   analytics?: AnalyticsRuntime;
   a2a?: A2ARuntime;
   ap2?: AP2Runtime;
+  scheduler?: SchedulerRuntime;
   handlers?: AgentHttpHandlers;
   entrypoints: EntrypointsRuntime;
   manifest: ManifestRuntime;

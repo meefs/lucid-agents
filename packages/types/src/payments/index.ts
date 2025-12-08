@@ -1,4 +1,5 @@
 import type { Network, Resource } from 'x402/types';
+import type { AgentRuntime } from '../core';
 
 /**
  * Solana address type (base58 encoded).
@@ -187,4 +188,13 @@ export type PaymentsRuntime = {
   readonly rateLimiter?: unknown; // RateLimiter instance (type exported from payments package)
   /** Policy groups configured for this runtime */
   readonly policyGroups?: PaymentPolicyGroup[];
+  /**
+   * Get fetch function with payment support.
+   * Returns a fetch function that automatically includes x402 payment headers.
+   * Returns null if payment context cannot be created (e.g., no wallet configured).
+   */
+  getFetchWithPayment: (
+    runtime: AgentRuntime,
+    network?: string
+  ) => Promise<((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null>;
 };

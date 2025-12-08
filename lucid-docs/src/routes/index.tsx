@@ -32,10 +32,10 @@ function Home() {
             </Link>
             <Link
               to="/docs/$"
-              params={{ _splat: 'packages' }}
+              params={{ _splat: 'examples' }}
               className="px-6 py-3 rounded-lg border border-fd-border text-fd-foreground font-medium text-sm hover:bg-fd-accent transition-colors"
             >
-              View Packages
+              View Examples
             </Link>
           </div>
         </div>

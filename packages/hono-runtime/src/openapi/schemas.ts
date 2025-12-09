@@ -8,7 +8,7 @@ export const ErrorSchema = z
   .object({
     error: z.string().openapi({ example: 'Agent not found' }),
     code: z.string().optional().openapi({ example: 'NOT_FOUND' }),
-    details: z.record(z.string(), z.unknown()).optional(),
+    details: z.record(z.string(), z.any()).optional(),
   })
   .openapi('Error');
 
@@ -163,13 +163,21 @@ export const SerializedEntrypointSchema = z
     outputSchema: z.record(z.string(), z.unknown()).default({}).openapi({
       description: 'JSON Schema for output validation (empty = accept any)',
     }),
-    handlerType: z.literal('builtin').default('builtin').openapi({
-      example: 'builtin',
-      description: 'Type of handler (MVP: only builtin supported)',
+    handlerType: z
+      .enum(['builtin', 'llm', 'graph', 'webhook'])
+      .default('builtin')
+      .openapi({
+        example: 'builtin',
+        description:
+          'Type of handler (e.g., builtin, llm, graph, webhook). Defaults to builtin.',
     }),
-    handlerConfig: BuiltinHandlerConfigSchema.openapi({
-      description: 'Configuration for the handler',
-    }),
+    handlerConfig: z
+      .object({ name: z.string() })
+      .catchall(z.unknown())
+      .openapi({
+        description: 'Configuration for the handler',
+        example: { name: 'echo', model: 'gpt-4o' },
+      }),
     price: z.string().optional().openapi({
       example: '0.01',
       description: 'Price in USD to invoke this entrypoint (e.g., "0.01" = $0.01)',
@@ -297,7 +305,7 @@ export const UsageSchema = z
 
 export const InvokeResponseSchema = z
   .object({
-    output: z.unknown().openapi({
+    output: z.any().openapi({
       description: 'Output from the entrypoint handler',
       example: { message: 'Hello, agent!' },
     }),

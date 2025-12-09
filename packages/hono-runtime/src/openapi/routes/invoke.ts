@@ -122,5 +122,13 @@ export const invokeEntrypointRoute = createRoute({
       },
       description: 'Agent or entrypoint not found',
     },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+      description: 'Internal error during invocation',
+    },
   },
 });

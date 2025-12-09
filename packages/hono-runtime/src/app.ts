@@ -11,7 +11,11 @@ import { logger } from 'hono/logger';
 
 import type { AgentStore, AgentDefinition } from './store/types';
 import { SlugExistsError } from './store/types';
-import { RuntimeCache, buildRuntimeForAgent, type RuntimeFactoryConfig } from './factory';
+import {
+  RuntimeCache,
+  buildRuntimeForAgent,
+  type RuntimeFactoryConfig,
+} from './factory';
 import * as routes from './openapi/routes';
 import type * as schemaTypes from './openapi/schemas';
 
@@ -88,29 +92,12 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
     ],
   });
 
-  app.get('/swagger', swaggerUI({ url: '/doc' }));
-
-  // ---------------------------------------------------------------------------
-  // Health Route
-  // ---------------------------------------------------------------------------
-
-  app.openapi(routes.healthRoute, (c) => {
-    return c.json(
-      {
-        status: 'ok' as const,
-        version: config.openapi?.version ?? '0.1.0',
-        timestamp: new Date().toISOString(),
-      },
-      200
-    );
-  });
-
   // ---------------------------------------------------------------------------
   // Agent CRUD Routes
   // ---------------------------------------------------------------------------
 
   // List agents
-  app.openapi(routes.listAgentsRoute, async (c) => {
+  app.openapi(routes.listAgentsRoute, async c => {
     const { offset, limit } = c.req.valid('query');
     const ownerId = defaultOwnerId; // TODO: get from auth
 
@@ -124,7 +111,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   });
 
   // Create agent
-  app.openapi(routes.createAgentRoute, async (c) => {
+  app.openapi(routes.createAgentRoute, async c => {
     const body = c.req.valid('json');
     const ownerId = defaultOwnerId; // TODO: get from auth
 
@@ -133,14 +120,17 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       return c.json(serializeAgent(agent), 201);
     } catch (err) {
       if (err instanceof SlugExistsError) {
-        return c.json({ error: 'Slug already exists', code: 'SLUG_EXISTS' }, 409);
+        return c.json(
+          { error: 'Slug already exists', code: 'SLUG_EXISTS' },
+          409
+        );
       }
       throw err;
     }
   });
 
   // Get agent
-  app.openapi(routes.getAgentRoute, async (c) => {
+  app.openapi(routes.getAgentRoute, async c => {
     const { agentId } = c.req.valid('param');
 
     const agent = await config.store.getById(agentId);
@@ -152,7 +142,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   });
 
   // Update agent
-  app.openapi(routes.updateAgentRoute, async (c) => {
+  app.openapi(routes.updateAgentRoute, async c => {
     const { agentId } = c.req.valid('param');
     const body = c.req.valid('json');
 
@@ -166,14 +156,17 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       return c.json(serializeAgent(agent), 200);
     } catch (err) {
       if (err instanceof SlugExistsError) {
-        return c.json({ error: 'Slug already exists', code: 'SLUG_EXISTS' }, 409);
+        return c.json(
+          { error: 'Slug already exists', code: 'SLUG_EXISTS' },
+          409
+        );
       }
       throw err;
     }
   });
 
   // Delete agent
-  app.openapi(routes.deleteAgentRoute, async (c) => {
+  app.openapi(routes.deleteAgentRoute, async c => {
     const { agentId } = c.req.valid('param');
 
     const deleted = await config.store.delete(agentId);
@@ -214,7 +207,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
 
   // Get agent manifest (A2A compatible)
   // Note: Type assertion needed due to runtime manifest type mismatch with OpenAPI schema
-  app.openapi(routes.getAgentManifestRoute, (async (c: any) => {
+  app.openapi(routes.getAgentManifestRoute, async c => {
     const { agentId } = c.req.valid('param');
 
     const result = await getOrBuildRuntime(agentId);
@@ -222,18 +215,29 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
     }
 
-    const { runtime } = result;
+    const { runtime, agent } = result;
 
     // Use the runtime's manifest builder for proper A2A card
     const origin = new URL(c.req.url).origin;
     const manifest = runtime.manifest.build(origin);
+    const serializedManifest: schemaTypes.AgentManifest = {
+      name: manifest.name ?? agent.name,
+      description: manifest.description ?? agent.description ?? '',
+      version: manifest.version ?? agent.version,
+      skills:
+        manifest.skills ??
+        agent.entrypoints.map(ep => ({
+          id: ep.key,
+          description: ep.description,
+        })),
+    };
 
-    return c.json(manifest, 200);
-  }) as any);
+    return c.json(serializedManifest, 200);
+  });
 
   // List entrypoints
   // Note: Type assertion needed due to runtime entrypoint list format
-  app.openapi(routes.listEntrypointsRoute, (async (c: any) => {
+  app.openapi(routes.listEntrypointsRoute, async c => {
     const { agentId } = c.req.valid('param');
 
     const result = await getOrBuildRuntime(agentId);
@@ -241,15 +245,15 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
     }
 
-    const { runtime } = result;
-    const entrypoints = runtime.entrypoints.list();
+    const { agent } = result;
+    const entrypoints = agent.entrypoints;
 
     return c.json(entrypoints, 200);
-  }) as any);
+  });
 
   // Invoke entrypoint - uses runtime handler but wraps response in our format
   // Note: Type assertion needed due to complex response type union
-  app.openapi(routes.invokeEntrypointRoute, (async (c: any) => {
+  app.openapi(routes.invokeEntrypointRoute, async c => {
     const { agentId, key } = c.req.valid('param');
     const body = c.req.valid('json');
 
@@ -262,7 +266,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
 
     // Check if entrypoint exists
     const entrypoints = runtime.entrypoints.snapshot();
-    const entrypoint = entrypoints.find((ep) => ep.key === key);
+    const entrypoint = entrypoints.find(ep => ep.key === key);
     if (!entrypoint) {
       return c.json(
         { error: 'Entrypoint not found', code: 'ENTRYPOINT_NOT_FOUND' },
@@ -272,7 +276,10 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
 
     // Ensure handlers exist
     if (!runtime.handlers) {
-      return c.json({ error: 'Runtime handlers not available', code: 'INTERNAL_ERROR' }, 500);
+      return c.json(
+        { error: 'Runtime handlers not available', code: 'INTERNAL_ERROR' },
+        500
+      );
     }
 
     // Build request to pass to runtime handler
@@ -286,17 +293,38 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
     const response = await runtime.handlers.invoke(invokeRequest, { key });
 
     // Parse the runtime's response and wrap it in our format
-    const runtimeResult = await response.json() as {
+    const runtimeResult = (await response.json()) as {
       run_id?: string;
       status?: string;
       output?: unknown;
-      usage?: { total_tokens?: number; prompt_tokens?: number; completion_tokens?: number };
+      usage?: {
+        total_tokens?: number;
+        prompt_tokens?: number;
+        completion_tokens?: number;
+      };
       error?: unknown;
     };
 
     // If there was an error, pass it through
     if (runtimeResult.error) {
-      return c.json(runtimeResult, response.status as 400 | 500);
+      const status = response.status === 400 ? 400 : 500;
+      const errorMessage =
+        typeof runtimeResult.error === 'string'
+          ? runtimeResult.error
+          : 'Entrypoint invocation failed';
+      const details =
+        runtimeResult.error && typeof runtimeResult.error === 'object'
+          ? { error: runtimeResult.error as Record<string, unknown> }
+          : undefined;
+
+      return c.json(
+        {
+          error: errorMessage,
+          code: status === 400 ? 'INVALID_INPUT' : 'INTERNAL_ERROR',
+          ...(details ? { details } : {}),
+        },
+        status
+      );
     }
 
     // Generate IDs
@@ -313,7 +341,24 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       },
       200
     );
-  }) as any);
+  });
+
+  app.get('/swagger', swaggerUI({ url: '/doc' }));
+
+  // ---------------------------------------------------------------------------
+  // Health Route
+  // ---------------------------------------------------------------------------
+
+  app.openapi(routes.healthRoute, c => {
+    return c.json(
+      {
+        status: 'ok' as const,
+        version: config.openapi?.version ?? '0.1.0',
+        timestamp: new Date().toISOString(),
+      },
+      200
+    );
+  });
 
   return app;
 }

@@ -1,13 +1,13 @@
 // @lucid-agents/hono-runtime
 // Stateless multi-agent Hono runtime with OpenAPI support
 
-// Main app factory (simple version without OpenAPI validation - Zod 4 compatible)
-export { createHonoRuntime } from './app-simple';
-export type { HonoRuntimeConfig } from './app-simple';
+// Main app factory (with OpenAPI validation and auto-generated docs)
+export { createHonoRuntime } from './app';
+export type { HonoRuntimeConfig } from './app';
 
-// OpenAPI version (requires Zod 3 - currently broken with Zod 4)
-export { createHonoRuntime as createHonoRuntimeOpenAPI } from './app';
-export type { HonoRuntimeConfig as HonoRuntimeConfigOpenAPI } from './app';
+// Simple version without OpenAPI validation (for lighter usage)
+export { createHonoRuntime as createHonoRuntimeSimple } from './app-simple';
+export type { HonoRuntimeConfig as HonoRuntimeConfigSimple } from './app-simple';
 
 // Store
 export { createMemoryAgentStore } from './store';

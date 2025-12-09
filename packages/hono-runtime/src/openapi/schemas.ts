@@ -83,6 +83,67 @@ export const BuiltinHandlerConfigSchema = z
   .openapi('BuiltinHandlerConfig');
 
 // =============================================================================
+// Extension Config Schemas
+// =============================================================================
+
+export const PaymentsConfigSchema = z
+  .object({
+    payTo: z.string().openapi({
+      example: '0x1234567890abcdef1234567890abcdef12345678',
+      description: 'Wallet address to receive payments',
+    }),
+    network: z.string().openapi({
+      example: 'base-sepolia',
+      description: 'Payment network (e.g., base-sepolia, base, solana-devnet)',
+    }),
+    facilitatorUrl: z.string().url().openapi({
+      example: 'https://facilitator.example.com',
+      description: 'URL of the x402 facilitator service',
+    }),
+  })
+  .openapi('PaymentsConfig');
+
+export const WalletsConfigSchema = z
+  .object({
+    agent: z
+      .object({
+        type: z.enum(['local', 'thirdweb', 'signer']).openapi({
+          example: 'local',
+          description: 'Wallet type',
+        }),
+        privateKey: z.string().optional().openapi({
+          description: 'Private key for local wallet (required for type: local)',
+        }),
+        secretKey: z.string().optional().openapi({
+          description: 'Thirdweb secret key (for type: thirdweb)',
+        }),
+        clientId: z.string().optional().openapi({
+          description: 'Thirdweb client ID (for type: thirdweb)',
+        }),
+        walletLabel: z.string().optional().openapi({
+          description: 'Wallet label (for type: thirdweb)',
+        }),
+        chainId: z.number().optional().openapi({
+          description: 'Chain ID (for type: thirdweb)',
+        }),
+      })
+      .optional()
+      .openapi({
+        description: 'Agent wallet configuration for making payments',
+      }),
+  })
+  .openapi('WalletsConfig');
+
+export const A2AConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true).openapi({
+      example: true,
+      description: 'Whether A2A protocol is enabled for this agent',
+    }),
+  })
+  .openapi('A2AConfig');
+
+// =============================================================================
 // Entrypoint Schema
 // =============================================================================
 
@@ -108,6 +169,14 @@ export const SerializedEntrypointSchema = z
     }),
     handlerConfig: BuiltinHandlerConfigSchema.openapi({
       description: 'Configuration for the handler',
+    }),
+    price: z.string().optional().openapi({
+      example: '0.01',
+      description: 'Price in USD to invoke this entrypoint (e.g., "0.01" = $0.01)',
+    }),
+    network: z.string().optional().openapi({
+      example: 'base-sepolia',
+      description: 'Payment network override for this entrypoint (defaults to agent paymentsConfig.network)',
     }),
     metadata: z.record(z.string(), z.unknown()).optional().openapi({
       description: 'Additional metadata',
@@ -147,6 +216,16 @@ export const CreateAgentSchema = z
     }),
     metadata: z.record(z.string(), z.unknown()).optional().openapi({
       description: 'Additional metadata',
+    }),
+    // Extension configurations
+    paymentsConfig: PaymentsConfigSchema.optional().openapi({
+      description: 'Payment configuration for monetizing entrypoints',
+    }),
+    walletsConfig: WalletsConfigSchema.optional().openapi({
+      description: 'Wallet configuration for agent to make payments',
+    }),
+    a2aConfig: A2AConfigSchema.optional().openapi({
+      description: 'Agent-to-agent protocol configuration',
     }),
   })
   .openapi('CreateAgent');
@@ -261,6 +340,9 @@ export const AgentManifestSchema = z
 
 export type Error = z.infer<typeof ErrorSchema>;
 export type Health = z.infer<typeof HealthSchema>;
+export type PaymentsConfig = z.infer<typeof PaymentsConfigSchema>;
+export type WalletsConfig = z.infer<typeof WalletsConfigSchema>;
+export type A2AConfig = z.infer<typeof A2AConfigSchema>;
 export type SerializedEntrypoint = z.infer<typeof SerializedEntrypointSchema>;
 export type CreateAgent = z.infer<typeof CreateAgentSchema>;
 export type AgentDefinition = z.infer<typeof AgentDefinitionSchema>;

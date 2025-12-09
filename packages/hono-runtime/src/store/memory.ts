@@ -70,6 +70,10 @@ export function createMemoryAgentStore(): AgentStore {
         entrypoints: input.entrypoints,
         enabled: input.enabled ?? true,
         metadata: input.metadata ?? {},
+        // Extension configs
+        paymentsConfig: input.paymentsConfig,
+        walletsConfig: input.walletsConfig,
+        a2aConfig: input.a2aConfig,
         createdAt: now,
         updatedAt: now,
       };

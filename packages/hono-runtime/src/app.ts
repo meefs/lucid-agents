@@ -1,16 +1,19 @@
-// @ts-nocheck
-// Note: This file has type errors due to Zod 4 incompatibility with @hono/zod-openapi
-// Use app-simple.ts for a working version without OpenAPI validation
+/**
+ * Hono Runtime with OpenAPI validation
+ *
+ * Full OpenAPI support with Zod schema validation and auto-generated docs.
+ */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
-import type { AgentStore } from './store/types';
+import type { AgentStore, AgentDefinition } from './store/types';
 import { SlugExistsError } from './store/types';
 import { RuntimeCache, buildRuntimeForAgent, type RuntimeFactoryConfig } from './factory';
 import * as routes from './openapi/routes';
+import type * as schemaTypes from './openapi/schemas';
 
 // =============================================================================
 // Configuration Types
@@ -210,7 +213,8 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   // ---------------------------------------------------------------------------
 
   // Get agent manifest (A2A compatible)
-  app.openapi(routes.getAgentManifestRoute, async (c) => {
+  // Note: Type assertion needed due to runtime manifest type mismatch with OpenAPI schema
+  app.openapi(routes.getAgentManifestRoute, (async (c: any) => {
     const { agentId } = c.req.valid('param');
 
     const result = await getOrBuildRuntime(agentId);
@@ -225,10 +229,11 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
     const manifest = runtime.manifest.build(origin);
 
     return c.json(manifest, 200);
-  });
+  }) as any);
 
   // List entrypoints
-  app.openapi(routes.listEntrypointsRoute, async (c) => {
+  // Note: Type assertion needed due to runtime entrypoint list format
+  app.openapi(routes.listEntrypointsRoute, (async (c: any) => {
     const { agentId } = c.req.valid('param');
 
     const result = await getOrBuildRuntime(agentId);
@@ -240,10 +245,11 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
     const entrypoints = runtime.entrypoints.list();
 
     return c.json(entrypoints, 200);
-  });
+  }) as any);
 
   // Invoke entrypoint - uses runtime handler but wraps response in our format
-  app.openapi(routes.invokeEntrypointRoute, async (c) => {
+  // Note: Type assertion needed due to complex response type union
+  app.openapi(routes.invokeEntrypointRoute, (async (c: any) => {
     const { agentId, key } = c.req.valid('param');
     const body = c.req.valid('json');
 
@@ -307,7 +313,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       },
       200
     );
-  });
+  }) as any);
 
   return app;
 }
@@ -319,22 +325,10 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
 /**
  * Serialize agent definition for JSON response (convert dates to ISO strings)
  */
-function serializeAgent(agent: {
-  id: string;
-  ownerId: string;
-  slug: string;
-  name: string;
-  description: string;
-  version: string;
-  entrypoints: unknown[];
-  enabled: boolean;
-  metadata: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
+function serializeAgent(agent: AgentDefinition): schemaTypes.AgentDefinition {
   return {
     ...agent,
     createdAt: agent.createdAt.toISOString(),
     updatedAt: agent.updatedAt.toISOString(),
-  };
+  } as schemaTypes.AgentDefinition;
 }

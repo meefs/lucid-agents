@@ -4,8 +4,7 @@
  * Run with: bun run src/server.ts
  */
 
-// Use simple app to avoid Zod 4 compatibility issues with @hono/zod-openapi
-import { createHonoRuntime } from './app-simple';
+import { createHonoRuntime } from './app';
 import { createMemoryAgentStore } from './store/memory';
 
 // Create in-memory store

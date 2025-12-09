@@ -36,7 +36,8 @@ describe('Hono Runtime API', () => {
   });
 
   describe('GET /doc', () => {
-    // TODO: Fix zod 4 compatibility with @hono/zod-openapi
+    // OpenAPI doc generation fails with Zod 4 - schema serialization issue
+    // The routes work fine, but doc generation has internal zod serialization problems
     it.skip('returns OpenAPI spec', async () => {
       const res = await app.request('/doc');
       expect(res.status).toBe(200);

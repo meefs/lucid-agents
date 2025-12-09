@@ -4,7 +4,8 @@ import { createMemoryAgentStore } from '../store/memory';
 import type { AgentStore } from '../store/types';
 
 describe('Debug OpenAPI', () => {
-  // TODO: Fix zod 4 compatibility with @hono/zod-openapi
+  // OpenAPI doc generation fails with Zod 4 - schema serialization issue
+  // The routes work fine, but doc generation has internal zod serialization problems
   it.skip('debug /doc endpoint', async () => {
     const store = createMemoryAgentStore();
     const app = createHonoRuntime({ store });

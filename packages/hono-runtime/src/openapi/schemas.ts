@@ -327,19 +327,97 @@ export const InvokeResponseSchema = z
 
 export const AgentManifestSchema = z
   .object({
+    protocolVersion: z.string().optional().openapi({ example: '1.0' }),
     name: z.string().openapi({ example: 'My Echo Agent' }),
-    description: z.string().openapi({ example: 'An agent that echoes input' }),
-    version: z.string().openapi({ example: '1.0.0' }),
-    skills: z.array(
-      z.object({
-        id: z.string().openapi({ example: 'echo' }),
-        description: z
-          .string()
-          .optional()
-          .openapi({ example: 'Echo the input' }),
+    description: z.string().optional().openapi({
+      example: 'An agent that echoes input',
+    }),
+    url: z.string().url().optional().openapi({
+      example: 'https://agent.example.com',
+      description: 'Canonical URL of the agent',
+    }),
+    supportedInterfaces: z
+      .array(
+        z.object({
+          url: z.string().url().openapi({ example: 'https://agent.example.com' }),
+          protocolBinding: z
+            .string()
+            .openapi({ example: 'https' }),
+        })
+      )
+      .optional(),
+    provider: z
+      .object({
+        organization: z.string().optional(),
+        url: z.string().url().optional(),
       })
-    ),
+      .optional(),
+    version: z.string().optional().openapi({ example: '1.0.0' }),
+    documentationUrl: z.string().url().optional(),
+    capabilities: z
+      .object({
+        streaming: z.boolean().optional(),
+        pushNotifications: z.boolean().optional(),
+        stateTransitionHistory: z.boolean().optional(),
+        extensions: z.array(z.record(z.string(), z.unknown())).optional(),
+      })
+      .optional(),
+    securitySchemes: z.record(z.string(), z.unknown()).optional(),
+    security: z.array(z.unknown()).optional(),
+    defaultInputModes: z.array(z.string()).optional(),
+    defaultOutputModes: z.array(z.string()).optional(),
+    skills: z
+      .array(
+        z.object({
+          id: z.string().openapi({ example: 'echo' }),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+          examples: z.array(z.string()).optional(),
+          inputModes: z.array(z.string()).optional(),
+          outputModes: z.array(z.string()).optional(),
+          security: z.array(z.unknown()).optional(),
+        })
+      )
+      .optional(),
+    supportsAuthenticatedExtendedCard: z.boolean().optional(),
+    signatures: z
+      .array(
+        z.object({
+          protected: z.string(),
+          signature: z.string(),
+          header: z.record(z.string(), z.unknown()).optional(),
+        })
+      )
+      .optional(),
+    iconUrl: z.string().url().optional(),
+    payments: z.array(z.record(z.string(), z.unknown())).optional(),
+    registrations: z.array(z.record(z.string(), z.unknown())).optional(),
+    trustModels: z.array(z.record(z.string(), z.unknown())).optional(),
+    ValidationRequestsURI: z.string().url().optional(),
+    ValidationResponsesURI: z.string().url().optional(),
+    FeedbackDataURI: z.string().url().optional(),
+    entrypoints: z
+      .record(
+        z.string(),
+        z
+          .object({
+            description: z.string().optional(),
+            streaming: z.boolean(),
+            input_schema: z.unknown().optional(),
+            output_schema: z.unknown().optional(),
+            pricing: z
+              .object({
+                invoke: z.string().optional(),
+                stream: z.string().optional(),
+              })
+              .optional(),
+          })
+          .passthrough()
+      )
+      .openapi({ description: 'Entrypoint definitions keyed by skill id' }),
   })
+  .passthrough()
   .openapi('AgentManifest');
 
 // =============================================================================

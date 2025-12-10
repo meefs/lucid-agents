@@ -198,7 +198,11 @@ function createStorageFromConfig(
 
 export function createPaymentsRuntime(
   paymentsOption: PaymentsConfig | false | undefined,
-  agentId?: string
+  agentId?: string,
+  customStorageFactory?: (
+    storageConfig?: PaymentStorageConfig,
+    agentId?: string
+  ) => PaymentStorage
 ): PaymentsRuntime | undefined {
   const config: PaymentsConfig | undefined =
     paymentsOption === false ? undefined : paymentsOption;
@@ -248,7 +252,9 @@ export function createPaymentsRuntime(
     // Create payment tracker if we need tracking for either direction
     if (needsOutgoingTracking || needsIncomingTracking) {
       try {
-        const storage = createStorageFromConfig(config.storage, agentId);
+        const storage = customStorageFactory
+          ? customStorageFactory(config.storage, agentId)
+          : createStorageFromConfig(config.storage, agentId);
         paymentTracker = createPaymentTracker(storage);
       } catch (error) {
         // Storage initialization failed - throw error (agent startup fails)

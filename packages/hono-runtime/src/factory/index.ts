@@ -13,17 +13,29 @@ import { wallets } from '@lucid-agents/wallet';
 import { ap2 } from '@lucid-agents/ap2';
 import { analytics } from '@lucid-agents/analytics';
 import { z } from 'zod';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { AgentRuntime } from '@lucid-agents/types';
-import type { PaymentsConfig } from '@lucid-agents/types/payments';
+import type {
+  PaymentsConfig,
+  PaymentStorageConfig,
+} from '@lucid-agents/types/payments';
+import type { PaymentStorage } from '@lucid-agents/payments';
 import type { AgentDefinition, SerializedEntrypoint } from '../store/types';
 import { HandlerRegistry } from '../handlers/registry';
 import { createJsHandler } from '../handlers/js';
 import { createUrlHandler } from '../handlers/url';
 import type { HandlerFn } from '../handlers';
+import { createDrizzlePaymentStorage } from '../store/drizzle/payment-storage';
+import type * as schema from '../store/drizzle/schema';
 
 // =============================================================================
 // Types
 // =============================================================================
+
+type PaymentStorageFactory = (
+  storageConfig?: PaymentStorageConfig,
+  agentId?: string
+) => PaymentStorage;
 
 export interface RuntimeFactoryConfig {
   /** Default payments configuration (if agent doesn't specify) */
@@ -49,6 +61,9 @@ export interface RuntimeFactoryConfig {
       privateKey: string;
     };
   };
+
+  /** Drizzle database instance (for shared payment storage when using Postgres) */
+  drizzleDb?: PostgresJsDatabase<typeof schema>;
 }
 
 // =============================================================================
@@ -98,10 +113,23 @@ export async function buildRuntimeForAgent(
         }),
     };
 
+    // Use Drizzle payment storage if available and Postgres is configured
+    let storageFactory: PaymentStorageFactory | undefined;
+
+    if (
+      factoryConfig?.drizzleDb &&
+      paymentsConfig.storage?.type === 'postgres'
+    ) {
+      storageFactory = (_storageConfig, agentId) => {
+        return createDrizzlePaymentStorage(factoryConfig!.drizzleDb!, agentId);
+      };
+    }
+
     builder = builder.use(
       payments({
         config: paymentsExtensionConfig,
         agentId: definition.id,
+        storageFactory,
       })
     );
   }

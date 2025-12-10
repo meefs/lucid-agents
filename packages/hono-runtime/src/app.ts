@@ -11,6 +11,7 @@ import { logger } from 'hono/logger';
 
 import type { AgentStore, AgentDefinition } from './store/types';
 import { SlugExistsError } from './store/types';
+import { DrizzleAgentStore } from './store/drizzle/store';
 import {
   RuntimeCache,
   buildRuntimeForAgent,
@@ -73,6 +74,15 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   const runtimeCache = new RuntimeCache(config.maxCachedRuntimes ?? 100);
   const defaultOwnerId = config.defaultOwnerId ?? 'default-owner';
 
+  // If using Drizzle store, pass the database instance to factory for shared payment storage
+  const factoryConfig: RuntimeFactoryConfig = {
+    ...config.factoryConfig,
+    drizzleDb:
+      config.store instanceof DrizzleAgentStore
+        ? config.store.database
+        : config.factoryConfig?.drizzleDb,
+  };
+
   // ---------------------------------------------------------------------------
   // Middleware
   // ---------------------------------------------------------------------------
@@ -129,10 +139,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
       if (agent.identityConfig?.autoRegister && agent.walletsConfig?.agent) {
         try {
           const domain = new URL(c.req.url).hostname;
-          const runtime = await buildRuntimeForAgent(
-            agent,
-            config.factoryConfig
-          );
+          const runtime = await buildRuntimeForAgent(agent, factoryConfig);
 
           if (runtime.wallets?.agent) {
             const identity = await createAgentIdentity({
@@ -264,7 +271,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
     let runtime = runtimeCache.get(agentId, agent.version);
     if (!runtime) {
       // Build new runtime using factory
-      runtime = await buildRuntimeForAgent(agent, config.factoryConfig);
+      runtime = await buildRuntimeForAgent(agent, factoryConfig);
       runtimeCache.set(agentId, agent.version, runtime);
     }
 

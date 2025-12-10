@@ -14,6 +14,14 @@ import { generateId, rowToDefinition } from './utils';
 export class DrizzleAgentStore implements AgentStore {
   constructor(private db: PostgresJsDatabase<typeof schema>) {}
 
+  /**
+   * Get the underlying Drizzle database instance.
+   * Used for sharing the connection with payment storage.
+   */
+  get database(): PostgresJsDatabase<typeof schema> {
+    return this.db;
+  }
+
   async getById(id: string): Promise<AgentDefinition | null> {
     const rows = await this.db
       .select()

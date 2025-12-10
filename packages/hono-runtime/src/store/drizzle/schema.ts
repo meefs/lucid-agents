@@ -6,6 +6,8 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  serial,
+  bigint,
 } from 'drizzle-orm/pg-core';
 import type {
   SerializedEntrypoint,
@@ -67,3 +69,30 @@ export const agents = pgTable(
 // Type inference
 export type AgentRow = typeof agents.$inferSelect;
 export type NewAgentRow = typeof agents.$inferInsert;
+
+// =============================================================================
+// Payments Table
+// =============================================================================
+
+export const payments = pgTable(
+  'payments',
+  {
+    id: serial('id').primaryKey(),
+    agentId: text('agent_id'),
+    groupName: text('group_name').notNull(),
+    scope: text('scope').notNull(),
+    direction: text('direction').notNull(), // 'outgoing' | 'incoming'
+    amount: bigint('amount', { mode: 'bigint' }).notNull(),
+    timestamp: bigint('timestamp', { mode: 'bigint' }).notNull(),
+  },
+  table => [
+    index('idx_agent_group_scope').on(table.agentId, table.groupName, table.scope),
+    index('idx_group_scope').on(table.groupName, table.scope),
+    index('idx_timestamp').on(table.timestamp),
+    index('idx_direction').on(table.direction),
+  ]
+);
+
+// Type inference
+export type PaymentRow = typeof payments.$inferSelect;
+export type NewPaymentRow = typeof payments.$inferInsert;

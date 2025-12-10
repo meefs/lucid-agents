@@ -36,4 +36,12 @@ export function createDrizzleAgentStore(options: DrizzleStoreOptions): AgentStor
 
 // Re-export for advanced usage
 export { DrizzleAgentStore } from './store';
-export { agents as agentsTable, type AgentRow, type NewAgentRow } from './schema';
+export {
+  agents as agentsTable,
+  payments as paymentsTable,
+  type AgentRow,
+  type NewAgentRow,
+  type PaymentRow,
+  type NewPaymentRow,
+} from './schema';
+export { createDrizzlePaymentStorage, DrizzlePaymentStorage } from './payment-storage';

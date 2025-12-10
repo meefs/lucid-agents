@@ -13,6 +13,10 @@ import { wallets } from '@lucid-agents/wallet';
 import { z } from 'zod';
 import type { AgentRuntime } from '@lucid-agents/types';
 import type { AgentDefinition, SerializedEntrypoint } from '../store/types';
+import { HandlerRegistry } from '../handlers/registry';
+import { createJsHandler } from '../handlers/js';
+import { createUrlHandler } from '../handlers/url';
+import type { HandlerFn } from '../handlers';
 
 // =============================================================================
 // Types
@@ -49,6 +53,10 @@ export async function buildRuntimeForAgent(
   definition: AgentDefinition,
   factoryConfig?: RuntimeFactoryConfig
 ): Promise<AgentRuntime> {
+  const handlerRegistry = new HandlerRegistry();
+  handlerRegistry.registerJsFactory(createJsHandler);
+  handlerRegistry.registerUrlFactory(createUrlHandler);
+
   // Start with base agent metadata
   let builder = createAgent({
     name: definition.name,
@@ -88,7 +96,7 @@ export async function buildRuntimeForAgent(
 
   // Add entrypoints from definition
   for (const ep of definition.entrypoints) {
-    addEntrypointToRuntime(runtime, ep, definition);
+    addEntrypointToRuntime(runtime, ep, definition, handlerRegistry);
   }
 
   return runtime;
@@ -100,14 +108,41 @@ export async function buildRuntimeForAgent(
 function addEntrypointToRuntime(
   runtime: AgentRuntime,
   entrypoint: SerializedEntrypoint,
-  _agent: AgentDefinition
+  agent: AgentDefinition,
+  handlerRegistry: HandlerRegistry
 ): void {
   // Build Zod schemas from JSON Schema (simplified - just accept any for MVP)
   const inputSchema = z.unknown();
   const outputSchema = z.unknown();
 
   // Create handler based on handler type
-  const handler = createHandler(entrypoint);
+  const handler = handlerRegistry.resolveHandler(
+    entrypoint.handlerType,
+    entrypoint.handlerConfig
+  ) as HandlerFn;
+
+  // Wrap HandlerFn to the EntrypointHandler shape expected by runtime
+  const wrappedHandler = async (ctx: any) => {
+    const handlerCtx = {
+      agentId: agent.id,
+      entrypointKey: entrypoint.key,
+      input: ctx.input,
+      sessionId:
+        (ctx.metadata && (ctx.metadata as Record<string, unknown>).sessionId) ||
+        ctx.runId ||
+        crypto.randomUUID(),
+      requestId: ctx.runId ?? crypto.randomUUID(),
+      metadata: (ctx.metadata as Record<string, unknown>) ?? {},
+    };
+
+    const result = await handler(handlerCtx);
+
+    return {
+      output: result.output,
+      usage: result.usage,
+      model: undefined,
+    };
+  };
 
   // Add to runtime
   runtime.entrypoints.add({
@@ -117,33 +152,8 @@ function addEntrypointToRuntime(
     output: outputSchema,
     price: entrypoint.price,
     network: entrypoint.network as any, // Network type is strict, cast for flexibility
-    handler,
+    handler: wrappedHandler,
   });
-}
-
-/**
- * Create a handler function from entrypoint config
- */
-function createHandler(entrypoint: SerializedEntrypoint) {
-  const { handlerType, handlerConfig } = entrypoint;
-
-  if (handlerType === 'builtin') {
-    const name = handlerConfig.name;
-
-    if (name === 'echo' || name === 'passthrough') {
-      return async (ctx: { input: unknown }) => {
-        return {
-          output: ctx.input,
-          usage: { total_tokens: 0 },
-        };
-      };
-    }
-
-    throw new Error(`Unknown builtin handler: ${name}`);
-  }
-
-  // Future: add 'llm', 'graph', 'webhook' handlers
-  throw new Error(`Unknown handler type: ${handlerType}`);
 }
 
 // =============================================================================

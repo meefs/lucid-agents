@@ -164,19 +164,76 @@ export const SerializedEntrypointSchema = z
       description: 'JSON Schema for output validation (empty = accept any)',
     }),
     handlerType: z
-      .enum(['builtin', 'llm', 'graph', 'webhook'])
+      .enum(['builtin', 'llm', 'graph', 'webhook', 'js', 'url'])
       .default('builtin')
       .openapi({
         example: 'builtin',
         description:
-          'Type of handler (e.g., builtin, llm, graph, webhook). Defaults to builtin.',
+          'Type of handler (builtin, js, url, llm, graph, webhook). Defaults to builtin.',
     }),
     handlerConfig: z
-      .object({ name: z.string() })
-      .catchall(z.unknown())
+      .union([
+        z
+          .object({ name: z.string() })
+          .catchall(z.unknown())
+          .openapi({ description: 'Configuration for builtin handlers' }),
+        z
+          .object({
+            code: z.string().min(1).openapi({
+              description: 'Inline JavaScript to execute',
+            }),
+            timeoutMs: z.number().int().positive().optional().openapi({
+              description: 'Execution timeout override in milliseconds',
+              example: 1000,
+            }),
+            network: z
+              .object({
+                allowedHosts: z.array(z.string()).nonempty().openapi({
+                  description: 'Allow-listed hosts for outbound fetch',
+                  example: ['api.example.com', 'example.org'],
+                }),
+                timeoutMs: z.number().int().positive().optional().openapi({
+                  description: 'Network request timeout in milliseconds',
+                  example: 1000,
+                }),
+              })
+              .optional()
+              .openapi({ description: 'Optional network allowlist for fetch' }),
+          })
+          .catchall(z.unknown())
+          .openapi({ description: 'Configuration for js handlers' }),
+        z
+          .object({
+            url: z.string().url().openapi({
+              description: 'Absolute URL to fetch',
+              example: 'https://api.example.com/data',
+            }),
+            method: z.enum(['GET', 'POST']).default('GET').openapi({
+              description: 'HTTP method to use',
+            }),
+            headers: z.record(z.string(), z.string()).optional().openapi({
+              description: 'Headers to include in the request',
+            }),
+            body: z.unknown().optional().openapi({
+              description: 'Optional JSON-serializable body (for POST)',
+            }),
+            timeoutMs: z.number().int().positive().optional().openapi({
+              description: 'Request timeout in milliseconds',
+              example: 1000,
+            }),
+            allowedHosts: z.array(z.string()).nonempty().openapi({
+              description:
+                'Allow-listed hosts for outbound fetch. Use ["*"] to allow any host (not recommended).',
+              example: ['api.example.com'],
+            }),
+          })
+          .catchall(z.unknown())
+          .openapi({ description: 'Configuration for url handlers' }),
+        z.record(z.string(), z.unknown()),
+      ])
       .openapi({
         description: 'Configuration for the handler',
-        example: { name: 'echo', model: 'gpt-4o' },
+        example: { name: 'echo' },
       }),
     price: z.string().optional().openapi({
       example: '0.01',

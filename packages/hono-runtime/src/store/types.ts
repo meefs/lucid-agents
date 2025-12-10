@@ -7,11 +7,42 @@ export interface SerializedEntrypoint {
   description?: string;
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
-  handlerType: 'builtin' | 'llm' | 'graph' | 'webhook';
-  handlerConfig: {
-    name: string;
-    [key: string]: unknown;
-  };
+  handlerType: 'builtin' | 'llm' | 'graph' | 'webhook' | 'js' | 'url';
+  handlerConfig:
+    | {
+        /** Builtin handler name (echo, passthrough, etc.) */
+        name: string;
+        [key: string]: unknown;
+      }
+    | {
+        /** Inline JavaScript to execute */
+        code: string;
+        /** Optional execution timeout override (ms) */
+        timeoutMs?: number;
+        network?: {
+          /** Allow-listed hosts for outbound fetch */
+          allowedHosts: string[];
+          /** Optional per-request network timeout (ms) */
+          timeoutMs?: number;
+        };
+        [key: string]: unknown;
+      }
+    | {
+        /** Absolute URL to fetch and return */
+        url: string;
+        /** HTTP method to use (defaults to GET) */
+        method?: 'GET' | 'POST';
+        /** Optional headers to include */
+        headers?: Record<string, string>;
+        /** Optional JSON-serializable body (for POST) */
+        body?: unknown;
+        /** Optional request timeout in milliseconds */
+        timeoutMs?: number;
+        /** Allowed hosts for this URL handler; use [\"*\"] to allow any host (not recommended) */
+        allowedHosts: string[];
+        [key: string]: unknown;
+      }
+    | Record<string, unknown>;
   /** Price in base units (e.g., "1000" = $0.001 USDC) */
   price?: string;
   /** Payment network (e.g., "base-sepolia") */

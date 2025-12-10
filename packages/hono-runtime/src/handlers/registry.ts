@@ -22,9 +22,21 @@ export class HandlerNotFoundError extends Error {
  */
 export class HandlerRegistry {
   private builtins: Map<string, HandlerFn>;
+  private jsFactory?: (config: unknown) => HandlerFn;
+  private urlFactory?: (config: unknown) => HandlerFn;
 
   constructor() {
     this.builtins = new Map(Object.entries(builtinHandlers));
+  }
+
+  /** Register the JS handler factory */
+  registerJsFactory(factory: (config: unknown) => HandlerFn): void {
+    this.jsFactory = factory;
+  }
+
+  /** Register the URL handler factory */
+  registerUrlFactory(factory: (config: unknown) => HandlerFn): void {
+    this.urlFactory = factory;
   }
 
   /**
@@ -63,6 +75,20 @@ export class HandlerRegistry {
       }
 
       return handler;
+    }
+
+    if (handlerType === 'js') {
+      if (!this.jsFactory) {
+        throw new HandlerNotFoundError('js');
+      }
+      return this.jsFactory(handlerConfig);
+    }
+
+    if (handlerType === 'url') {
+      if (!this.urlFactory) {
+        throw new HandlerNotFoundError('url');
+      }
+      return this.urlFactory(handlerConfig);
     }
 
     // Future: add 'llm', 'graph', 'webhook', 'tool-call' handlers

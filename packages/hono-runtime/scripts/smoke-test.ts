@@ -55,6 +55,30 @@ async function main() {
           handlerType: 'builtin',
           handlerConfig: { name: 'passthrough' },
         },
+        {
+          key: 'now',
+          description: 'Returns current timestamp via JS handler',
+          inputSchema: {},
+          outputSchema: {},
+          handlerType: 'js',
+          handlerConfig: {
+            code: 'return { now: Date.now(), input };',
+            timeoutMs: 500,
+          },
+        },
+        {
+          key: 'example-api',
+          description: 'Calls an external API and returns the response',
+          inputSchema: {},
+          outputSchema: {},
+          handlerType: 'url',
+          handlerConfig: {
+            url: 'https://example.com',
+            allowedHosts: ['example.com'],
+            timeoutMs: 1000,
+            method: 'GET',
+          },
+        },
       ],
       metadata: {
         createdBy: 'smoke-test',
@@ -164,8 +188,50 @@ async function main() {
   );
   console.log('   PASS\n');
 
+  // 8. Invoke JS entrypoint
+  console.log('8. Invoking JS entrypoint...');
+  const invokeJsRes = await fetch(
+    `${BASE_URL}/agents/${agent.id}/entrypoints/now/invoke`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: { source: 'smoke-test' } }),
+    }
+  );
+
+  if (invokeJsRes.status !== 200) {
+    const err = await invokeJsRes.text();
+    console.error(`   FAIL: JS invoke failed (${invokeJsRes.status}): ${err}`);
+    process.exit(1);
+  }
+
+  const jsResult = await invokeJsRes.json();
+  console.log(`   Output: ${JSON.stringify(jsResult.output)}`);
+  console.log('   PASS\n');
+
+  // 9. Invoke URL entrypoint
+  console.log('9. Invoking URL entrypoint...');
+  const invokeUrlRes = await fetch(
+    `${BASE_URL}/agents/${agent.id}/entrypoints/example-api/invoke`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: {} }),
+    }
+  );
+
+  if (invokeUrlRes.status !== 200) {
+    const err = await invokeUrlRes.text();
+    console.error(`   FAIL: URL invoke failed (${invokeUrlRes.status}): ${err}`);
+    process.exit(1);
+  }
+
+  const urlResult = await invokeUrlRes.json();
+  console.log(`   Status: ${urlResult.output?.status}`);
+  console.log('   PASS\n');
+
   // 8. Update agent
-  console.log('8. Updating agent...');
+  console.log('10. Updating agent...');
   const updateRes = await fetch(`${BASE_URL}/api/agents/${agent.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -226,6 +292,30 @@ async function main() {
           handlerConfig: { name: 'echo' },
           price: '0.05', // $0.05 per call
           network: 'base', // Override network for this endpoint
+        },
+        {
+          key: 'now-paid',
+          description: 'Returns current timestamp via JS handler (paid agent)',
+          inputSchema: {},
+          outputSchema: {},
+          handlerType: 'js',
+          handlerConfig: {
+            code: 'return { now: Date.now(), input };',
+            timeoutMs: 500,
+          },
+        },
+        {
+          key: 'example-api-paid',
+          description: 'Calls an external API and returns the response (paid agent)',
+          inputSchema: {},
+          outputSchema: {},
+          handlerType: 'url',
+          handlerConfig: {
+            url: 'https://example.com',
+            allowedHosts: ['example.com'],
+            timeoutMs: 1000,
+            method: 'GET',
+          },
         },
       ],
       // Payment configuration for receiving payments

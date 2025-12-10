@@ -3,10 +3,11 @@ import { createPaymentTracker } from '../payment-tracker';
 import { createInMemoryPaymentStorage } from '../in-memory-payment-storage';
 import { createPostgresPaymentStorage } from '../postgres-payment-storage';
 
-// Use test database connection string from env or default
+// Use test database connection string from env
+// Only use default in local dev (when not in CI)
 const TEST_DB_URL =
   process.env.TEST_POSTGRES_URL ||
-  'postgresql://postgres:test_password@localhost:5435/lucid_agents_test?schema=public';
+  (process.env.CI ? undefined : 'postgresql://postgres:test_password@localhost:5435/lucid_agents_test?schema=public');
 
 describe('PaymentTracker', () => {
   let tracker: ReturnType<typeof createPaymentTracker>;
@@ -268,14 +269,17 @@ describe('PaymentTracker', () => {
     });
   });
 
-  describe('with Postgres storage and agentId', () => {
+  // Skip Postgres tests if no database URL is provided
+  const describeWithDb = TEST_DB_URL ? describe : describe.skip;
+
+  describeWithDb('with Postgres storage and agentId', () => {
     let trackerWithAgent: ReturnType<typeof createPaymentTracker>;
     let trackerWithoutAgent: ReturnType<typeof createPaymentTracker>;
     const agentId = 'test-agent-123';
 
     beforeEach(async () => {
-      const storageWithAgent = createPostgresPaymentStorage(TEST_DB_URL, agentId);
-      const storageWithoutAgent = createPostgresPaymentStorage(TEST_DB_URL);
+      const storageWithAgent = createPostgresPaymentStorage(TEST_DB_URL!, agentId);
+      const storageWithoutAgent = createPostgresPaymentStorage(TEST_DB_URL!);
       trackerWithAgent = createPaymentTracker(storageWithAgent);
       trackerWithoutAgent = createPaymentTracker(storageWithoutAgent);
 
@@ -337,7 +341,7 @@ describe('PaymentTracker', () => {
 
     it('should isolate limits between agents', async () => {
       const agentId2 = 'test-agent-456';
-      const storage2 = createPostgresPaymentStorage(TEST_DB_URL, agentId2);
+      const storage2 = createPostgresPaymentStorage(TEST_DB_URL!, agentId2);
       const tracker2 = createPaymentTracker(storage2);
 
       // Agent 1 records payment

@@ -2,12 +2,18 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { createPostgresPaymentStorage } from '../postgres-payment-storage';
 import type { PaymentStorage } from '../payment-storage';
 
-// Use test database connection string from env or default to test DB
+// Use test database connection string from env
+// Only use default in local dev (when not in CI)
 const TEST_DB_URL =
   process.env.TEST_POSTGRES_URL ||
-  'postgresql://postgres:test_password@localhost:5435/lucid_agents_test?schema=public';
+  (process.env.CI
+    ? undefined
+    : 'postgresql://postgres:test_password@localhost:5435/lucid_agents_test?schema=public');
 
-describe('PostgresPaymentStorage with agentId', () => {
+// Skip tests if no database URL is provided
+const describeWithDb = TEST_DB_URL ? describe : describe.skip;
+
+describeWithDb('PostgresPaymentStorage with agentId', () => {
   let storageWithAgent: PaymentStorage;
   let storageWithoutAgent: PaymentStorage;
   let storageAgentB: PaymentStorage;

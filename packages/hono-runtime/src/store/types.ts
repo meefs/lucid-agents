@@ -1,3 +1,5 @@
+import type { PaymentPolicyGroup } from '@lucid-agents/types/payments';
+
 // =============================================================================
 // Serialized Entrypoint (stored in DB/memory)
 // =============================================================================
@@ -62,6 +64,7 @@ export interface SerializedPaymentsConfig {
     type: 'sqlite' | 'postgres';
     postgres?: { connectionString: string };
   };
+  policyGroups?: PaymentPolicyGroup[];
 }
 
 export interface SerializedWalletsConfig {

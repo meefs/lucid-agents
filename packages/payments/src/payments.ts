@@ -165,9 +165,12 @@ export const paymentRequiredResponse = (
 /**
  * Creates payment storage based on configuration.
  * Defaults to SQLite if no storage config is provided.
+ * @param storageConfig - Storage configuration
+ * @param agentId - Optional agent ID for multi-agent platforms (only used for Postgres)
  */
 function createStorageFromConfig(
-  storageConfig?: PaymentStorageConfig
+  storageConfig?: PaymentStorageConfig,
+  agentId?: string
 ): PaymentStorage {
   if (!storageConfig) {
     // Default: SQLite
@@ -184,7 +187,8 @@ function createStorageFromConfig(
         );
       }
       return createPostgresPaymentStorage(
-        storageConfig.postgres.connectionString
+        storageConfig.postgres.connectionString,
+        agentId
       );
     case 'sqlite':
     default:
@@ -193,7 +197,8 @@ function createStorageFromConfig(
 }
 
 export function createPaymentsRuntime(
-  paymentsOption: PaymentsConfig | false | undefined
+  paymentsOption: PaymentsConfig | false | undefined,
+  agentId?: string
 ): PaymentsRuntime | undefined {
   const config: PaymentsConfig | undefined =
     paymentsOption === false ? undefined : paymentsOption;
@@ -243,7 +248,7 @@ export function createPaymentsRuntime(
     // Create payment tracker if we need tracking for either direction
     if (needsOutgoingTracking || needsIncomingTracking) {
       try {
-        const storage = createStorageFromConfig(config.storage);
+        const storage = createStorageFromConfig(config.storage, agentId);
         paymentTracker = createPaymentTracker(storage);
       } catch (error) {
         // Storage initialization failed - throw error (agent startup fails)

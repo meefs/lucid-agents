@@ -14,6 +14,7 @@ import { ap2 } from '@lucid-agents/ap2';
 import { analytics } from '@lucid-agents/analytics';
 import { z } from 'zod';
 import type { AgentRuntime } from '@lucid-agents/types';
+import type { PaymentsConfig } from '@lucid-agents/types/payments';
 import type { AgentDefinition, SerializedEntrypoint } from '../store/types';
 import { HandlerRegistry } from '../handlers/registry';
 import { createJsHandler } from '../handlers/js';
@@ -85,28 +86,59 @@ export async function buildRuntimeForAgent(
   const paymentsConfig =
     definition.paymentsConfig ?? factoryConfig?.defaultPaymentsConfig;
   if (paymentsConfig) {
-    const paymentsExtensionConfig: any = {
-      payTo: paymentsConfig.payTo,
-      network: paymentsConfig.network as any, // Network type is strict, cast for flexibility
-      facilitatorUrl: paymentsConfig.facilitatorUrl as `${string}://${string}`,
+    const paymentsExtensionConfig: PaymentsConfig = {
+      payTo: paymentsConfig.payTo as PaymentsConfig['payTo'],
+      network: paymentsConfig.network as PaymentsConfig['network'],
+      facilitatorUrl:
+        paymentsConfig.facilitatorUrl as PaymentsConfig['facilitatorUrl'],
+      ...(paymentsConfig.storage && { storage: paymentsConfig.storage }),
+      ...('policyGroups' in paymentsConfig &&
+        paymentsConfig.policyGroups && {
+          policyGroups: paymentsConfig.policyGroups,
+        }),
     };
 
-    // Include storage config if provided (for analytics)
-    if (paymentsConfig.storage) {
-      paymentsExtensionConfig.storage = paymentsConfig.storage;
-    }
-
-    builder = builder.use(payments({ config: paymentsExtensionConfig }));
+    builder = builder.use(
+      payments({
+        config: paymentsExtensionConfig,
+        agentId: definition.id,
+      })
+    );
   }
 
   // Add wallets if agent has wallet config or factory has default
   const walletsConfig =
     definition.walletsConfig ?? factoryConfig?.defaultWalletsConfig;
   if (walletsConfig?.agent) {
-    // Cast to any to handle the union type mismatch between serialized and runtime config
-    builder = builder.use(
-      wallets({ config: { agent: walletsConfig.agent as any } })
-    );
+    const agentWallet = walletsConfig.agent;
+    // Construct proper AgentWalletConfig based on type
+    if (agentWallet.type === 'local' && agentWallet.privateKey) {
+      builder = builder.use(
+        wallets({
+          config: {
+            agent: {
+              type: 'local',
+              privateKey: agentWallet.privateKey,
+            },
+          },
+        })
+      );
+    } else if (agentWallet.type === 'thirdweb') {
+      builder = builder.use(
+        wallets({
+          config: {
+            agent: {
+              type: 'thirdweb',
+              secretKey: agentWallet.secretKey ?? '',
+              clientId: agentWallet.clientId,
+              walletLabel: agentWallet.walletLabel ?? '',
+              chainId: agentWallet.chainId ?? 84532,
+            },
+          },
+        })
+      );
+    }
+    // Note: 'signer' type requires code-level integration, not supported in platform
   }
 
   // Add AP2 extension if configured
@@ -121,7 +153,7 @@ export async function buildRuntimeForAgent(
   }
 
   // Add analytics extension if payments are enabled (analytics depends on payments)
-  if (paymentsConfig) {
+  if (paymentsConfig && definition.analyticsConfig?.enabled) {
     builder = builder.use(analytics());
   }
 

@@ -17,6 +17,7 @@ import { policiesFromConfig } from './env';
 export function payments(options?: {
   config?: PaymentsConfig | false;
   policies?: string;
+  agentId?: string;
 }): Extension<{ payments?: PaymentsRuntime }> {
   let paymentsRuntime: PaymentsRuntime | undefined;
 
@@ -40,7 +41,7 @@ export function payments(options?: {
         }
       }
 
-      paymentsRuntime = createPaymentsRuntime(config);
+      paymentsRuntime = createPaymentsRuntime(config, options?.agentId);
       return { payments: paymentsRuntime };
     },
     onEntrypointAdded(entrypoint: EntrypointDef, runtime: AgentRuntime) {

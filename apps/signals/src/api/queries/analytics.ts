@@ -1,27 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '../client'
-import type { _Error } from '@lucid-agents/hono-runtime/sdk'
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../client';
+import {
+  getApiAgentsByAgentIdAnalyticsSummaryOptions,
+  getApiAgentsByAgentIdAnalyticsTransactionsOptions,
+  getApiAgentsByAgentIdAnalyticsExportCsvOptions,
+  getApiAgentsByAgentIdAnalyticsExportJsonOptions,
+} from '@lucid-agents/hono-runtime/sdk/@tanstack/react-query';
+import type {
+  AnalyticsSummary,
+  Transaction,
+} from '@lucid-agents/hono-runtime/sdk/types.gen';
 
-const getBaseUrl = (): string => {
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
-  }
-  return 'http://localhost:8787'
-}
+// Re-export types for convenience
+export type { AnalyticsSummary, Transaction };
 
 export interface UseAnalyticsSummaryOptions {
-  windowHours?: number
-  enabled?: boolean
-}
-
-export interface AnalyticsSummary {
-  outgoingTotal: string
-  incomingTotal: string
-  netTotal: string
-  outgoingCount: number
-  incomingCount: number
-  windowStart: number | null
-  windowEnd: number
+  windowHours?: number;
+  enabled?: boolean;
 }
 
 /**
@@ -31,44 +26,22 @@ export function useAnalyticsSummary(
   agentId: string,
   options: UseAnalyticsSummaryOptions = {}
 ) {
-  const { windowHours, enabled = true } = options
+  const { windowHours, enabled = true } = options;
 
-  return useQuery<AnalyticsSummary, _Error>({
-    queryKey: ['analytics', 'summary', agentId, windowHours],
-    queryFn: async () => {
-      const url = new URL(
-        `/api/agents/${agentId}/analytics/summary`,
-        getBaseUrl()
-      )
-      if (windowHours) {
-        url.searchParams.set('windowHours', windowHours.toString())
-      }
-      const response = await fetch(url.toString())
-      if (!response.ok) {
-        const error = await response.json()
-        throw error
-      }
-      return response.json()
-    },
+  return useQuery({
+    ...getApiAgentsByAgentIdAnalyticsSummaryOptions({
+      client: apiClient,
+      path: { agentId },
+      query: windowHours ? { windowHours } : undefined,
+    }),
     enabled: enabled && !!agentId,
-  })
+  });
 }
 
 export interface UseAnalyticsTransactionsOptions {
-  windowHours?: number
-  direction?: 'incoming' | 'outgoing'
-  enabled?: boolean
-}
-
-export interface Transaction {
-  id?: string
-  groupName: string
-  scope: string
-  direction: 'incoming' | 'outgoing'
-  amount: string
-  amountUsdc: string
-  timestamp: number
-  timestampIso: string
+  windowHours?: number;
+  direction?: 'incoming' | 'outgoing';
+  enabled?: boolean;
 }
 
 /**
@@ -78,85 +51,45 @@ export function useAnalyticsTransactions(
   agentId: string,
   options: UseAnalyticsTransactionsOptions = {}
 ) {
-  const { windowHours, direction, enabled = true } = options
+  const { windowHours, direction, enabled = true } = options;
 
-  return useQuery<Transaction[], _Error>({
-    queryKey: ['analytics', 'transactions', agentId, windowHours, direction],
-    queryFn: async () => {
-      const url = new URL(
-        `/api/agents/${agentId}/analytics/transactions`,
-        getBaseUrl()
-      )
-      if (windowHours) {
-        url.searchParams.set('windowHours', windowHours.toString())
-      }
-      if (direction) {
-        url.searchParams.set('direction', direction)
-      }
-      const response = await fetch(url.toString())
-      if (!response.ok) {
-        const error = await response.json()
-        throw error
-      }
-      return response.json()
-    },
+  return useQuery({
+    ...getApiAgentsByAgentIdAnalyticsTransactionsOptions({
+      client: apiClient,
+      path: { agentId },
+      query: {
+        ...(windowHours && { windowHours }),
+        ...(direction && { direction }),
+      },
+    }),
     enabled: enabled && !!agentId,
-  })
+  });
 }
 
 /**
  * Export analytics as CSV
  */
-export function useAnalyticsExportCSV(
-  agentId: string,
-  windowHours?: number
-) {
-  return useQuery<string, _Error>({
-    queryKey: ['analytics', 'export', 'csv', agentId, windowHours],
-    queryFn: async () => {
-      const url = new URL(
-        `/api/agents/${agentId}/analytics/export/csv`,
-        getBaseUrl()
-      )
-      if (windowHours) {
-        url.searchParams.set('windowHours', windowHours.toString())
-      }
-      const response = await fetch(url.toString())
-      if (!response.ok) {
-        const error = await response.json()
-        throw error
-      }
-      return response.text()
-    },
+export function useAnalyticsExportCSV(agentId: string, windowHours?: number) {
+  return useQuery({
+    ...getApiAgentsByAgentIdAnalyticsExportCsvOptions({
+      client: apiClient,
+      path: { agentId },
+      query: windowHours ? { windowHours } : undefined,
+    }),
     enabled: false, // Only fetch when explicitly called
-  })
+  });
 }
 
 /**
  * Export analytics as JSON
  */
-export function useAnalyticsExportJSON(
-  agentId: string,
-  windowHours?: number
-) {
-  return useQuery<{ summary: AnalyticsSummary; transactions: Transaction[] }, _Error>({
-    queryKey: ['analytics', 'export', 'json', agentId, windowHours],
-    queryFn: async () => {
-      const url = new URL(
-        `/api/agents/${agentId}/analytics/export/json`,
-        getBaseUrl()
-      )
-      if (windowHours) {
-        url.searchParams.set('windowHours', windowHours.toString())
-      }
-      const response = await fetch(url.toString())
-      if (!response.ok) {
-        const error = await response.json()
-        throw error
-      }
-      return response.json()
-    },
+export function useAnalyticsExportJSON(agentId: string, windowHours?: number) {
+  return useQuery({
+    ...getApiAgentsByAgentIdAnalyticsExportJsonOptions({
+      client: apiClient,
+      path: { agentId },
+      query: windowHours ? { windowHours } : undefined,
+    }),
     enabled: false, // Only fetch when explicitly called
-  })
+  });
 }
-

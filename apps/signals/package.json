@@ -15,9 +15,9 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@lucid-agents/hono-runtime": "workspace:*",
     "@cloudflare/vite-plugin": "^1.13.8",
     "@faker-js/faker": "^10.0.0",
+    "@lucid-agents/hono-runtime": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -43,6 +43,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-error-boundary": "^5.0.0",
+    "recharts": "^3.5.1",
     "storybook": "^10.1.5",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.6",

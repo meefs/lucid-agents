@@ -18,6 +18,13 @@ import {
 } from './factory';
 import * as routes from './openapi/routes';
 import type * as schemaTypes from './openapi/schemas';
+import { createAgentIdentity } from '@lucid-agents/identity';
+import {
+  getSummary,
+  getAllTransactions,
+  exportToCSV,
+  exportToJSON,
+} from '@lucid-agents/analytics';
 
 // =============================================================================
 // Configuration Types
@@ -117,6 +124,69 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
 
     try {
       const agent = await config.store.create({ ...body, ownerId });
+
+      // Handle identity registration if configured and auto-register is enabled
+      if (agent.identityConfig?.autoRegister && agent.walletsConfig?.agent) {
+        try {
+          const domain = new URL(c.req.url).hostname;
+          const runtime = await buildRuntimeForAgent(
+            agent,
+            config.factoryConfig
+          );
+
+          if (runtime.wallets?.agent) {
+            const identity = await createAgentIdentity({
+              runtime,
+              domain,
+              chainId: agent.identityConfig.chainId,
+              registryAddress: agent.identityConfig.registryAddress as
+                | `0x${string}`
+                | undefined,
+              autoRegister: true,
+              trustModels: agent.identityConfig.trustModels,
+              trustOverrides: agent.identityConfig.trustOverrides,
+            });
+
+            // Update agent metadata with identity status
+            const updatedMetadata = {
+              ...agent.metadata,
+              identityStatus:
+                identity.record && identity.record.agentId
+                  ? 'registered'
+                  : 'failed',
+              identityRecord: identity.record
+                ? {
+                    agentId: identity.record.agentId?.toString(),
+                    owner: identity.record.owner,
+                    tokenURI: identity.record.tokenURI,
+                  }
+                : undefined,
+              identityError: undefined,
+            };
+
+            await config.store.update(agent.id, { metadata: updatedMetadata });
+            // Reload agent to get updated metadata
+            const updatedAgent = await config.store.getById(agent.id);
+            if (updatedAgent) {
+              return c.json(serializeAgent(updatedAgent), 201);
+            }
+          }
+        } catch (identityErr) {
+          // Log error but don't fail agent creation
+          console.error('Identity registration failed:', identityErr);
+          // Update metadata with failure status
+          const updatedMetadata = {
+            ...agent.metadata,
+            identityStatus: 'failed',
+            identityError:
+              identityErr instanceof Error
+                ? identityErr.message
+                : String(identityErr),
+          };
+          await config.store.update(agent.id, { metadata: updatedMetadata });
+        }
+      }
+
       return c.json(serializeAgent(agent), 201);
     } catch (err) {
       if (err instanceof SlugExistsError) {
@@ -333,6 +403,261 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   }) as any);
 
   app.get('/swagger', swaggerUI({ url: '/doc' }));
+
+  // ---------------------------------------------------------------------------
+  // Analytics Routes
+  // ---------------------------------------------------------------------------
+
+  // Get analytics summary
+  app.openapi(routes.getAnalyticsSummaryRoute, (async (c: any) => {
+    const { agentId } = c.req.valid('param');
+    const { windowHours } = c.req.valid('query');
+
+    const result = await getOrBuildRuntime(agentId);
+    if (!result) {
+      return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
+    }
+
+    const { runtime } = result;
+
+    if (!runtime.analytics?.paymentTracker) {
+      return c.json(
+        {
+          error: 'Analytics not available',
+          code: 'ANALYTICS_NOT_AVAILABLE',
+          details: { reason: 'Payments not enabled' },
+        },
+        400
+      );
+    }
+
+    const windowMs = windowHours ? windowHours * 60 * 60 * 1000 : undefined;
+    const summary = await getSummary(
+      runtime.analytics.paymentTracker,
+      windowMs
+    );
+
+    // Convert bigint to string for JSON
+    return c.json(
+      {
+        outgoingTotal: summary.outgoingTotal.toString(),
+        incomingTotal: summary.incomingTotal.toString(),
+        netTotal: summary.netTotal.toString(),
+        outgoingCount: summary.outgoingCount,
+        incomingCount: summary.incomingCount,
+        windowStart: summary.windowStart ?? null,
+        windowEnd: summary.windowEnd,
+      },
+      200
+    );
+  }) as any);
+
+  // Get analytics transactions
+  app.openapi(routes.getAnalyticsTransactionsRoute, (async (c: any) => {
+    const { agentId } = c.req.valid('param');
+    const { windowHours, direction } = c.req.valid('query');
+
+    const result = await getOrBuildRuntime(agentId);
+    if (!result) {
+      return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
+    }
+
+    const { runtime } = result;
+
+    if (!runtime.analytics?.paymentTracker) {
+      return c.json(
+        {
+          error: 'Analytics not available',
+          code: 'ANALYTICS_NOT_AVAILABLE',
+          details: { reason: 'Payments not enabled' },
+        },
+        400
+      );
+    }
+
+    const windowMs = windowHours ? windowHours * 60 * 60 * 1000 : undefined;
+    let transactions = await getAllTransactions(
+      runtime.analytics.paymentTracker,
+      windowMs
+    );
+
+    // Filter by direction if specified
+    if (direction) {
+      transactions = transactions.filter(t => t.direction === direction);
+    }
+
+    // Convert bigint to string for JSON
+    return c.json(
+      transactions.map(t => ({
+        ...t,
+        amount: t.amount.toString(),
+      })),
+      200
+    );
+  }) as any);
+
+  // Export analytics CSV
+  app.openapi(routes.exportAnalyticsCSVRoute, (async (c: any) => {
+    const { agentId } = c.req.valid('param');
+    const { windowHours } = c.req.valid('query');
+
+    const result = await getOrBuildRuntime(agentId);
+    if (!result) {
+      return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
+    }
+
+    const { runtime } = result;
+
+    if (!runtime.analytics?.paymentTracker) {
+      return c.json(
+        {
+          error: 'Analytics not available',
+          code: 'ANALYTICS_NOT_AVAILABLE',
+          details: { reason: 'Payments not enabled' },
+        },
+        400
+      );
+    }
+
+    const windowMs = windowHours ? windowHours * 60 * 60 * 1000 : undefined;
+    const csv = await exportToCSV(runtime.analytics.paymentTracker, windowMs);
+
+    return c.text(csv, 200, {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="analytics.csv"',
+    });
+  }) as any);
+
+  // Export analytics JSON
+  app.openapi(routes.exportAnalyticsJSONRoute, (async (c: any) => {
+    const { agentId } = c.req.valid('param');
+    const { windowHours } = c.req.valid('query');
+
+    const result = await getOrBuildRuntime(agentId);
+    if (!result) {
+      return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
+    }
+
+    const { runtime } = result;
+
+    if (!runtime.analytics?.paymentTracker) {
+      return c.json(
+        {
+          error: 'Analytics not available',
+          code: 'ANALYTICS_NOT_AVAILABLE',
+          details: { reason: 'Payments not enabled' },
+        },
+        400
+      );
+    }
+
+    const windowMs = windowHours ? windowHours * 60 * 60 * 1000 : undefined;
+    const json = await exportToJSON(runtime.analytics.paymentTracker, windowMs);
+
+    return c.text(json, 200, {
+      'Content-Type': 'application/json',
+      'Content-Disposition': 'attachment; filename="analytics.json"',
+    });
+  }) as any);
+
+  // ---------------------------------------------------------------------------
+  // Identity Routes
+  // ---------------------------------------------------------------------------
+
+  // Retry identity registration
+  app.openapi(routes.retryIdentityRoute, (async (c: any) => {
+    const { agentId } = c.req.valid('param');
+
+    const agent = await config.store.getById(agentId);
+    if (!agent) {
+      return c.json({ error: 'Agent not found', code: 'NOT_FOUND' }, 404);
+    }
+
+    if (!agent.identityConfig || !agent.walletsConfig?.agent) {
+      return c.json(
+        {
+          error: 'Identity not configured',
+          code: 'IDENTITY_NOT_CONFIGURED',
+          details: {
+            reason:
+              'Identity config or wallet config is missing. Both are required for identity registration.',
+          },
+        },
+        400
+      );
+    }
+
+    try {
+      const domain = new URL(c.req.url).hostname;
+      const runtime = await buildRuntimeForAgent(agent, config.factoryConfig);
+
+      if (!runtime.wallets?.agent) {
+        return c.json(
+          {
+            error: 'Wallet not available',
+            code: 'WALLET_NOT_AVAILABLE',
+            details: { reason: 'Agent wallet is not configured' },
+          },
+          400
+        );
+      }
+
+      const identity = await createAgentIdentity({
+        runtime,
+        domain,
+        chainId: agent.identityConfig.chainId,
+        registryAddress: agent.identityConfig.registryAddress as
+          | `0x${string}`
+          | undefined,
+        autoRegister: true,
+        trustModels: agent.identityConfig.trustModels,
+        trustOverrides: agent.identityConfig.trustOverrides,
+      });
+
+      // Update agent metadata with identity status
+      const updatedMetadata = {
+        ...agent.metadata,
+        identityStatus:
+          identity.record && identity.record.agentId ? 'registered' : 'failed',
+        identityRecord: identity.record
+          ? {
+              agentId: identity.record.agentId?.toString(),
+              owner: identity.record.owner,
+              tokenURI: identity.record.tokenURI,
+            }
+          : undefined,
+        identityError: undefined,
+      };
+
+      await config.store.update(agentId, { metadata: updatedMetadata });
+
+      return c.json(
+        {
+          status:
+            identity.record && identity.record.agentId
+              ? 'registered'
+              : 'failed',
+          agentId: identity.record?.agentId?.toString(),
+          owner: identity.record?.owner,
+          tokenURI: identity.record?.tokenURI,
+          domain,
+          error: undefined,
+        },
+        200
+      );
+    } catch (err) {
+      return c.json(
+        {
+          error: 'Identity registration failed',
+          code: 'IDENTITY_REGISTRATION_FAILED',
+          details: {
+            reason: err instanceof Error ? err.message : String(err),
+          },
+        },
+        500
+      );
+    }
+  }) as any);
 
   // ---------------------------------------------------------------------------
   // Health Route

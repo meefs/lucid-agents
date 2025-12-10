@@ -86,6 +86,23 @@ export const BuiltinHandlerConfigSchema = z
 // Extension Config Schemas
 // =============================================================================
 
+export const PaymentStorageConfigSchema = z
+  .object({
+    type: z.enum(['sqlite', 'postgres']).openapi({
+      example: 'sqlite',
+      description: 'Storage backend type. SQLite is automatic (no configuration needed). Postgres requires a connection string.',
+    }),
+    postgres: z
+      .object({
+        connectionString: z.string().openapi({
+          example: 'postgresql://user:pass@localhost:5432/dbname',
+          description: 'PostgreSQL connection string (required when type is postgres)',
+        }),
+      })
+      .optional(),
+  })
+  .openapi('PaymentStorageConfig');
+
 export const PaymentsConfigSchema = z
   .object({
     payTo: z.string().openapi({
@@ -99,6 +116,9 @@ export const PaymentsConfigSchema = z
     facilitatorUrl: z.string().url().openapi({
       example: 'https://facilitator.example.com',
       description: 'URL of the x402 facilitator service',
+    }),
+    storage: PaymentStorageConfigSchema.optional().openapi({
+      description: 'Payment storage configuration (for analytics). Defaults to SQLite if not specified.',
     }),
   })
   .openapi('PaymentsConfig');
@@ -142,6 +162,80 @@ export const A2AConfigSchema = z
     }),
   })
   .openapi('A2AConfig');
+
+export const AP2ConfigSchema = z
+  .object({
+    roles: z
+      .array(
+        z.enum(['merchant', 'shopper', 'credentials-provider', 'payment-processor'])
+      )
+      .min(1)
+      .openapi({
+        example: ['merchant', 'shopper'],
+        description: 'AP2 payment roles this agent supports',
+      }),
+    description: z.string().optional().openapi({
+      example: 'Payment-enabled agent for e-commerce',
+      description: 'Optional description of AP2 capabilities',
+    }),
+    required: z.boolean().default(false).openapi({
+      example: false,
+      description: 'Whether AP2 payment is required for this agent',
+    }),
+  })
+  .openapi('AP2Config');
+
+export const AnalyticsConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true).openapi({
+      example: true,
+      description: 'Whether analytics tracking is enabled (requires payments)',
+    }),
+  })
+  .openapi('AnalyticsConfig');
+
+export const IdentityConfigSchema = z
+  .object({
+    chainId: z.number().int().positive().optional().openapi({
+      example: 84532,
+      description: 'Chain ID for ERC-8004 registry (defaults to Base Sepolia: 84532)',
+    }),
+    registryAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional().openapi({
+      example: '0x1234567890abcdef1234567890abcdef12345678',
+      description: 'ERC-8004 registry contract address (optional, falls back to env/default)',
+    }),
+    autoRegister: z.boolean().default(false).openapi({
+      example: false,
+      description: 'Whether to automatically register identity if not found',
+    }),
+    trustModels: z
+      .array(z.string())
+      .default(['feedback', 'inference-validation'])
+      .openapi({
+        example: ['feedback', 'inference-validation', 'tee-attestation'],
+        description: 'Trust models to advertise (e.g., feedback, inference-validation, tee-attestation)',
+      }),
+    trustOverrides: z
+      .object({
+        validationRequestsUri: z.string().url().optional().openapi({
+          example: 'https://example.com/validation-requests',
+          description: 'URL for validation requests mirror',
+        }),
+        validationResponsesUri: z.string().url().optional().openapi({
+          example: 'https://example.com/validation-responses',
+          description: 'URL for validation responses mirror',
+        }),
+        feedbackDataUri: z.string().url().optional().openapi({
+          example: 'https://example.com/feedback-data',
+          description: 'URL for feedback data mirror',
+        }),
+      })
+      .optional()
+      .openapi({
+        description: 'Optional custom trust config overrides (off-chain mirrors)',
+      }),
+  })
+  .openapi('IdentityConfig');
 
 // =============================================================================
 // Entrypoint Schema
@@ -291,6 +385,15 @@ export const CreateAgentSchema = z
     }),
     a2aConfig: A2AConfigSchema.optional().openapi({
       description: 'Agent-to-agent protocol configuration',
+    }),
+    ap2Config: AP2ConfigSchema.optional().openapi({
+      description: 'AP2 (Agent Payments Protocol) configuration',
+    }),
+    analyticsConfig: AnalyticsConfigSchema.optional().openapi({
+      description: 'Analytics configuration (requires payments to be enabled)',
+    }),
+    identityConfig: IdentityConfigSchema.optional().openapi({
+      description: 'ERC-8004 identity configuration (requires wallet to be configured)',
     }),
   })
   .openapi('CreateAgent');
@@ -486,6 +589,9 @@ export type Health = z.infer<typeof HealthSchema>;
 export type PaymentsConfig = z.infer<typeof PaymentsConfigSchema>;
 export type WalletsConfig = z.infer<typeof WalletsConfigSchema>;
 export type A2AConfig = z.infer<typeof A2AConfigSchema>;
+export type AP2Config = z.infer<typeof AP2ConfigSchema>;
+export type AnalyticsConfig = z.infer<typeof AnalyticsConfigSchema>;
+export type IdentityConfig = z.infer<typeof IdentityConfigSchema>;
 export type SerializedEntrypoint = z.infer<typeof SerializedEntrypointSchema>;
 export type CreateAgent = z.infer<typeof CreateAgentSchema>;
 export type AgentDefinition = z.infer<typeof AgentDefinitionSchema>;

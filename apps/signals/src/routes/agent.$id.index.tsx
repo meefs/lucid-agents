@@ -16,6 +16,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Send,
+  ShoppingCart,
+  BarChart3,
+  Fingerprint,
+  Download,
+  RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -33,9 +38,31 @@ import {
   useAgent,
   useAgentEntrypoints,
   useInvokeEntrypoint,
+  useAgentManifest,
+  useAnalyticsSummary,
+  useAnalyticsTransactions,
+  useRetryIdentityRegistration,
   isApiError,
   type InvokeResponse,
 } from '@/api';
+
+// Helper to get backend API URL (same logic as api/client.ts)
+const getBackendUrl = (): string => {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  return 'http://localhost:8787';
+};
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 export const Route = createFileRoute('/agent/$id/')({
   component: AgentDetailPage,
@@ -45,6 +72,27 @@ function AgentDetailPage() {
   const { id } = Route.useParams();
   const { data: agent, isLoading, error } = useAgent(id);
   const { data: entrypoints } = useAgentEntrypoints(id);
+  const { data: manifest } = useAgentManifest(id);
+
+  // Analytics
+  const [analyticsWindow, setAnalyticsWindow] = useState<number | undefined>(
+    24
+  ); // 24 hours default
+  const { data: analyticsSummary } = useAnalyticsSummary(id, {
+    windowHours: analyticsWindow,
+    enabled: !!agent?.paymentsConfig,
+  });
+  const { data: analyticsTransactions } = useAnalyticsTransactions(id, {
+    windowHours: analyticsWindow,
+    enabled: !!agent?.paymentsConfig,
+  });
+
+  // Identity retry
+  const retryIdentity = useRetryIdentityRegistration(id, {
+    onSuccess: () => {
+      // Refetch agent to get updated metadata
+    },
+  });
 
   if (isLoading) {
     return (
@@ -243,14 +291,357 @@ function AgentDetailPage() {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Manifest URL</span>
                 <CopyableText
-                  text={`/agents/${agent.id}/.well-known/agent.json`}
-                  display="/.well-known/agent.json"
+                  text={`${getBackendUrl()}/agents/${agent.id}/.well-known/agent.json`}
+                  display={`${getBackendUrl()}/agents/${agent.id}/.well-known/agent.json`}
                 />
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* AP2 Config */}
+        {agent.ap2Config && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="size-5 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  AP2 (Agent Payments Protocol)
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <span className="text-muted-foreground text-sm">Roles:</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {agent.ap2Config.roles.map(role => (
+                    <span
+                      key={role}
+                      className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {agent.ap2Config.description && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Description: </span>
+                  <span>{agent.ap2Config.description}</span>
+                </div>
+              )}
+              <div className="text-sm">
+                <span className="text-muted-foreground">Required: </span>
+                <span>{agent.ap2Config.required ? 'Yes' : 'No'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Identity Config */}
+        {agent.identityConfig && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Fingerprint className="size-5 text-muted-foreground" />
+                  <CardTitle className="text-base">ERC-8004 Identity</CardTitle>
+                </div>
+                {agent.metadata?.identityStatus === 'failed' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => retryIdentity.mutate()}
+                    disabled={retryIdentity.isPending}
+                  >
+                    {retryIdentity.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-4" />
+                    )}
+                    Retry Registration
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status:</span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    agent.metadata?.identityStatus === 'registered'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : agent.metadata?.identityStatus === 'failed'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                  }`}
+                >
+                  {String(agent.metadata?.identityStatus || 'not_registered')}
+                </span>
+              </div>
+              {(() => {
+                const record = agent.metadata?.identityRecord;
+                if (
+                  record &&
+                  typeof record === 'object' &&
+                  'agentId' in record
+                ) {
+                  const typedRecord = record as {
+                    agentId?: string;
+                    owner?: string;
+                  };
+                  return (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Agent ID:</span>
+                        <CopyableText
+                          text={String(typedRecord.agentId || '')}
+                          className="font-mono"
+                        />
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Owner:</span>
+                        <CopyableText
+                          text={String(typedRecord.owner || '')}
+                          className="font-mono"
+                        />
+                      </div>
+                    </>
+                  );
+                }
+                return null;
+              })()}
+              {typeof window !== 'undefined' && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">
+                    .well-known URL:
+                  </span>
+                  <CopyableText
+                    text={`${getBackendUrl()}/agents/${agent.id}/.well-known/agent.json`}
+                    display={`${getBackendUrl()}/agents/${agent.id}/.well-known/agent.json`}
+                    className="font-mono text-xs"
+                  />
+                </div>
+              )}
+              {agent.identityConfig?.trustModels &&
+                agent.identityConfig.trustModels.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Trust Models:</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {agent.identityConfig.trustModels.map(model => (
+                        <span
+                          key={model}
+                          className="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                        >
+                          {model}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              {(() => {
+                const error = agent.metadata?.identityError;
+                if (error && typeof error === 'string') {
+                  return (
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                      <p className="text-destructive text-xs">{error}</p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Analytics */}
+      {agent.paymentsConfig && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="size-5 text-muted-foreground" />
+                <CardTitle>Analytics</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={analyticsWindow || ''}
+                  onChange={e =>
+                    setAnalyticsWindow(
+                      e.target.value ? parseInt(e.target.value, 10) : undefined
+                    )
+                  }
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value="24">Last 24 hours</option>
+                  <option value="168">Last 7 days</option>
+                  <option value="720">Last 30 days</option>
+                  <option value="">All time</option>
+                </select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/api/agents/${id}/analytics/export/csv${
+                      analyticsWindow ? `?windowHours=${analyticsWindow}` : ''
+                    }`;
+                    window.open(url, '_blank');
+                  }}
+                >
+                  <Download className="size-4" />
+                  CSV
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {analyticsSummary ? (
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Total Earned</CardDescription>
+                      <CardTitle className="text-2xl text-green-600">
+                        $
+                        {(
+                          parseFloat(analyticsSummary.incomingTotal) / 1_000_000
+                        ).toFixed(6)}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Total Spent</CardDescription>
+                      <CardTitle className="text-2xl text-red-600">
+                        $
+                        {(
+                          parseFloat(analyticsSummary.outgoingTotal) / 1_000_000
+                        ).toFixed(6)}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Net</CardDescription>
+                      <CardTitle
+                        className={`text-2xl ${
+                          parseFloat(analyticsSummary.netTotal) >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }`}
+                      >
+                        $
+                        {(
+                          parseFloat(analyticsSummary.netTotal) / 1_000_000
+                        ).toFixed(6)}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Transactions</CardDescription>
+                      <CardTitle className="text-2xl">
+                        {analyticsSummary.incomingCount +
+                          analyticsSummary.outgoingCount}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
+
+                {/* Charts */}
+                {analyticsTransactions && analyticsTransactions.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={analyticsTransactions.map(t => ({
+                            ...t,
+                            amountUsdc: parseFloat(t.amount) / 1_000_000,
+                            date: new Date(t.timestamp).toLocaleDateString(),
+                          }))}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value: number) =>
+                              `$${value.toFixed(6)}`
+                            }
+                            labelFormatter={label => `Date: ${label}`}
+                          />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="amountUsdc"
+                            stroke="#8884d8"
+                            name="Amount (USDC)"
+                            strokeWidth={2}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <BarChart3 className="size-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      No analytics yet. Get your agent to start making
+                      transactions for analytics to be added.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <BarChart3 className="size-12 mx-auto mb-4 opacity-50" />
+                <p>
+                  No analytics yet. Get your agent to start making transactions
+                  for analytics to be added.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Manifest Preview - Always show */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent Manifest</CardTitle>
+          <CardDescription>
+            A2A-compatible agent manifest (/.well-known/agent.json)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {manifest ? (
+            <div className="space-y-4">
+              {/* Highlight AP2 extension if present */}
+              {manifest.capabilities?.extensions?.some((ext: any) =>
+                ext.uri?.includes('ap2')
+              ) && (
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 p-3">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-400 mb-2">
+                    AP2 Extension Detected
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    This agent advertises AP2 payment roles in its manifest.
+                  </p>
+                </div>
+              )}
+              <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-[600px]">
+                {JSON.stringify(manifest, null, 2)}
+              </pre>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Loader2 className="size-6 animate-spin mx-auto mb-2" />
+              <p className="text-sm">Loading manifest...</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Metadata */}
       {agent.metadata && Object.keys(agent.metadata).length > 0 && (
@@ -470,7 +861,9 @@ function EntrypointCard({ agentId, entrypoint }: EntrypointCardProps) {
                       {fieldType === 'boolean' ? (
                         <select
                           value={formValues[fieldName] || ''}
-                          onChange={e => updateFormValue(fieldName, e.target.value)}
+                          onChange={e =>
+                            updateFormValue(fieldName, e.target.value)
+                          }
                           className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                           <option value="">Select...</option>
@@ -480,9 +873,13 @@ function EntrypointCard({ agentId, entrypoint }: EntrypointCardProps) {
                       ) : fieldType === 'object' || fieldType === 'array' ? (
                         <Textarea
                           value={formValues[fieldName] || ''}
-                          onChange={e => updateFormValue(fieldName, e.target.value)}
+                          onChange={e =>
+                            updateFormValue(fieldName, e.target.value)
+                          }
                           placeholder={
-                            fieldType === 'array' ? '["item1", "item2"]' : '{"key": "value"}'
+                            fieldType === 'array'
+                              ? '["item1", "item2"]'
+                              : '{"key": "value"}'
                           }
                           className="font-mono text-sm bg-background"
                           rows={3}
@@ -491,7 +888,9 @@ function EntrypointCard({ agentId, entrypoint }: EntrypointCardProps) {
                         <Input
                           type={fieldType === 'number' ? 'number' : 'text'}
                           value={formValues[fieldName] || ''}
-                          onChange={e => updateFormValue(fieldName, e.target.value)}
+                          onChange={e =>
+                            updateFormValue(fieldName, e.target.value)
+                          }
                           placeholder={`Enter ${fieldName}`}
                           required={isRequired}
                           className="bg-background"

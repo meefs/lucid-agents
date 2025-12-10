@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { deleteApiAgentsByAgentId, getAgentsByAgentIdEntrypoints, getAgentsByAgentIdWellKnownAgentJson, getApiAgents, getApiAgentsByAgentId, getHealth, type Options, postAgentsByAgentIdEntrypointsByKeyInvoke, postApiAgents, putApiAgentsByAgentId } from '../sdk.gen';
-import type { DeleteApiAgentsByAgentIdData, DeleteApiAgentsByAgentIdError, DeleteApiAgentsByAgentIdResponse, GetAgentsByAgentIdEntrypointsData, GetAgentsByAgentIdEntrypointsError, GetAgentsByAgentIdEntrypointsResponse, GetAgentsByAgentIdWellKnownAgentJsonData, GetAgentsByAgentIdWellKnownAgentJsonError, GetAgentsByAgentIdWellKnownAgentJsonResponse, GetApiAgentsByAgentIdData, GetApiAgentsByAgentIdError, GetApiAgentsByAgentIdResponse, GetApiAgentsData, GetApiAgentsResponse, GetHealthData, GetHealthResponse, PostAgentsByAgentIdEntrypointsByKeyInvokeData, PostAgentsByAgentIdEntrypointsByKeyInvokeError, PostAgentsByAgentIdEntrypointsByKeyInvokeResponse, PostApiAgentsData, PostApiAgentsError, PostApiAgentsResponse, PutApiAgentsByAgentIdData, PutApiAgentsByAgentIdError, PutApiAgentsByAgentIdResponse } from '../types.gen';
+import { deleteApiAgentsByAgentId, getAgentsByAgentIdEntrypoints, getAgentsByAgentIdWellKnownAgentJson, getApiAgents, getApiAgentsByAgentId, getApiAgentsByAgentIdAnalyticsExportCsv, getApiAgentsByAgentIdAnalyticsExportJson, getApiAgentsByAgentIdAnalyticsSummary, getApiAgentsByAgentIdAnalyticsTransactions, getHealth, type Options, postAgentsByAgentIdEntrypointsByKeyInvoke, postApiAgents, postApiAgentsByAgentIdIdentityRetry, putApiAgentsByAgentId } from '../sdk.gen';
+import type { DeleteApiAgentsByAgentIdData, DeleteApiAgentsByAgentIdError, DeleteApiAgentsByAgentIdResponse, GetAgentsByAgentIdEntrypointsData, GetAgentsByAgentIdEntrypointsError, GetAgentsByAgentIdEntrypointsResponse, GetAgentsByAgentIdWellKnownAgentJsonData, GetAgentsByAgentIdWellKnownAgentJsonError, GetAgentsByAgentIdWellKnownAgentJsonResponse, GetApiAgentsByAgentIdAnalyticsExportCsvData, GetApiAgentsByAgentIdAnalyticsExportCsvError, GetApiAgentsByAgentIdAnalyticsExportCsvResponse, GetApiAgentsByAgentIdAnalyticsExportJsonData, GetApiAgentsByAgentIdAnalyticsExportJsonError, GetApiAgentsByAgentIdAnalyticsExportJsonResponse, GetApiAgentsByAgentIdAnalyticsSummaryData, GetApiAgentsByAgentIdAnalyticsSummaryError, GetApiAgentsByAgentIdAnalyticsSummaryResponse, GetApiAgentsByAgentIdAnalyticsTransactionsData, GetApiAgentsByAgentIdAnalyticsTransactionsError, GetApiAgentsByAgentIdAnalyticsTransactionsResponse, GetApiAgentsByAgentIdData, GetApiAgentsByAgentIdError, GetApiAgentsByAgentIdResponse, GetApiAgentsData, GetApiAgentsResponse, GetHealthData, GetHealthResponse, PostAgentsByAgentIdEntrypointsByKeyInvokeData, PostAgentsByAgentIdEntrypointsByKeyInvokeError, PostAgentsByAgentIdEntrypointsByKeyInvokeResponse, PostApiAgentsByAgentIdIdentityRetryData, PostApiAgentsByAgentIdIdentityRetryError, PostApiAgentsByAgentIdIdentityRetryResponse, PostApiAgentsData, PostApiAgentsError, PostApiAgentsResponse, PutApiAgentsByAgentIdData, PutApiAgentsByAgentIdError, PutApiAgentsByAgentIdResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -243,6 +243,105 @@ export const postAgentsByAgentIdEntrypointsByKeyInvokeMutation = (options?: Part
     const mutationOptions: UseMutationOptions<PostAgentsByAgentIdEntrypointsByKeyInvokeResponse, PostAgentsByAgentIdEntrypointsByKeyInvokeError, Options<PostAgentsByAgentIdEntrypointsByKeyInvokeData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await postAgentsByAgentIdEntrypointsByKeyInvoke({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getApiAgentsByAgentIdAnalyticsSummaryQueryKey = (options: Options<GetApiAgentsByAgentIdAnalyticsSummaryData>) => createQueryKey('getApiAgentsByAgentIdAnalyticsSummary', options);
+
+/**
+ * Get analytics summary
+ *
+ * Get payment analytics summary for an agent.
+ */
+export const getApiAgentsByAgentIdAnalyticsSummaryOptions = (options: Options<GetApiAgentsByAgentIdAnalyticsSummaryData>) => queryOptions<GetApiAgentsByAgentIdAnalyticsSummaryResponse, GetApiAgentsByAgentIdAnalyticsSummaryError, GetApiAgentsByAgentIdAnalyticsSummaryResponse, ReturnType<typeof getApiAgentsByAgentIdAnalyticsSummaryQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiAgentsByAgentIdAnalyticsSummary({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiAgentsByAgentIdAnalyticsSummaryQueryKey(options)
+});
+
+export const getApiAgentsByAgentIdAnalyticsTransactionsQueryKey = (options: Options<GetApiAgentsByAgentIdAnalyticsTransactionsData>) => createQueryKey('getApiAgentsByAgentIdAnalyticsTransactions', options);
+
+/**
+ * Get analytics transactions
+ *
+ * Get payment transaction history for an agent.
+ */
+export const getApiAgentsByAgentIdAnalyticsTransactionsOptions = (options: Options<GetApiAgentsByAgentIdAnalyticsTransactionsData>) => queryOptions<GetApiAgentsByAgentIdAnalyticsTransactionsResponse, GetApiAgentsByAgentIdAnalyticsTransactionsError, GetApiAgentsByAgentIdAnalyticsTransactionsResponse, ReturnType<typeof getApiAgentsByAgentIdAnalyticsTransactionsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiAgentsByAgentIdAnalyticsTransactions({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiAgentsByAgentIdAnalyticsTransactionsQueryKey(options)
+});
+
+export const getApiAgentsByAgentIdAnalyticsExportCsvQueryKey = (options: Options<GetApiAgentsByAgentIdAnalyticsExportCsvData>) => createQueryKey('getApiAgentsByAgentIdAnalyticsExportCsv', options);
+
+/**
+ * Export analytics as CSV
+ *
+ * Export payment analytics data as CSV.
+ */
+export const getApiAgentsByAgentIdAnalyticsExportCsvOptions = (options: Options<GetApiAgentsByAgentIdAnalyticsExportCsvData>) => queryOptions<GetApiAgentsByAgentIdAnalyticsExportCsvResponse, GetApiAgentsByAgentIdAnalyticsExportCsvError, GetApiAgentsByAgentIdAnalyticsExportCsvResponse, ReturnType<typeof getApiAgentsByAgentIdAnalyticsExportCsvQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiAgentsByAgentIdAnalyticsExportCsv({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiAgentsByAgentIdAnalyticsExportCsvQueryKey(options)
+});
+
+export const getApiAgentsByAgentIdAnalyticsExportJsonQueryKey = (options: Options<GetApiAgentsByAgentIdAnalyticsExportJsonData>) => createQueryKey('getApiAgentsByAgentIdAnalyticsExportJson', options);
+
+/**
+ * Export analytics as JSON
+ *
+ * Export payment analytics data as JSON.
+ */
+export const getApiAgentsByAgentIdAnalyticsExportJsonOptions = (options: Options<GetApiAgentsByAgentIdAnalyticsExportJsonData>) => queryOptions<GetApiAgentsByAgentIdAnalyticsExportJsonResponse, GetApiAgentsByAgentIdAnalyticsExportJsonError, GetApiAgentsByAgentIdAnalyticsExportJsonResponse, ReturnType<typeof getApiAgentsByAgentIdAnalyticsExportJsonQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiAgentsByAgentIdAnalyticsExportJson({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiAgentsByAgentIdAnalyticsExportJsonQueryKey(options)
+});
+
+/**
+ * Retry identity registration
+ *
+ * Retry failed ERC-8004 identity registration for an agent.
+ */
+export const postApiAgentsByAgentIdIdentityRetryMutation = (options?: Partial<Options<PostApiAgentsByAgentIdIdentityRetryData>>): UseMutationOptions<PostApiAgentsByAgentIdIdentityRetryResponse, PostApiAgentsByAgentIdIdentityRetryError, Options<PostApiAgentsByAgentIdIdentityRetryData>> => {
+    const mutationOptions: UseMutationOptions<PostApiAgentsByAgentIdIdentityRetryResponse, PostApiAgentsByAgentIdIdentityRetryError, Options<PostApiAgentsByAgentIdIdentityRetryData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiAgentsByAgentIdIdentityRetry({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

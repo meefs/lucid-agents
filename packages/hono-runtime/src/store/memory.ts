@@ -34,18 +34,21 @@ export function createMemoryAgentStore(): AgentStore {
       return agents.get(id) ?? null;
     },
 
-    async list(ownerId: string, opts: ListOptions = {}): Promise<AgentDefinition[]> {
+    async list(
+      ownerId: string,
+      opts: ListOptions = {}
+    ): Promise<AgentDefinition[]> {
       const { offset = 0, limit = 20 } = opts;
 
       return Array.from(agents.values())
-        .filter((agent) => agent.ownerId === ownerId)
+        .filter(agent => agent.ownerId === ownerId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(offset, offset + limit);
     },
 
     async count(ownerId: string): Promise<number> {
       return Array.from(agents.values()).filter(
-        (agent) => agent.ownerId === ownerId
+        agent => agent.ownerId === ownerId
       ).length;
     },
 
@@ -74,6 +77,9 @@ export function createMemoryAgentStore(): AgentStore {
         paymentsConfig: input.paymentsConfig,
         walletsConfig: input.walletsConfig,
         a2aConfig: input.a2aConfig,
+        ap2Config: input.ap2Config,
+        analyticsConfig: input.analyticsConfig,
+        identityConfig: input.identityConfig,
         createdAt: now,
         updatedAt: now,
       };

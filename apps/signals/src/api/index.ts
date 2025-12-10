@@ -26,5 +26,18 @@ export type {
   PaymentsConfig,
   WalletsConfig,
   A2aConfig,
+  Ap2Config,
+  AnalyticsConfig,
+  IdentityConfig,
   _Error as ApiError,
 } from '@lucid-agents/hono-runtime/sdk'
+
+// Type extension for PaymentsConfig with storage (not yet in SDK)
+export type PaymentsConfigWithStorage = PaymentsConfig & {
+  storage?: {
+    type: 'sqlite' | 'postgres';
+    postgres?: {
+      connectionString: string;
+    };
+  };
+};

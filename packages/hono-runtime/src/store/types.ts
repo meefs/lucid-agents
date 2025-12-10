@@ -58,6 +58,10 @@ export interface SerializedPaymentsConfig {
   payTo: string;
   network: string;
   facilitatorUrl: string;
+  storage?: {
+    type: 'sqlite' | 'postgres';
+    postgres?: { connectionString: string };
+  };
 }
 
 export interface SerializedWalletsConfig {
@@ -74,6 +78,28 @@ export interface SerializedWalletsConfig {
 
 export interface SerializedA2AConfig {
   enabled: boolean;
+}
+
+export interface SerializedAP2Config {
+  roles: string[];
+  description?: string;
+  required?: boolean;
+}
+
+export interface SerializedAnalyticsConfig {
+  enabled: boolean;
+}
+
+export interface SerializedIdentityConfig {
+  chainId?: number;
+  registryAddress?: string;
+  autoRegister?: boolean;
+  trustModels?: string[];
+  trustOverrides?: {
+    validationRequestsUri?: string;
+    validationResponsesUri?: string;
+    feedbackDataUri?: string;
+  };
 }
 
 // =============================================================================
@@ -95,6 +121,9 @@ export interface AgentDefinition {
   paymentsConfig?: SerializedPaymentsConfig;
   walletsConfig?: SerializedWalletsConfig;
   a2aConfig?: SerializedA2AConfig;
+  ap2Config?: SerializedAP2Config;
+  analyticsConfig?: SerializedAnalyticsConfig;
+  identityConfig?: SerializedIdentityConfig;
 
   createdAt: Date;
   updatedAt: Date;
@@ -116,6 +145,9 @@ export interface CreateAgentInput {
   paymentsConfig?: SerializedPaymentsConfig;
   walletsConfig?: SerializedWalletsConfig;
   a2aConfig?: SerializedA2AConfig;
+  ap2Config?: SerializedAP2Config;
+  analyticsConfig?: SerializedAnalyticsConfig;
+  identityConfig?: SerializedIdentityConfig;
 }
 
 // =============================================================================

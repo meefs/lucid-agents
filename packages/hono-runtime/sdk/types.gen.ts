@@ -179,6 +179,73 @@ export type A2aConfig = {
     enabled?: boolean;
 };
 
+/**
+ * AP2 (Agent Payments Protocol) configuration
+ */
+export type Ap2Config = {
+    /**
+     * AP2 payment roles this agent supports
+     */
+    roles: Array<'merchant' | 'shopper' | 'credentials-provider' | 'payment-processor'>;
+    /**
+     * Optional description of AP2 capabilities
+     */
+    description?: string;
+    /**
+     * Whether AP2 payment is required for this agent
+     */
+    required?: boolean;
+};
+
+/**
+ * Analytics configuration (requires payments to be enabled)
+ */
+export type AnalyticsConfig = {
+    /**
+     * Whether analytics tracking is enabled (requires payments)
+     */
+    enabled?: boolean;
+};
+
+/**
+ * ERC-8004 identity configuration (requires wallet to be configured)
+ */
+export type IdentityConfig = {
+    /**
+     * Chain ID for ERC-8004 registry (defaults to Base Sepolia: 84532)
+     */
+    chainId?: number;
+    /**
+     * ERC-8004 registry contract address (optional, falls back to env/default)
+     */
+    registryAddress?: string;
+    /**
+     * Whether to automatically register identity if not found
+     */
+    autoRegister?: boolean;
+    /**
+     * Trust models to advertise (e.g., feedback, inference-validation, tee-attestation)
+     */
+    trustModels?: Array<string>;
+    /**
+     * Optional custom trust config overrides (off-chain mirrors)
+     */
+    trustOverrides?: {
+        /**
+         * URL for validation requests mirror
+         */
+        validationRequestsUri?: string;
+        /**
+         * URL for validation responses mirror
+         */
+        validationResponsesUri?: string;
+        /**
+         * URL for feedback data mirror
+         */
+        feedbackDataUri?: string;
+    };
+};
+
 export type CreateAgent = {
     /**
      * URL-friendly unique identifier
@@ -209,6 +276,9 @@ export type CreateAgent = {
     paymentsConfig?: PaymentsConfig;
     walletsConfig?: WalletsConfig;
     a2aConfig?: A2aConfig;
+    ap2Config?: Ap2Config;
+    analyticsConfig?: AnalyticsConfig;
+    identityConfig?: IdentityConfig;
 };
 
 export type AgentDefinition = CreateAgent & {
@@ -273,6 +343,9 @@ export type UpdateAgent = {
     paymentsConfig?: PaymentsConfig;
     walletsConfig?: WalletsConfig;
     a2aConfig?: A2aConfig;
+    ap2Config?: Ap2Config;
+    analyticsConfig?: AnalyticsConfig;
+    identityConfig?: IdentityConfig;
 };
 
 export type AgentManifest = {
@@ -448,6 +521,99 @@ export type InvokeRequest = {
     metadata?: {
         [key: string]: unknown;
     };
+};
+
+export type AnalyticsSummary = {
+    /**
+     * Total outgoing payments in base units (6 decimals)
+     */
+    outgoingTotal: string;
+    /**
+     * Total incoming payments in base units (6 decimals)
+     */
+    incomingTotal: string;
+    /**
+     * Net total (incoming - outgoing) in base units
+     */
+    netTotal: string;
+    /**
+     * Number of outgoing transactions
+     */
+    outgoingCount: number;
+    /**
+     * Number of incoming transactions
+     */
+    incomingCount: number;
+    /**
+     * Start of time window in milliseconds (null if all time)
+     */
+    windowStart?: number | null;
+    /**
+     * End of time window in milliseconds
+     */
+    windowEnd: number;
+};
+
+export type Transaction = {
+    /**
+     * Transaction ID
+     */
+    id?: string;
+    /**
+     * Transaction group name
+     */
+    groupName: string;
+    /**
+     * Transaction scope
+     */
+    scope: string;
+    /**
+     * Payment direction
+     */
+    direction: 'incoming' | 'outgoing';
+    /**
+     * Amount in base units (6 decimals)
+     */
+    amount: string;
+    /**
+     * Amount in USDC (formatted)
+     */
+    amountUsdc: string;
+    /**
+     * Timestamp in milliseconds
+     */
+    timestamp: number;
+    /**
+     * ISO timestamp string
+     */
+    timestampIso: string;
+};
+
+export type IdentityRegistrationResult = {
+    /**
+     * Registration status
+     */
+    status: 'registered' | 'pending' | 'failed' | 'not_registered';
+    /**
+     * ERC-8004 agent ID (if registered)
+     */
+    agentId?: string;
+    /**
+     * Owner address (if registered)
+     */
+    owner?: string;
+    /**
+     * Token URI (if registered)
+     */
+    tokenURI?: string;
+    /**
+     * Agent domain used for registration
+     */
+    domain?: string;
+    /**
+     * Error message (if failed)
+     */
+    error?: string;
 };
 
 export type Health = {
@@ -687,6 +853,200 @@ export type PostAgentsByAgentIdEntrypointsByKeyInvokeResponses = {
 };
 
 export type PostAgentsByAgentIdEntrypointsByKeyInvokeResponse = PostAgentsByAgentIdEntrypointsByKeyInvokeResponses[keyof PostAgentsByAgentIdEntrypointsByKeyInvokeResponses];
+
+export type GetApiAgentsByAgentIdAnalyticsSummaryData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: {
+        /**
+         * Time window in hours (default: all time)
+         */
+        windowHours?: number;
+        /**
+         * Filter by payment direction
+         */
+        direction?: 'incoming' | 'outgoing';
+    };
+    url: '/api/agents/{agentId}/analytics/summary';
+};
+
+export type GetApiAgentsByAgentIdAnalyticsSummaryErrors = {
+    /**
+     * Analytics not available (payments not enabled)
+     */
+    400: _Error;
+    /**
+     * Agent not found
+     */
+    404: _Error;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsSummaryError = GetApiAgentsByAgentIdAnalyticsSummaryErrors[keyof GetApiAgentsByAgentIdAnalyticsSummaryErrors];
+
+export type GetApiAgentsByAgentIdAnalyticsSummaryResponses = {
+    /**
+     * Analytics summary
+     */
+    200: AnalyticsSummary;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsSummaryResponse = GetApiAgentsByAgentIdAnalyticsSummaryResponses[keyof GetApiAgentsByAgentIdAnalyticsSummaryResponses];
+
+export type GetApiAgentsByAgentIdAnalyticsTransactionsData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: {
+        /**
+         * Time window in hours (default: all time)
+         */
+        windowHours?: number;
+        /**
+         * Filter by payment direction
+         */
+        direction?: 'incoming' | 'outgoing';
+    };
+    url: '/api/agents/{agentId}/analytics/transactions';
+};
+
+export type GetApiAgentsByAgentIdAnalyticsTransactionsErrors = {
+    /**
+     * Analytics not available (payments not enabled)
+     */
+    400: _Error;
+    /**
+     * Agent not found
+     */
+    404: _Error;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsTransactionsError = GetApiAgentsByAgentIdAnalyticsTransactionsErrors[keyof GetApiAgentsByAgentIdAnalyticsTransactionsErrors];
+
+export type GetApiAgentsByAgentIdAnalyticsTransactionsResponses = {
+    /**
+     * List of transactions
+     */
+    200: Array<Transaction>;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsTransactionsResponse = GetApiAgentsByAgentIdAnalyticsTransactionsResponses[keyof GetApiAgentsByAgentIdAnalyticsTransactionsResponses];
+
+export type GetApiAgentsByAgentIdAnalyticsExportCsvData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: {
+        /**
+         * Time window in hours (default: all time)
+         */
+        windowHours?: number;
+        /**
+         * Filter by payment direction
+         */
+        direction?: 'incoming' | 'outgoing';
+    };
+    url: '/api/agents/{agentId}/analytics/export/csv';
+};
+
+export type GetApiAgentsByAgentIdAnalyticsExportCsvErrors = {
+    /**
+     * Analytics not available (payments not enabled)
+     */
+    400: _Error;
+    /**
+     * Agent not found
+     */
+    404: _Error;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsExportCsvError = GetApiAgentsByAgentIdAnalyticsExportCsvErrors[keyof GetApiAgentsByAgentIdAnalyticsExportCsvErrors];
+
+export type GetApiAgentsByAgentIdAnalyticsExportCsvResponses = {
+    /**
+     * CSV export
+     */
+    200: string;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsExportCsvResponse = GetApiAgentsByAgentIdAnalyticsExportCsvResponses[keyof GetApiAgentsByAgentIdAnalyticsExportCsvResponses];
+
+export type GetApiAgentsByAgentIdAnalyticsExportJsonData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: {
+        /**
+         * Time window in hours (default: all time)
+         */
+        windowHours?: number;
+        /**
+         * Filter by payment direction
+         */
+        direction?: 'incoming' | 'outgoing';
+    };
+    url: '/api/agents/{agentId}/analytics/export/json';
+};
+
+export type GetApiAgentsByAgentIdAnalyticsExportJsonErrors = {
+    /**
+     * Analytics not available (payments not enabled)
+     */
+    400: _Error;
+    /**
+     * Agent not found
+     */
+    404: _Error;
+};
+
+export type GetApiAgentsByAgentIdAnalyticsExportJsonError = GetApiAgentsByAgentIdAnalyticsExportJsonErrors[keyof GetApiAgentsByAgentIdAnalyticsExportJsonErrors];
+
+export type GetApiAgentsByAgentIdAnalyticsExportJsonResponses = {
+    /**
+     * JSON export
+     */
+    200: {
+        summary: AnalyticsSummary;
+        transactions: Array<Transaction>;
+    };
+};
+
+export type GetApiAgentsByAgentIdAnalyticsExportJsonResponse = GetApiAgentsByAgentIdAnalyticsExportJsonResponses[keyof GetApiAgentsByAgentIdAnalyticsExportJsonResponses];
+
+export type PostApiAgentsByAgentIdIdentityRetryData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/api/agents/{agentId}/identity/retry';
+};
+
+export type PostApiAgentsByAgentIdIdentityRetryErrors = {
+    /**
+     * Identity not configured or wallet not available
+     */
+    400: _Error;
+    /**
+     * Agent not found
+     */
+    404: _Error;
+};
+
+export type PostApiAgentsByAgentIdIdentityRetryError = PostApiAgentsByAgentIdIdentityRetryErrors[keyof PostApiAgentsByAgentIdIdentityRetryErrors];
+
+export type PostApiAgentsByAgentIdIdentityRetryResponses = {
+    /**
+     * Identity registration result
+     */
+    200: IdentityRegistrationResult;
+};
+
+export type PostApiAgentsByAgentIdIdentityRetryResponse = PostApiAgentsByAgentIdIdentityRetryResponses[keyof PostApiAgentsByAgentIdIdentityRetryResponses];
 
 export type GetHealthData = {
     body?: never;

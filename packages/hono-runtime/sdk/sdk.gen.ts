@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiAgentsByAgentIdData, DeleteApiAgentsByAgentIdErrors, DeleteApiAgentsByAgentIdResponses, GetAgentsByAgentIdEntrypointsData, GetAgentsByAgentIdEntrypointsErrors, GetAgentsByAgentIdEntrypointsResponses, GetAgentsByAgentIdWellKnownAgentJsonData, GetAgentsByAgentIdWellKnownAgentJsonErrors, GetAgentsByAgentIdWellKnownAgentJsonResponses, GetApiAgentsByAgentIdData, GetApiAgentsByAgentIdErrors, GetApiAgentsByAgentIdResponses, GetApiAgentsData, GetApiAgentsResponses, GetHealthData, GetHealthResponses, PostAgentsByAgentIdEntrypointsByKeyInvokeData, PostAgentsByAgentIdEntrypointsByKeyInvokeErrors, PostAgentsByAgentIdEntrypointsByKeyInvokeResponses, PostApiAgentsData, PostApiAgentsErrors, PostApiAgentsResponses, PutApiAgentsByAgentIdData, PutApiAgentsByAgentIdErrors, PutApiAgentsByAgentIdResponses } from './types.gen';
+import type { DeleteApiAgentsByAgentIdData, DeleteApiAgentsByAgentIdErrors, DeleteApiAgentsByAgentIdResponses, GetAgentsByAgentIdEntrypointsData, GetAgentsByAgentIdEntrypointsErrors, GetAgentsByAgentIdEntrypointsResponses, GetAgentsByAgentIdWellKnownAgentJsonData, GetAgentsByAgentIdWellKnownAgentJsonErrors, GetAgentsByAgentIdWellKnownAgentJsonResponses, GetApiAgentsByAgentIdAnalyticsExportCsvData, GetApiAgentsByAgentIdAnalyticsExportCsvErrors, GetApiAgentsByAgentIdAnalyticsExportCsvResponses, GetApiAgentsByAgentIdAnalyticsExportJsonData, GetApiAgentsByAgentIdAnalyticsExportJsonErrors, GetApiAgentsByAgentIdAnalyticsExportJsonResponses, GetApiAgentsByAgentIdAnalyticsSummaryData, GetApiAgentsByAgentIdAnalyticsSummaryErrors, GetApiAgentsByAgentIdAnalyticsSummaryResponses, GetApiAgentsByAgentIdAnalyticsTransactionsData, GetApiAgentsByAgentIdAnalyticsTransactionsErrors, GetApiAgentsByAgentIdAnalyticsTransactionsResponses, GetApiAgentsByAgentIdData, GetApiAgentsByAgentIdErrors, GetApiAgentsByAgentIdResponses, GetApiAgentsData, GetApiAgentsResponses, GetHealthData, GetHealthResponses, PostAgentsByAgentIdEntrypointsByKeyInvokeData, PostAgentsByAgentIdEntrypointsByKeyInvokeErrors, PostAgentsByAgentIdEntrypointsByKeyInvokeResponses, PostApiAgentsByAgentIdIdentityRetryData, PostApiAgentsByAgentIdIdentityRetryErrors, PostApiAgentsByAgentIdIdentityRetryResponses, PostApiAgentsData, PostApiAgentsErrors, PostApiAgentsResponses, PutApiAgentsByAgentIdData, PutApiAgentsByAgentIdErrors, PutApiAgentsByAgentIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -94,6 +94,41 @@ export const postAgentsByAgentIdEntrypointsByKeyInvoke = <ThrowOnError extends b
         ...options.headers
     }
 });
+
+/**
+ * Get analytics summary
+ *
+ * Get payment analytics summary for an agent.
+ */
+export const getApiAgentsByAgentIdAnalyticsSummary = <ThrowOnError extends boolean = false>(options: Options<GetApiAgentsByAgentIdAnalyticsSummaryData, ThrowOnError>) => (options.client ?? client).get<GetApiAgentsByAgentIdAnalyticsSummaryResponses, GetApiAgentsByAgentIdAnalyticsSummaryErrors, ThrowOnError>({ url: '/api/agents/{agentId}/analytics/summary', ...options });
+
+/**
+ * Get analytics transactions
+ *
+ * Get payment transaction history for an agent.
+ */
+export const getApiAgentsByAgentIdAnalyticsTransactions = <ThrowOnError extends boolean = false>(options: Options<GetApiAgentsByAgentIdAnalyticsTransactionsData, ThrowOnError>) => (options.client ?? client).get<GetApiAgentsByAgentIdAnalyticsTransactionsResponses, GetApiAgentsByAgentIdAnalyticsTransactionsErrors, ThrowOnError>({ url: '/api/agents/{agentId}/analytics/transactions', ...options });
+
+/**
+ * Export analytics as CSV
+ *
+ * Export payment analytics data as CSV.
+ */
+export const getApiAgentsByAgentIdAnalyticsExportCsv = <ThrowOnError extends boolean = false>(options: Options<GetApiAgentsByAgentIdAnalyticsExportCsvData, ThrowOnError>) => (options.client ?? client).get<GetApiAgentsByAgentIdAnalyticsExportCsvResponses, GetApiAgentsByAgentIdAnalyticsExportCsvErrors, ThrowOnError>({ url: '/api/agents/{agentId}/analytics/export/csv', ...options });
+
+/**
+ * Export analytics as JSON
+ *
+ * Export payment analytics data as JSON.
+ */
+export const getApiAgentsByAgentIdAnalyticsExportJson = <ThrowOnError extends boolean = false>(options: Options<GetApiAgentsByAgentIdAnalyticsExportJsonData, ThrowOnError>) => (options.client ?? client).get<GetApiAgentsByAgentIdAnalyticsExportJsonResponses, GetApiAgentsByAgentIdAnalyticsExportJsonErrors, ThrowOnError>({ url: '/api/agents/{agentId}/analytics/export/json', ...options });
+
+/**
+ * Retry identity registration
+ *
+ * Retry failed ERC-8004 identity registration for an agent.
+ */
+export const postApiAgentsByAgentIdIdentityRetry = <ThrowOnError extends boolean = false>(options: Options<PostApiAgentsByAgentIdIdentityRetryData, ThrowOnError>) => (options.client ?? client).post<PostApiAgentsByAgentIdIdentityRetryResponses, PostApiAgentsByAgentIdIdentityRetryErrors, ThrowOnError>({ url: '/api/agents/{agentId}/identity/retry', ...options });
 
 /**
  * Health check

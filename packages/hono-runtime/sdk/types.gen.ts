@@ -26,15 +26,79 @@ export type SerializedEntrypoint = {
         [key: string]: unknown;
     };
     /**
-     * Type of handler (e.g., builtin, llm, graph, webhook). Defaults to builtin.
+     * Type of handler (builtin, js, url, llm, graph, webhook). Defaults to builtin.
      */
-    handlerType?: 'builtin' | 'llm' | 'graph' | 'webhook';
+    handlerType?: 'builtin' | 'llm' | 'graph' | 'webhook' | 'js' | 'url';
     /**
      * Configuration for the handler
      */
     handlerConfig: {
         name: string;
         [key: string]: unknown | string;
+    } | {
+        /**
+         * Inline JavaScript to execute
+         */
+        code: string;
+        /**
+         * Execution timeout override in milliseconds
+         */
+        timeoutMs?: number;
+        /**
+         * Optional network allowlist for fetch
+         */
+        network?: {
+            /**
+             * Allow-listed hosts for outbound fetch
+             */
+            allowedHosts: Array<string>;
+            /**
+             * Network request timeout in milliseconds
+             */
+            timeoutMs?: number;
+        };
+        [key: string]: unknown | string | number | {
+            /**
+             * Allow-listed hosts for outbound fetch
+             */
+            allowedHosts: Array<string>;
+            /**
+             * Network request timeout in milliseconds
+             */
+            timeoutMs?: number;
+        } | undefined;
+    } | {
+        /**
+         * Absolute URL to fetch
+         */
+        url: string;
+        /**
+         * HTTP method to use
+         */
+        method?: 'GET' | 'POST';
+        /**
+         * Headers to include in the request
+         */
+        headers?: {
+            [key: string]: string;
+        };
+        /**
+         * Optional JSON-serializable body (for POST)
+         */
+        body?: unknown;
+        /**
+         * Request timeout in milliseconds
+         */
+        timeoutMs?: number;
+        /**
+         * Allow-listed hosts for outbound fetch. Use ["*"] to allow any host (not recommended).
+         */
+        allowedHosts: Array<string>;
+        [key: string]: unknown | string | 'GET' | 'POST' | {
+            [key: string]: string;
+        } | number | Array<string> | undefined;
+    } | {
+        [key: string]: unknown;
     };
     /**
      * Price in USD to invoke this entrypoint (e.g., "0.01" = $0.01)

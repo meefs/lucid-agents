@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AgentGrid } from '@/components/agent-grid';
 import { useAgents, isApiError } from '@/api';
 
-export const Route = createFileRoute('/agents')({
+export const Route = createFileRoute('/dashboard/agents')({
   component: AgentsListPage,
 });
 

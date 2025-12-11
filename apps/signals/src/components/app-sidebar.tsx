@@ -51,15 +51,15 @@ const data = {
       items: [
         {
           title: 'Discover',
-          url: '/',
+          url: '/dashboard',
         },
         {
           title: 'Create',
-          url: '/create',
+          url: '/dashboard/create',
         },
         {
           title: 'My Agents',
-          url: '/agents',
+          url: '/dashboard/agents',
         },
       ],
     },

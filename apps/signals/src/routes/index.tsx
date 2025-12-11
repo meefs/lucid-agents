@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { AgentGrid } from '@/components/agent-grid';
 import { useAgents, isApiError } from '@/api';
 
@@ -33,18 +33,7 @@ function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-4">
-      <AgentGrid
-        agents={data?.agents ?? []}
-        total={data?.total}
-        isLoading={isLoading}
-        error={
-          error
-            ? isApiError(error)
-              ? error.error
-              : 'Failed to load agents'
-            : null
-        }
-      />
+      <Link to="/login">login</Link>
     </div>
   );
 }

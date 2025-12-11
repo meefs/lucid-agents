@@ -27,9 +27,35 @@ import {
   exportToJSON,
 } from '@lucid-agents/analytics';
 
+// Auth imports
+import { createAuth, type Auth } from './auth';
+import {
+  createSessionMiddleware,
+  getOwnerId,
+  type AuthVariables,
+} from './auth/middleware';
+
 // =============================================================================
 // Configuration Types
 // =============================================================================
+
+export interface AuthOptions {
+  /** Disable authentication entirely (dev mode) */
+  disabled?: boolean;
+  /** Base URL for auth server */
+  baseURL?: string;
+  /** Secret for signing tokens */
+  secret?: string;
+  /** Enable email verification */
+  emailVerification?: boolean;
+}
+
+export interface CorsOptions {
+  /** Allowed origins (defaults to '*' if credentials false, must be specific if credentials true) */
+  origin?: string | string[];
+  /** Allow credentials (cookies, authorization headers) */
+  credentials?: boolean;
+}
 
 export interface HonoRuntimeConfig {
   /** Agent store for persistence */
@@ -50,6 +76,12 @@ export interface HonoRuntimeConfig {
 
   /** Default owner ID for unauthenticated requests (dev mode) */
   defaultOwnerId?: string;
+
+  /** Authentication configuration */
+  auth?: AuthOptions;
+
+  /** CORS configuration */
+  cors?: CorsOptions;
 }
 
 // =============================================================================
@@ -70,9 +102,10 @@ export interface HonoRuntimeConfig {
  * ```
  */
 export function createHonoRuntime(config: HonoRuntimeConfig) {
-  const app = new OpenAPIHono();
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
   const runtimeCache = new RuntimeCache(config.maxCachedRuntimes ?? 100);
   const defaultOwnerId = config.defaultOwnerId ?? 'default-owner';
+  const authDisabled = config.auth?.disabled ?? false;
 
   // If using Drizzle store, pass the database instance to factory for shared payment storage
   const factoryConfig: RuntimeFactoryConfig = {
@@ -83,12 +116,51 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
         : config.factoryConfig?.drizzleDb,
   };
 
+  // Configure CORS - must allow credentials for auth cookies
+  const corsOrigin = config.cors?.origin ?? (config.cors?.credentials ? 'http://localhost:3000' : '*');
+  // Build trusted origins list for better-auth
+  const trustedOrigins = Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin];
+
+  // Create auth instance if using Drizzle store and auth is enabled
+  let auth: Auth | null = null;
+  if (!authDisabled && config.store instanceof DrizzleAgentStore) {
+    auth = createAuth({
+      db: config.store.database,
+      baseURL: config.auth?.baseURL,
+      secret: config.auth?.secret,
+      emailVerification: config.auth?.emailVerification,
+      trustedOrigins,
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Middleware
   // ---------------------------------------------------------------------------
-
-  app.use('*', cors());
+  app.use(
+    '*',
+    cors({
+      origin: corsOrigin,
+      credentials: config.cors?.credentials ?? !authDisabled, // Enable credentials when auth is enabled
+      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'Authorization'],
+      exposeHeaders: ['Set-Cookie'],
+    })
+  );
   app.use('*', logger());
+
+  // Add session middleware if auth is enabled
+  if (auth) {
+    app.use('*', createSessionMiddleware(auth));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Auth Routes (mounted before other routes)
+  // ---------------------------------------------------------------------------
+
+  if (auth) {
+    // Mount better-auth handler for all /api/auth/* routes
+    app.on(['POST', 'GET'], '/api/auth/*', c => auth!.handler(c.req.raw));
+  }
 
   // ---------------------------------------------------------------------------
   // OpenAPI Documentation
@@ -113,10 +185,18 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   // Agent CRUD Routes
   // ---------------------------------------------------------------------------
 
+  // Helper to get owner ID from auth context or fallback
+  const resolveOwnerId = (c: any): string => {
+    if (authDisabled) {
+      return defaultOwnerId;
+    }
+    return getOwnerId(c, defaultOwnerId);
+  };
+
   // List agents
   app.openapi(routes.listAgentsRoute, (async (c: any) => {
     const { offset, limit, search, enabled } = c.req.valid('query');
-    const ownerId = defaultOwnerId; // TODO: get from auth
+    const ownerId = resolveOwnerId(c);
 
     const agents = await config.store.list(ownerId, {
       offset,
@@ -135,7 +215,7 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   // Create agent
   app.openapi(routes.createAgentRoute, (async (c: any) => {
     const body = c.req.valid('json');
-    const ownerId = defaultOwnerId; // TODO: get from auth
+    const ownerId = resolveOwnerId(c);
 
     try {
       const agent = await config.store.create({ ...body, ownerId });

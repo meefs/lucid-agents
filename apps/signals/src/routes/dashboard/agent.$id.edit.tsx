@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { AgentForm } from '@/components/agent-form'
 import { useAgent, isApiError } from '@/api'
 
-export const Route = createFileRoute('/agent/$id/edit')({
+export const Route = createFileRoute('/dashboard/agent/$id/edit')({
   component: AgentEditPage,
 })
 

@@ -3,7 +3,7 @@
 
 // Main app factory (with OpenAPI validation and auto-generated docs)
 export { createHonoRuntime } from './app';
-export type { HonoRuntimeConfig } from './app';
+export type { HonoRuntimeConfig, AuthOptions } from './app';
 
 // Simple version without OpenAPI validation (for lighter usage)
 export { createHonoRuntime as createHonoRuntimeSimple } from './app-simple';
@@ -41,3 +41,36 @@ export type { RuntimeFactoryConfig } from './factory';
 // OpenAPI schemas and routes (for advanced usage)
 export * as schemas from './openapi/schemas';
 export * as routes from './openapi/routes';
+
+// Auth (for external usage)
+export { createAuth } from './auth';
+export type { Auth, AuthConfig } from './auth';
+export {
+  createSessionMiddleware,
+  createRequireAuth,
+  getAuthUser,
+  getOwnerId,
+} from './auth/middleware';
+export type {
+  AuthUser,
+  AuthSession,
+  AuthVariables,
+} from './auth/middleware';
+
+// Auth schema tables (for advanced usage)
+export {
+  user as userTable,
+  session as sessionTable,
+  account as accountTable,
+  verification as verificationTable,
+} from './store/drizzle/schema';
+export type {
+  UserRow,
+  NewUserRow,
+  SessionRow,
+  NewSessionRow,
+  AccountRow,
+  NewAccountRow,
+  VerificationRow,
+  NewVerificationRow,
+} from './store/drizzle/schema';

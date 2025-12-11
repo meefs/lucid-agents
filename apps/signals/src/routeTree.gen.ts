@@ -9,36 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as CreateRouteImport } from './routes/create'
-import { Route as AgentsRouteImport } from './routes/agents'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as DemoTableRouteImport } from './routes/demo/table'
-import { Route as AgentIdRouteImport } from './routes/agent.$id'
-import { Route as AgentIdIndexRouteImport } from './routes/agent.$id.index'
+import { Route as DashboardAgentsRouteImport } from './routes/dashboard/agents'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
-import { Route as AgentIdEditRouteImport } from './routes/agent.$id.edit'
+import { Route as DashboardAgentIdRouteImport } from './routes/dashboard/agent.$id'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
+import { Route as DashboardAgentIdIndexRouteImport } from './routes/dashboard/agent.$id.index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
+import { Route as DashboardAgentIdEditRouteImport } from './routes/dashboard/agent.$id.edit'
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AgentsRoute = AgentsRouteImport.update({
-  id: '/agents',
-  path: '/agents',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
@@ -51,15 +65,10 @@ const DemoTableRoute = DemoTableRouteImport.update({
   path: '/demo/table',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AgentIdRoute = AgentIdRouteImport.update({
-  id: '/agent/$id',
-  path: '/agent/$id',
+const DashboardAgentsRoute = DashboardAgentsRouteImport.update({
+  id: '/dashboard/agents',
+  path: '/dashboard/agents',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AgentIdIndexRoute = AgentIdIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AgentIdRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
   id: '/demo/start/server-funcs',
@@ -81,15 +90,25 @@ const DemoApiNamesRoute = DemoApiNamesRouteImport.update({
   path: '/demo/api/names',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AgentIdEditRoute = AgentIdEditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => AgentIdRoute,
+const DashboardAgentIdRoute = DashboardAgentIdRouteImport.update({
+  id: '/dashboard/agent/$id',
+  path: '/dashboard/agent/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
   id: '/demo/start/ssr/',
   path: '/demo/start/ssr/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardAgentIdIndexRoute = DashboardAgentIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardAgentIdRoute,
 } as any)
 const DemoStartSsrSpaModeRoute = DemoStartSsrSpaModeRouteImport.update({
   id: '/demo/start/ssr/spa-mode',
@@ -106,124 +125,157 @@ const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
   path: '/demo/start/ssr/data-only',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardAgentIdEditRoute = DashboardAgentIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => DashboardAgentIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/agents': typeof AgentsRoute
   '/create': typeof CreateRoute
-  '/agent/$id': typeof AgentIdRouteWithChildren
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
+  '/dashboard/agents': typeof DashboardAgentsRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/agent/$id/edit': typeof AgentIdEditRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/agent/$id': typeof DashboardAgentIdRouteWithChildren
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/agent/$id/': typeof AgentIdIndexRoute
+  '/dashboard/agent/$id/edit': typeof DashboardAgentIdEditRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
+  '/dashboard/agent/$id/': typeof DashboardAgentIdIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/agents': typeof AgentsRoute
   '/create': typeof CreateRoute
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
+  '/dashboard/agents': typeof DashboardAgentsRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/agent/$id/edit': typeof AgentIdEditRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/agent/$id': typeof AgentIdIndexRoute
+  '/dashboard/agent/$id/edit': typeof DashboardAgentIdEditRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
+  '/dashboard/agent/$id': typeof DashboardAgentIdIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/agents': typeof AgentsRoute
   '/create': typeof CreateRoute
-  '/agent/$id': typeof AgentIdRouteWithChildren
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
+  '/dashboard/agents': typeof DashboardAgentsRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/agent/$id/edit': typeof AgentIdEditRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/agent/$id': typeof DashboardAgentIdRouteWithChildren
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/agent/$id/': typeof AgentIdIndexRoute
+  '/dashboard/agent/$id/edit': typeof DashboardAgentIdEditRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
+  '/dashboard/agent/$id/': typeof DashboardAgentIdIndexRoute
   '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/agents'
     | '/create'
-    | '/agent/$id'
+    | '/login'
+    | '/signup'
+    | '/dashboard/agents'
     | '/demo/table'
     | '/demo/tanstack-query'
-    | '/agent/$id/edit'
+    | '/dashboard'
+    | '/api/auth/$'
+    | '/dashboard/agent/$id'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/agent/$id/'
+    | '/dashboard/agent/$id/edit'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
+    | '/dashboard/agent/$id/'
     | '/demo/start/ssr'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/agents'
     | '/create'
+    | '/login'
+    | '/signup'
+    | '/dashboard/agents'
     | '/demo/table'
     | '/demo/tanstack-query'
-    | '/agent/$id/edit'
+    | '/dashboard'
+    | '/api/auth/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/agent/$id'
+    | '/dashboard/agent/$id/edit'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
+    | '/dashboard/agent/$id'
     | '/demo/start/ssr'
   id:
     | '__root__'
     | '/'
-    | '/agents'
     | '/create'
-    | '/agent/$id'
+    | '/login'
+    | '/signup'
+    | '/dashboard/agents'
     | '/demo/table'
     | '/demo/tanstack-query'
-    | '/agent/$id/edit'
+    | '/dashboard/'
+    | '/api/auth/$'
+    | '/dashboard/agent/$id'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/agent/$id/'
+    | '/dashboard/agent/$id/edit'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
+    | '/dashboard/agent/$id/'
     | '/demo/start/ssr/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AgentsRoute: typeof AgentsRoute
   CreateRoute: typeof CreateRoute
-  AgentIdRoute: typeof AgentIdRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  SignupRoute: typeof SignupRoute
+  DashboardAgentsRoute: typeof DashboardAgentsRoute
   DemoTableRoute: typeof DemoTableRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  DashboardAgentIdRoute: typeof DashboardAgentIdRouteWithChildren
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoApiTqTodosRoute: typeof DemoApiTqTodosRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
@@ -236,6 +288,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/create': {
       id: '/create'
       path: '/create'
@@ -243,18 +309,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/agents': {
-      id: '/agents'
-      path: '/agents'
-      fullPath: '/agents'
-      preLoaderRoute: typeof AgentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/tanstack-query': {
@@ -271,19 +337,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTableRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/agent/$id': {
-      id: '/agent/$id'
-      path: '/agent/$id'
-      fullPath: '/agent/$id'
-      preLoaderRoute: typeof AgentIdRouteImport
+    '/dashboard/agents': {
+      id: '/dashboard/agents'
+      path: '/dashboard/agents'
+      fullPath: '/dashboard/agents'
+      preLoaderRoute: typeof DashboardAgentsRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/agent/$id/': {
-      id: '/agent/$id/'
-      path: '/'
-      fullPath: '/agent/$id/'
-      preLoaderRoute: typeof AgentIdIndexRouteImport
-      parentRoute: typeof AgentIdRoute
     }
     '/demo/start/server-funcs': {
       id: '/demo/start/server-funcs'
@@ -313,12 +372,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoApiNamesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/agent/$id/edit': {
-      id: '/agent/$id/edit'
-      path: '/edit'
-      fullPath: '/agent/$id/edit'
-      preLoaderRoute: typeof AgentIdEditRouteImport
-      parentRoute: typeof AgentIdRoute
+    '/dashboard/agent/$id': {
+      id: '/dashboard/agent/$id'
+      path: '/dashboard/agent/$id'
+      fullPath: '/dashboard/agent/$id'
+      preLoaderRoute: typeof DashboardAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/demo/start/ssr/': {
       id: '/demo/start/ssr/'
@@ -326,6 +392,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/demo/start/ssr'
       preLoaderRoute: typeof DemoStartSsrIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/agent/$id/': {
+      id: '/dashboard/agent/$id/'
+      path: '/'
+      fullPath: '/dashboard/agent/$id/'
+      preLoaderRoute: typeof DashboardAgentIdIndexRouteImport
+      parentRoute: typeof DashboardAgentIdRoute
     }
     '/demo/start/ssr/spa-mode': {
       id: '/demo/start/ssr/spa-mode'
@@ -348,29 +421,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoStartSsrDataOnlyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/agent/$id/edit': {
+      id: '/dashboard/agent/$id/edit'
+      path: '/edit'
+      fullPath: '/dashboard/agent/$id/edit'
+      preLoaderRoute: typeof DashboardAgentIdEditRouteImport
+      parentRoute: typeof DashboardAgentIdRoute
+    }
   }
 }
 
-interface AgentIdRouteChildren {
-  AgentIdEditRoute: typeof AgentIdEditRoute
-  AgentIdIndexRoute: typeof AgentIdIndexRoute
+interface DashboardAgentIdRouteChildren {
+  DashboardAgentIdEditRoute: typeof DashboardAgentIdEditRoute
+  DashboardAgentIdIndexRoute: typeof DashboardAgentIdIndexRoute
 }
 
-const AgentIdRouteChildren: AgentIdRouteChildren = {
-  AgentIdEditRoute: AgentIdEditRoute,
-  AgentIdIndexRoute: AgentIdIndexRoute,
+const DashboardAgentIdRouteChildren: DashboardAgentIdRouteChildren = {
+  DashboardAgentIdEditRoute: DashboardAgentIdEditRoute,
+  DashboardAgentIdIndexRoute: DashboardAgentIdIndexRoute,
 }
 
-const AgentIdRouteWithChildren =
-  AgentIdRoute._addFileChildren(AgentIdRouteChildren)
+const DashboardAgentIdRouteWithChildren =
+  DashboardAgentIdRoute._addFileChildren(DashboardAgentIdRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AgentsRoute: AgentsRoute,
   CreateRoute: CreateRoute,
-  AgentIdRoute: AgentIdRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SignupRoute: SignupRoute,
+  DashboardAgentsRoute: DashboardAgentsRoute,
   DemoTableRoute: DemoTableRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
+  DashboardAgentIdRoute: DashboardAgentIdRouteWithChildren,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoApiTqTodosRoute: DemoApiTqTodosRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,

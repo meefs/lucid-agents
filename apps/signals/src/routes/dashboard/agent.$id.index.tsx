@@ -64,7 +64,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-export const Route = createFileRoute('/agent/$id/')({
+export const Route = createFileRoute('/dashboard/agent/$id/')({
   component: AgentDetailPage,
 });
 

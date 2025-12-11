@@ -69,6 +69,7 @@
     "@lucid-agents/types": "workspace:*",
     "@lucid-agents/wallet": "workspace:*",
     "@tanstack/react-query": "^5.90.12",
+    "better-auth": "^1.4.6",
     "drizzle-orm": "^0.45.0",
     "hono": "catalog:",
     "postgres": "^3.4.5",

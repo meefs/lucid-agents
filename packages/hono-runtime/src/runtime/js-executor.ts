@@ -40,6 +40,7 @@ export async function executeJs(opts: JsExecutorOptions): Promise<unknown> {
       clearTimeout(timeout);
       if (msg.ok) {
         resolvePromise(msg.result);
+        worker.terminate();
       } else {
         rejectPromise(new Error(msg.error ?? 'JS execution failed'));
       }

@@ -117,7 +117,9 @@ export function createHonoRuntime(config: HonoRuntimeConfig) {
   };
 
   // Configure CORS - must allow credentials for auth cookies
-  const corsOrigin = config.cors?.origin ?? (config.cors?.credentials ? 'http://localhost:3000' : '*');
+  const corsOrigin =
+    config.cors?.origin ??
+    (config.cors?.credentials ? 'http://localhost:3000' : '*');
   // Build trusted origins list for better-auth
   const trustedOrigins = Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin];
 

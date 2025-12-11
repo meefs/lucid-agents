@@ -48,7 +48,8 @@ export const agents = pgTable(
     walletsConfig: jsonb('wallets_config').$type<SerializedWalletsConfig>(),
     a2aConfig: jsonb('a2a_config').$type<SerializedA2AConfig>(),
     ap2Config: jsonb('ap2_config').$type<SerializedAP2Config>(),
-    analyticsConfig: jsonb('analytics_config').$type<SerializedAnalyticsConfig>(),
+    analyticsConfig:
+      jsonb('analytics_config').$type<SerializedAnalyticsConfig>(),
     identityConfig: jsonb('identity_config').$type<SerializedIdentityConfig>(),
 
     // Timestamps
@@ -78,7 +79,9 @@ export const payments = pgTable(
   'payments',
   {
     id: serial('id').primaryKey(),
-    agentId: text('agent_id'),
+    agentId: text('agent_id').references(() => agents.id, {
+      onDelete: 'cascade',
+    }),
     groupName: text('group_name').notNull(),
     scope: text('scope').notNull(),
     direction: text('direction').notNull(), // 'outgoing' | 'incoming'
@@ -86,7 +89,11 @@ export const payments = pgTable(
     timestamp: bigint('timestamp', { mode: 'bigint' }).notNull(),
   },
   table => [
-    index('idx_agent_group_scope').on(table.agentId, table.groupName, table.scope),
+    index('idx_agent_group_scope').on(
+      table.agentId,
+      table.groupName,
+      table.scope
+    ),
     index('idx_group_scope').on(table.groupName, table.scope),
     index('idx_timestamp').on(table.timestamp),
     index('idx_direction').on(table.direction),
@@ -119,9 +126,7 @@ export const user = pgTable(
       .notNull()
       .defaultNow(),
   },
-  table => [
-    uniqueIndex('user_email_idx').on(table.email),
-  ]
+  table => [uniqueIndex('user_email_idx').on(table.email)]
 );
 
 export type UserRow = typeof user.$inferSelect;
@@ -171,8 +176,12 @@ export const account = pgTable(
     providerId: text('provider_id').notNull(),
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
-    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
-    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
+      withTimezone: true,
+    }),
     scope: text('scope'),
     password: text('password'),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -182,9 +191,7 @@ export const account = pgTable(
       .notNull()
       .defaultNow(),
   },
-  table => [
-    index('account_user_id_idx').on(table.userId),
-  ]
+  table => [index('account_user_id_idx').on(table.userId)]
 );
 
 export type AccountRow = typeof account.$inferSelect;
@@ -207,9 +214,7 @@ export const verification = pgTable(
       .notNull()
       .defaultNow(),
   },
-  table => [
-    index('verification_identifier_idx').on(table.identifier),
-  ]
+  table => [index('verification_identifier_idx').on(table.identifier)]
 );
 
 export type VerificationRow = typeof verification.$inferSelect;

@@ -12,17 +12,32 @@ interface WorkerData {
   };
 }
 
+function matchesHost(hostname: string, allowedHost: string): boolean {
+  if (allowedHost.startsWith('*.')) {
+    const domain = allowedHost.slice(2);
+    return hostname === domain || hostname.endsWith('.' + domain);
+  }
+  return hostname === allowedHost;
+}
+
 function createFetchProxy(allowedHosts: string[], timeoutMs: number) {
   if (typeof fetch !== 'function') return undefined;
 
-  return async function guardedFetch(input: any, init?: any) {
-    const url = typeof input === 'string' ? new URL(input) : new URL(String(input));
-    if (!allowedHosts.includes(url.hostname)) {
+  return async function guardedFetch(
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ) {
+    const url =
+      typeof input === 'string' ? new URL(input) : new URL(String(input));
+    if (!allowedHosts.some(host => matchesHost(url.hostname, host))) {
       throw new Error(`Host not allowed: ${url.hostname}`);
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort('network-timeout'), timeoutMs);
+    const timer = setTimeout(
+      () => controller.abort('network-timeout'),
+      timeoutMs
+    );
 
     try {
       return await fetch(input, { ...init, signal: controller.signal });
@@ -43,7 +58,8 @@ async function run() {
   };
 
   if (network && network.allowedHosts?.length) {
-    const netTimeout = typeof network.timeoutMs === 'number' ? network.timeoutMs : 1000;
+    const netTimeout =
+      typeof network.timeoutMs === 'number' ? network.timeoutMs : 1000;
     sandbox.fetch = createFetchProxy(network.allowedHosts, netTimeout);
   }
 

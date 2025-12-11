@@ -105,6 +105,12 @@ type-check PACKAGE:
     cd packages/{{PACKAGE}} && bun run type-check
     @echo -e $'{{BOLD}}{{GREEN}}{{PACKAGE}} type check passed!{{RESET}}'
 
+# Build a specific package
+build PACKAGE:
+    @echo -e $'{{BOLD}}{{CYAN}}Building {{PACKAGE}}...{{RESET}}'
+    cd packages/{{PACKAGE}} && bun run build
+    @echo -e $'{{BOLD}}{{GREEN}}{{PACKAGE}} built successfully!{{RESET}}'
+
 # ===== Test Database Commands =====
 
 # Start test database
@@ -184,6 +190,7 @@ help:
     @echo -e $'  just type-check-all  # Check types'
     @echo -e $''
     @echo -e $'{{BOLD}}{{CYAN}}Package-specific:{{RESET}}'
+    @echo -e $'  just build PACKAGE        # Build specific package'
     @echo -e $'  just lint-check PACKAGE   # Lint specific package'
     @echo -e $'  just lint-fix PACKAGE     # Fix lint in specific package'
     @echo -e $'  just format-check PACKAGE # Format check specific package'

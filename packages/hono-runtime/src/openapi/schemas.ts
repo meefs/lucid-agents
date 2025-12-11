@@ -8,18 +8,16 @@ export const ErrorSchema = z
   .object({
     error: z.string().openapi({ example: 'Agent not found' }),
     code: z.string().optional().openapi({ example: 'NOT_FOUND' }),
-    details: z.record(z.string(), z.any()).optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
   })
   .openapi('Error');
 
 export const HealthSchema = z
   .object({
-    status: z
-      .string()
-      .openapi({
-        example: 'ok',
-        description: 'Health status: ok, degraded, or down',
-      }),
+    status: z.string().openapi({
+      example: 'ok',
+      description: 'Health status: ok, degraded, or down',
+    }),
     version: z.string().optional().openapi({ example: '0.1.0' }),
     timestamp: z
       .string()
@@ -75,7 +73,7 @@ export const AgentSearchQuerySchema = PaginationQuerySchema.extend({
   enabled: z
     .enum(['true', 'false'])
     .optional()
-    .transform((val) => (val === undefined ? undefined : val === 'true'))
+    .transform(val => (val === undefined ? undefined : val === 'true'))
     .openapi({
       example: 'true',
       description: 'Filter by enabled status',
@@ -105,13 +103,15 @@ export const PaymentStorageConfigSchema = z
   .object({
     type: z.enum(['sqlite', 'postgres']).openapi({
       example: 'sqlite',
-      description: 'Storage backend type. SQLite is automatic (no configuration needed). Postgres requires a connection string.',
+      description:
+        'Storage backend type. SQLite is automatic (no configuration needed). Postgres requires a connection string.',
     }),
     postgres: z
       .object({
         connectionString: z.string().openapi({
           example: 'postgresql://user:pass@localhost:5432/dbname',
-          description: 'PostgreSQL connection string (required when type is postgres)',
+          description:
+            'PostgreSQL connection string (required when type is postgres)',
         }),
       })
       .optional(),
@@ -133,7 +133,8 @@ export const PaymentsConfigSchema = z
       description: 'URL of the x402 facilitator service',
     }),
     storage: PaymentStorageConfigSchema.optional().openapi({
-      description: 'Payment storage configuration (for analytics). Defaults to SQLite if not specified.',
+      description:
+        'Payment storage configuration (for analytics). Defaults to SQLite if not specified.',
     }),
   })
   .openapi('PaymentsConfig');
@@ -147,7 +148,8 @@ export const WalletsConfigSchema = z
           description: 'Wallet type',
         }),
         privateKey: z.string().optional().openapi({
-          description: 'Private key for local wallet (required for type: local)',
+          description:
+            'Private key for local wallet (required for type: local)',
         }),
         secretKey: z.string().optional().openapi({
           description: 'Thirdweb secret key (for type: thirdweb)',
@@ -182,7 +184,12 @@ export const AP2ConfigSchema = z
   .object({
     roles: z
       .array(
-        z.enum(['merchant', 'shopper', 'credentials-provider', 'payment-processor'])
+        z.enum([
+          'merchant',
+          'shopper',
+          'credentials-provider',
+          'payment-processor',
+        ])
       )
       .min(1)
       .openapi({
@@ -213,12 +220,18 @@ export const IdentityConfigSchema = z
   .object({
     chainId: z.number().int().positive().optional().openapi({
       example: 84532,
-      description: 'Chain ID for ERC-8004 registry (defaults to Base Sepolia: 84532)',
+      description:
+        'Chain ID for ERC-8004 registry (defaults to Base Sepolia: 84532)',
     }),
-    registryAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional().openapi({
-      example: '0x1234567890abcdef1234567890abcdef12345678',
-      description: 'ERC-8004 registry contract address (optional, falls back to env/default)',
-    }),
+    registryAddress: z
+      .string()
+      .regex(/^0x[a-fA-F0-9]{40}$/)
+      .optional()
+      .openapi({
+        example: '0x1234567890abcdef1234567890abcdef12345678',
+        description:
+          'ERC-8004 registry contract address (optional, falls back to env/default)',
+      }),
     autoRegister: z.boolean().default(false).openapi({
       example: false,
       description: 'Whether to automatically register identity if not found',
@@ -228,7 +241,8 @@ export const IdentityConfigSchema = z
       .default(['feedback', 'inference-validation'])
       .openapi({
         example: ['feedback', 'inference-validation', 'tee-attestation'],
-        description: 'Trust models to advertise (e.g., feedback, inference-validation, tee-attestation)',
+        description:
+          'Trust models to advertise (e.g., feedback, inference-validation, tee-attestation)',
       }),
     trustOverrides: z
       .object({
@@ -247,7 +261,8 @@ export const IdentityConfigSchema = z
       })
       .optional()
       .openapi({
-        description: 'Optional custom trust config overrides (off-chain mirrors)',
+        description:
+          'Optional custom trust config overrides (off-chain mirrors)',
       }),
   })
   .openapi('IdentityConfig');
@@ -266,10 +281,10 @@ export const SerializedEntrypointSchema = z
       example: 'Echo the input back',
       description: 'Human-readable description',
     }),
-    inputSchema: z.record(z.string(), z.any()).default({}).openapi({
+    inputSchema: z.record(z.string(), z.unknown()).default({}).openapi({
       description: 'JSON Schema for input validation (empty = accept any)',
     }),
-    outputSchema: z.record(z.string(), z.any()).default({}).openapi({
+    outputSchema: z.record(z.string(), z.unknown()).default({}).openapi({
       description: 'JSON Schema for output validation (empty = accept any)',
     }),
     handlerType: z
@@ -279,7 +294,7 @@ export const SerializedEntrypointSchema = z
         example: 'builtin',
         description:
           'Type of handler (builtin, js, url, llm, graph, webhook). Defaults to builtin.',
-    }),
+      }),
     handlerConfig: z
       .union([
         z
@@ -297,10 +312,13 @@ export const SerializedEntrypointSchema = z
             }),
             network: z
               .object({
-                allowedHosts: z.array(z.string()).nonempty().openapi({
-                  description: 'Allow-listed hosts for outbound fetch',
-                  example: ['api.example.com', 'example.org'],
-                }),
+                allowedHosts: z
+                  .array(z.string())
+                  .nonempty()
+                  .openapi({
+                    description: 'Allow-listed hosts for outbound fetch',
+                    example: ['api.example.com', 'example.org'],
+                  }),
                 timeoutMs: z.number().int().positive().optional().openapi({
                   description: 'Network request timeout in milliseconds',
                   example: 1000,
@@ -330,11 +348,14 @@ export const SerializedEntrypointSchema = z
               description: 'Request timeout in milliseconds',
               example: 1000,
             }),
-            allowedHosts: z.array(z.string()).nonempty().openapi({
-              description:
-                'Allow-listed hosts for outbound fetch. Use ["*"] to allow any host (not recommended).',
-              example: ['api.example.com'],
-            }),
+            allowedHosts: z
+              .array(z.string())
+              .nonempty()
+              .openapi({
+                description:
+                  'Allow-listed hosts for outbound fetch. Use ["*"] to allow any host (not recommended).',
+                example: ['api.example.com'],
+              }),
           })
           .catchall(z.unknown())
           .openapi({ description: 'Configuration for url handlers' }),
@@ -346,13 +367,15 @@ export const SerializedEntrypointSchema = z
       }),
     price: z.string().optional().openapi({
       example: '0.01',
-      description: 'Price in USD to invoke this entrypoint (e.g., "0.01" = $0.01)',
+      description:
+        'Price in USD to invoke this entrypoint (e.g., "0.01" = $0.01)',
     }),
     network: z.string().optional().openapi({
       example: 'base-sepolia',
-      description: 'Payment network override for this entrypoint (defaults to agent paymentsConfig.network)',
+      description:
+        'Payment network override for this entrypoint (defaults to agent paymentsConfig.network)',
     }),
-    metadata: z.record(z.string(), z.any()).optional().openapi({
+    metadata: z.record(z.string(), z.unknown()).optional().openapi({
       description: 'Additional metadata',
     }),
   })
@@ -388,7 +411,7 @@ export const CreateAgentSchema = z
       example: true,
       description: 'Whether the agent can be invoked',
     }),
-    metadata: z.record(z.string(), z.any()).optional().openapi({
+    metadata: z.record(z.string(), z.unknown()).optional().openapi({
       description: 'Additional metadata',
     }),
     // Extension configurations
@@ -408,7 +431,8 @@ export const CreateAgentSchema = z
       description: 'Analytics configuration (requires payments to be enabled)',
     }),
     identityConfig: IdentityConfigSchema.optional().openapi({
-      description: 'ERC-8004 identity configuration (requires wallet to be configured)',
+      description:
+        'ERC-8004 identity configuration (requires wallet to be configured)',
     }),
   })
   .openapi('CreateAgent');
@@ -480,7 +504,7 @@ export const UsageSchema = z
 
 export const InvokeResponseSchema = z
   .object({
-    output: z.any().openapi({
+    output: z.unknown().openapi({
       description: 'Output from the entrypoint handler',
       example: { message: 'Hello, agent!' },
     }),
@@ -514,10 +538,11 @@ export const AgentManifestSchema = z
     supportedInterfaces: z
       .array(
         z.object({
-          url: z.string().url().openapi({ example: 'https://agent.example.com' }),
-          protocolBinding: z
+          url: z
             .string()
-            .openapi({ example: 'https' }),
+            .url()
+            .openapi({ example: 'https://agent.example.com' }),
+          protocolBinding: z.string().openapi({ example: 'https' }),
         })
       )
       .optional(),
@@ -534,10 +559,10 @@ export const AgentManifestSchema = z
         streaming: z.boolean().optional(),
         pushNotifications: z.boolean().optional(),
         stateTransitionHistory: z.boolean().optional(),
-        extensions: z.array(z.record(z.string(), z.any())).optional(),
+        extensions: z.array(z.record(z.string(), z.unknown())).optional(),
       })
       .optional(),
-    securitySchemes: z.record(z.string(), z.any()).optional(),
+    securitySchemes: z.record(z.string(), z.unknown()).optional(),
     security: z.array(z.unknown()).optional(),
     defaultInputModes: z.array(z.string()).optional(),
     defaultOutputModes: z.array(z.string()).optional(),
@@ -561,14 +586,14 @@ export const AgentManifestSchema = z
         z.object({
           protected: z.string(),
           signature: z.string(),
-          header: z.record(z.string(), z.any()).optional(),
+          header: z.record(z.string(), z.unknown()).optional(),
         })
       )
       .optional(),
     iconUrl: z.string().url().optional(),
-    payments: z.array(z.record(z.string(), z.any())).optional(),
-    registrations: z.array(z.record(z.string(), z.any())).optional(),
-    trustModels: z.array(z.record(z.string(), z.any())).optional(),
+    payments: z.array(z.record(z.string(), z.unknown())).optional(),
+    registrations: z.array(z.record(z.string(), z.unknown())).optional(),
+    trustModels: z.array(z.string()).optional(),
     ValidationRequestsURI: z.string().url().optional(),
     ValidationResponsesURI: z.string().url().optional(),
     FeedbackDataURI: z.string().url().optional(),

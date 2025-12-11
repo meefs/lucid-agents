@@ -20,6 +20,8 @@ import type {
   PaymentStorageConfig,
 } from '@lucid-agents/types/payments';
 import type { PaymentStorage } from '@lucid-agents/payments';
+import type { AgentContext } from '@lucid-agents/types/core';
+import type { Network } from '@lucid-agents/types';
 import type { AgentDefinition, SerializedEntrypoint } from '../store/types';
 import { HandlerRegistry } from '../handlers/registry';
 import { createJsHandler } from '../handlers/js';
@@ -216,14 +218,17 @@ function addEntrypointToRuntime(
   ) as HandlerFn;
 
   // Wrap HandlerFn to the EntrypointHandler shape expected by runtime
-  const wrappedHandler = async (ctx: any) => {
+  const wrappedHandler = async (ctx: AgentContext) => {
     const handlerCtx = {
       agentId: agent.id,
       entrypointKey: entrypoint.key,
       input: ctx.input,
       sessionId:
-        (ctx.metadata && (ctx.metadata as Record<string, unknown>).sessionId) ||
-        ctx.runId ||
+        (ctx.metadata &&
+        typeof (ctx.metadata as Record<string, unknown>).sessionId === 'string'
+          ? ((ctx.metadata as Record<string, unknown>).sessionId as string)
+          : undefined) ||
+        (typeof ctx.runId === 'string' ? ctx.runId : undefined) ||
         crypto.randomUUID(),
       requestId: ctx.runId ?? crypto.randomUUID(),
       metadata: (ctx.metadata as Record<string, unknown>) ?? {},
@@ -245,7 +250,7 @@ function addEntrypointToRuntime(
     input: inputSchema,
     output: outputSchema,
     price: entrypoint.price,
-    network: entrypoint.network as any, // Network type is strict, cast for flexibility
+    network: entrypoint.network as Network | undefined,
     handler: wrappedHandler,
   });
 }
@@ -255,7 +260,7 @@ function addEntrypointToRuntime(
 // =============================================================================
 
 /**
- * Simple LRU-style cache for agent runtimes
+ * Simple FIFO cache for agent runtimes
  */
 export class RuntimeCache {
   private cache = new Map<string, { runtime: AgentRuntime; version: string }>();

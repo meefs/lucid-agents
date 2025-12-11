@@ -217,7 +217,6 @@
       "name": "@lucid-agents/hono-runtime",
       "version": "0.1.0",
       "dependencies": {
-        "@hey-api/openapi-ts": "^0.88.1",
         "@hono/swagger-ui": "^0.5.2",
         "@hono/zod-openapi": "^1.1.5",
         "@lucid-agents/a2a": "workspace:*",
@@ -230,7 +229,6 @@
         "@lucid-agents/payments": "workspace:*",
         "@lucid-agents/types": "workspace:*",
         "@lucid-agents/wallet": "workspace:*",
-        "@tanstack/react-query": "^5.90.12",
         "better-auth": "^1.4.6",
         "drizzle-orm": "^0.45.0",
         "hono": "catalog:",
@@ -238,6 +236,8 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@hey-api/openapi-ts": "^0.88.1",
+        "@tanstack/react-query": "^5.90.12",
         "@types/bun": "latest",
         "drizzle-kit": "^0.31.8",
         "tsup": "catalog:",

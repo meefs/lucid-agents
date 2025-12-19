@@ -88,12 +88,15 @@ export class ViemWalletConnector implements WalletConnector {
         if (!walletClient.account) {
           throw new Error('No account available');
         }
+        if (!walletClient.signTypedData) {
+          throw new Error('Typed data signing not supported by this wallet');
+        }
         return walletClient.signTypedData({
           account: walletClient.account,
-          domain: payload.domain as any,
+          domain: payload.domain,
           primaryType: payload.primaryType,
-          types: payload.types as any,
-          message: payload.message as any,
+          types: payload.types,
+          message: payload.message,
         });
       },
 

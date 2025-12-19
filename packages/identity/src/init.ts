@@ -13,7 +13,6 @@ import type {
 import { getRegistryAddresses } from './config';
 import {
   bootstrapIdentity,
-  type BootstrapIdentityClientFactory,
   type BootstrapIdentityOptions,
   type BootstrapIdentityResult,
   createIdentityRegistryClient,
@@ -128,12 +127,6 @@ export type CreateAgentIdentityOptions = {
    * Defaults to process.env.
    */
   env?: Record<string, string | undefined>;
-
-  /**
-   * Optional client factory (useful for testing).
-   * If provided, this will be used instead of makeViemClientsFromWallet.
-   */
-  makeClients?: BootstrapIdentityClientFactory;
 
   /**
    * Logger for diagnostic messages.
@@ -252,7 +245,6 @@ export async function createAgentIdentity(
     trustOverrides,
     env,
     logger,
-    makeClients,
   } = options;
 
   // Prefer explicit walletHandle, then developer wallet, then agent wallet (for backward compatibility)
@@ -270,13 +262,11 @@ export async function createAgentIdentity(
 
   const autoRegister = resolveAutoRegister(options, env);
 
-  const viemFactory =
-    makeClients ??
-    (await makeViemClientsFromWallet({
-      env,
-      rpcUrl,
-      walletHandle,
-    }));
+  const viemFactory = await makeViemClientsFromWallet({
+    env,
+    rpcUrl,
+    walletHandle,
+  });
 
   const resolvedChainId = resolveRequiredChainId(chainId, env);
   const resolvedRegistryAddress =
@@ -355,7 +345,14 @@ export async function createAgentIdentity(
         );
       }
 
-      const vClients = await viemFactory({
+      const vClients:
+        | {
+            publicClient?: PublicClientLike;
+            walletClient?: WalletClientLike;
+            signer?: WalletClientLike;
+          }
+        | null
+        | undefined = await viemFactory({
         chainId: resolvedChainId,
         rpcUrl: resolvedRpcUrl,
         env: env ?? {},
@@ -370,21 +367,21 @@ export async function createAgentIdentity(
           identity: createIdentityRegistryClient({
             address: identityAddress,
             chainId: resolvedChainId,
-            publicClient: vClients.publicClient as PublicClientLike,
-            walletClient: vClients.walletClient as WalletClientLike | undefined,
+            publicClient: vClients.publicClient,
+            walletClient: vClients.walletClient,
           }),
           reputation: createReputationRegistryClient({
             address: registryAddresses.REPUTATION_REGISTRY,
             chainId: resolvedChainId,
-            publicClient: vClients.publicClient as PublicClientLike,
-            walletClient: vClients.walletClient as WalletClientLike | undefined,
+            publicClient: vClients.publicClient,
+            walletClient: vClients.walletClient,
             identityRegistryAddress: identityAddress,
           }),
           validation: createValidationRegistryClient({
             address: registryAddresses.VALIDATION_REGISTRY,
             chainId: resolvedChainId,
-            publicClient: vClients.publicClient as PublicClientLike,
-            walletClient: vClients.walletClient as WalletClientLike | undefined,
+            publicClient: vClients.publicClient,
+            walletClient: vClients.walletClient,
             identityRegistryAddress: identityAddress,
           }),
         };

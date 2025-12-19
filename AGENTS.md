@@ -878,6 +878,55 @@ The CLI doesn't directly import these; it scaffolds code that uses them.
 
 ## Common Development Tasks
 
+### Testing Local Packages in External Projects
+
+When developing changes to packages and testing them in external projects (e.g., your own agent), use the `link:` protocol in your `package.json`:
+
+**In your test project's `package.json`:**
+
+```json
+{
+  "dependencies": {
+    "@lucid-agents/identity": "link:../../lucid-agents/packages/identity",
+    "@lucid-agents/core": "link:../../lucid-agents/packages/core",
+    "@lucid-agents/wallet": "link:../../lucid-agents/packages/wallet"
+  }
+}
+```
+
+**Workflow:**
+
+1. **Link the packages** you're working on:
+   ```bash
+   cd my-test-agent
+   # Edit package.json to use link: protocol pointing to local packages
+   bun install
+   ```
+
+2. **Make changes** in the linked package:
+   ```bash
+   cd ../../lucid-agents/packages/identity
+   # Make your changes to source code
+   bun run build  # Build after changes
+   ```
+
+3. **Test immediately** - Changes are reflected in your test project automatically
+
+4. **Before committing**, remember to change back to version references:
+   ```json
+   {
+     "dependencies": {
+       "@lucid-agents/identity": "^1.12.0"
+     }
+   }
+   ```
+
+**How it works:**
+- The `link:` protocol creates a symlink to the local package directory
+- Any changes you make and build in the linked package are immediately available
+- No need to publish to npm or reinstall dependencies
+- Perfect for rapid iteration and testing
+
 ### Adding a New Feature to agent-kit
 
 1. Create implementation in `packages/agent-kit/src/feature.ts`

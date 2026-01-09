@@ -36,7 +36,7 @@ export type GiveFeedbackInput = {
   score: number; // 0-100
   tag1?: string;
   tag2?: string;
-  endpoint?: string;
+  endpoint?: string; // Optional for convenience (defaults to empty string if not provided)
   feedbackURI?: string;
   feedbackHash?: Hex;
 };
@@ -255,6 +255,7 @@ export function createReputationRegistryClient<
 
     const tag1 = input.tag1 ?? '';
     const tag2 = input.tag2 ?? '';
+    // endpoint is optional for convenience, defaults to empty string (contract accepts empty string)
     const endpoint = input.endpoint ?? '';
     const feedbackURI = input.feedbackURI ?? '';
     const feedbackHash =

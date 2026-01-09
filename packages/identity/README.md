@@ -169,14 +169,14 @@ Give and receive feedback on agent interactions:
 ```typescript
 const { reputation } = identity.clients;
 
-// Give feedback to another agent (added endpoint parameter)
+// Give feedback to another agent
 await reputation.giveFeedback({
   toAgentId: 42n,
   score: 90, // 0-100
   tag1: 'reliable',
   tag2: 'fast',
-  feedbackURI: 'ipfs://QmFeedbackDetails',
-  endpoint: 'https://my-agent.example.com/api',
+  endpoint: 'https://my-agent.example.com/api', // Optional parameter (defaults to empty string if not provided)
+  feedbackURI: 'ipfs://QmFeedbackDetails', // Optional, defaults to empty string
 });
 
 // Query reputation

@@ -64,8 +64,9 @@ import { identityClient, reputationClient, validationClient } from "./agent";
 await reputationClient.giveFeedback({
   toAgentId: 42n,
   score: 90,
-  tag: "helpful",
-  comment: "Great service!",
+  tag1: "helpful",
+  tag2: "reliable",
+  endpoint: "https://agent.example.com/api", // Optional parameter (defaults to empty string if not provided)
 });
 
 // Create a validation request (function renamed: createRequest → validationRequest)

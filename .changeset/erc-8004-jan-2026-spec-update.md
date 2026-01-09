@@ -6,7 +6,7 @@ ERC-8004 January 2026 Specification Update
 
 BREAKING CHANGES:
 
-- Reputation Registry `giveFeedback()`: Removed `feedbackAuth`, `expiry`, `indexLimit` parameters. Added `endpoint` parameter. Tags are now `string` instead of `bytes32` or `Hex`.
+- Reputation Registry `giveFeedback()`: Removed `feedbackAuth`, `expiry`, `indexLimit` parameters. Added optional `endpoint` parameter (defaults to empty string if not provided). Tags are now `string` instead of `bytes32` or `Hex`.
 - Identity Registry: `tokenURI` renamed to `agentURI` throughout. `register()` now takes `agentURI` instead of `tokenURI`. `tokenURI()` function still exists for ERC-721 compatibility but should be treated as `agentURI` conceptually.
 - Validation Registry: Deprecated and removed from default client creation. Under active development, will be updated in follow-up spec update later this year. **Breaking changes**: Function names changed (`createRequest` → `validationRequest`, `submitResponse` → `validationResponse`). Tag types changed from `bytes32`/`Hex` to `string` in `getSummary()`, `getValidationStatus()`, and `validationResponse()`.
 - Contract Addresses: Only ETH Sepolia is deployed with new Jan 2026 addresses. Other chains are commented out until new contracts are deployed.

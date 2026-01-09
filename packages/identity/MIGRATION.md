@@ -6,7 +6,7 @@ This guide helps you migrate your code from the previous ERC-8004 implementation
 
 The January 2026 spec update introduces breaking changes to align with the latest ERC-8004 standard:
 
-- **Reputation Registry**: Removed `feedbackAuth`, changed tags from `bytes32`/`Hex` to `string`, added `endpoint` parameter
+- **Reputation Registry**: Removed `feedbackAuth`, changed tags from `bytes32`/`Hex` to `string`, added optional `endpoint` parameter (defaults to empty string if not provided)
 - **Identity Registry**: Renamed `tokenURI` to `agentURI` throughout
 - **Validation Registry**: Deprecated and removed from default client creation (under active development). Function names changed (`createRequest` → `validationRequest`, `submitResponse` → `validationResponse`). Tag types changed from `bytes32`/`Hex` to `string` in `getSummary()`, `getValidationStatus()`, and `validationResponse()`
 
@@ -38,9 +38,9 @@ await reputationClient.giveFeedback({
   score: 90,
   tag1: 'reliable', // String
   tag2: 'fast', // String
-  endpoint: 'https://agent.example.com', // New required parameter
-  feedbackURI: 'ipfs://...', // Renamed from feedbackUri
-  feedbackHash: '0x...',
+  endpoint: 'https://agent.example.com', // Optional parameter (defaults to empty string if not provided)
+  feedbackURI: 'ipfs://...', // Optional, defaults to empty string
+  feedbackHash: '0x...', // Optional
   // feedbackAuth, expiry, indexLimit removed
 });
 ```
@@ -198,8 +198,8 @@ const addresses = getRegistryAddresses(11155111); // ETH Sepolia
 - [ ] Remove `feedbackAuth` parameter from all `giveFeedback()` calls
 - [ ] Remove `expiry` and `indexLimit` parameters
 - [ ] Convert tag parameters from `Hex`/`bytes32` to `string`
-- [ ] Add `endpoint` parameter to `giveFeedback()` calls
-- [ ] Rename `feedbackUri` to `feedbackURI`
+- [ ] Optionally add `endpoint` parameter to `giveFeedback()` calls (optional, defaults to empty string)
+- [ ] Rename `feedbackUri` to `feedbackURI` (optional parameter)
 - [ ] Update `getSummary()` calls to use string tags
 - [ ] Update `getAllFeedback()` calls to use string tags
 
@@ -229,7 +229,7 @@ const addresses = getRegistryAddresses(11155111); // ETH Sepolia
 - [ ] Replace `tokenURI` with `agentURI` in all test assertions
 - [ ] Remove `feedbackAuth` from test inputs
 - [ ] Update tag types from `Hex` to `string` in tests
-- [ ] Add `endpoint` parameter to `giveFeedback()` test calls
+- [ ] Optionally add `endpoint` parameter to `giveFeedback()` test calls (optional, defaults to empty string)
 - [ ] Update test expectations for `getAllFeedback()` return values
 
 ## Common Issues and Solutions
@@ -258,7 +258,10 @@ await reputationClient.giveFeedback({
 
 // After
 await reputationClient.giveFeedback({
+  toAgentId: 42n,
+  score: 90,
   tag1: 'reliable', // Use string directly
+  // endpoint is optional (defaults to empty string if not provided)
 });
 ```
 
@@ -273,7 +276,12 @@ const feedbackAuth = await signFeedbackAuth(...);
 await reputationClient.giveFeedback({ ..., feedbackAuth });
 
 // After
-await reputationClient.giveFeedback({ ... }); // No feedbackAuth needed
+await reputationClient.giveFeedback({
+  toAgentId: 42n,
+  score: 90,
+  // endpoint is optional (defaults to empty string if not provided)
+  // No feedbackAuth needed
+});
 ```
 
 ### Issue: Validation Registry is undefined

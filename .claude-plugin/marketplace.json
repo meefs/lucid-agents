@@ -1,0 +1,25 @@
+{
+  "name": "Lucid Agents Skills",
+  "description": "Skills for working with the Lucid Agents SDK and Lucid Client API",
+  "version": "1.0.0",
+  "author": "Lucid Agents",
+  "license": "MIT",
+  "plugins": [
+    {
+      "name": "lucid-agents-sdk",
+      "description": "Skill for working with the Lucid Agents SDK - a TypeScript framework for building and monetizing AI agents",
+      "version": "1.0.0",
+      "source": ".claude/skills/lucid-sdk",
+      "tags": ["sdk", "agents", "typescript", "ai", "payments", "identity"],
+      "strict": false
+    },
+    {
+      "name": "lucid-client-api",
+      "description": "Skill for interacting with the Lucid Client API (multi-agent runtime) - manage agents, invoke entrypoints, handle payments",
+      "version": "1.0.0",
+      "source": ".claude/skills/lucid-api",
+      "tags": ["api", "runtime", "agents", "multi-agent"],
+      "strict": false
+    }
+  ]
+}

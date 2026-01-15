@@ -1040,6 +1040,50 @@ Registry client implementations for Identity, Reputation, and Validation registr
 
 CLI implementation. Handles argument parsing, wizard prompts, template copying, file transformation.
 
+## Claude Marketplace Skills
+
+This repository includes Claude Skills that help AI coding assistants work with the Lucid Agents codebase more effectively.
+
+### Installing the Marketplace
+
+Add the Lucid Agents skills marketplace to Claude Code:
+
+```
+/plugin marketplace add daydreamsai/lucid-agents
+```
+
+Or use the full GitHub URL:
+
+```
+/plugin marketplace add https://github.com/daydreamsai/lucid-agents
+```
+
+### Available Skills
+
+Once installed, two skills are available:
+
+1. **lucid-agents-sdk** - Skill for working with the Lucid Agents SDK
+   - Building and modifying Lucid Agents projects
+   - Working with agent entrypoints, payments, identity, A2A communication
+   - Understanding the architecture and API
+   - Common development tasks and patterns
+
+2. **lucid-client-api** - Skill for interacting with the Lucid Client API
+   - Managing agents via API endpoints
+   - Invoking agent entrypoints
+   - Handling payments (x402 protocol)
+   - Working with the multi-agent runtime system
+
+### Skill Activation
+
+Skills automatically activate when:
+- Working with Lucid Agents SDK code
+- Interacting with Lucid Client API
+- Building or modifying agent projects
+- Asking questions about the Lucid Agents architecture
+
+The skills provide context-aware guidance, code examples, and API documentation to help AI assistants work more effectively with the codebase.
+
 ## Additional Resources
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
@@ -1059,3 +1103,4 @@ When working on this codebase:
 3. **Look at examples** - All packages have `examples/` directories
 4. **Review tests** - Tests show expected behavior
 5. **Check changesets** - Recent changes documented in `.changeset/`
+6. **Use Claude Skills** - Install the marketplace for AI assistant support

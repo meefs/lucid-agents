@@ -102,33 +102,6 @@ curl -X POST http://localhost:3000/entrypoints/echo/invoke \
 
 ---
 
-## Claude Marketplace Skills
-
-Get AI assistant support for working with Lucid Agents! Install our Claude Skills marketplace to enable context-aware guidance when building agents.
-
-### Install the Marketplace
-
-Add the Lucid Agents skills to Claude Code:
-
-```
-/plugin marketplace add daydreamsai/lucid-agents
-```
-
-### Available Skills
-
-- **lucid-agents-sdk** - Comprehensive guide for building with the Lucid Agents SDK
-- **lucid-client-api** - API reference and examples for the Lucid Client runtime
-
-Skills automatically activate when working with Lucid Agents code, providing:
-- Architecture guidance and best practices
-- Code examples and patterns
-- API documentation and usage
-- Common development tasks
-
-Perfect for AI-assisted development with Claude Code!
-
----
-
 ## Architecture Overview
 
 Lucid Agents is a TypeScript monorepo built for protocol-agnostic, multi-runtime agent deployment with a compositional extension architecture:

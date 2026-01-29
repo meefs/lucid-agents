@@ -152,6 +152,32 @@ export type IdentityRegistryClient = {
     signature?: string
   ): RegistrationEntry;
   getVersion(): Promise<string>;
+  /**
+   * Transfer identity token to another EVM address. Registry is EVM-only; Solana addresses are invalid.
+   * Uses safeTransferFrom; signer must be the current owner.
+   */
+  transfer(to: Hex, agentId: bigint | number | string): Promise<Hex>;
+  /**
+   * Transfer identity token from one address to another. Signer must be `from` or an approved spender.
+   * Registry is EVM-only.
+   */
+  transferFrom(
+    from: Hex,
+    to: Hex,
+    agentId: bigint | number | string
+  ): Promise<Hex>;
+  /**
+   * Approve an address to transfer the identity token. Owner approves `to`; EVM-only.
+   */
+  approve(to: Hex, agentId: bigint | number | string): Promise<Hex>;
+  /**
+   * Approve or revoke an operator for all tokens. Owner approves or revokes `operator`; EVM-only.
+   */
+  setApprovalForAll(operator: Hex, approved: boolean): Promise<Hex>;
+  /**
+   * Get the approved address for a token (read-only; no wallet required).
+   */
+  getApproved(agentId: bigint | number | string): Promise<Hex>;
 };
 
 export type PublicClientLike = {
@@ -410,6 +436,122 @@ export function createIdentityRegistryClient<
     return result;
   }
 
+  async function transfer(
+    to: Hex,
+    agentId: bigint | number | string
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for transfer');
+    }
+    if (!walletClient.account?.address) {
+      throw new Error('Wallet account required for transfer');
+    }
+    const normalizedTo = normalizeAddress(to);
+    if (normalizedTo === ZERO_ADDRESS) {
+      throw new Error('invalid hex address: recipient cannot be zero address');
+    }
+    const id = BigInt(agentId);
+    const from = normalizeAddress(walletClient.account.address);
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'safeTransferFrom',
+      args: [from, normalizedTo, id],
+    });
+    await waitForConfirmation(publicClient, txHash);
+    return txHash;
+  }
+
+  async function transferFrom(
+    from: Hex,
+    to: Hex,
+    agentId: bigint | number | string
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for transferFrom');
+    }
+    if (!walletClient.account?.address) {
+      throw new Error('Wallet account required for transferFrom');
+    }
+    const normalizedFrom = normalizeAddress(from);
+    const normalizedTo = normalizeAddress(to);
+    if (normalizedFrom === ZERO_ADDRESS) {
+      throw new Error('invalid hex address: from cannot be zero address');
+    }
+    if (normalizedTo === ZERO_ADDRESS) {
+      throw new Error('invalid hex address: to cannot be zero address');
+    }
+    const id = BigInt(agentId);
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'transferFrom',
+      args: [normalizedFrom, normalizedTo, id],
+    });
+    await waitForConfirmation(publicClient, txHash);
+    return txHash;
+  }
+
+  async function approve(
+    to: Hex,
+    agentId: bigint | number | string
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for approve');
+    }
+    if (!walletClient.account?.address) {
+      throw new Error('Wallet account required for approve');
+    }
+    const normalizedTo = normalizeAddress(to);
+    if (normalizedTo === ZERO_ADDRESS) {
+      throw new Error('invalid hex address: approved address cannot be zero');
+    }
+    const id = BigInt(agentId);
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'approve',
+      args: [normalizedTo, id],
+    });
+    await waitForConfirmation(publicClient, txHash);
+    return txHash;
+  }
+
+  async function setApprovalForAll(
+    operator: Hex,
+    approved: boolean
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for setApprovalForAll');
+    }
+    if (!walletClient.account?.address) {
+      throw new Error('Wallet account required for setApprovalForAll');
+    }
+    const normalizedOperator = normalizeAddress(operator);
+    if (normalizedOperator === ZERO_ADDRESS) {
+      throw new Error('invalid hex address: operator cannot be zero address');
+    }
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'setApprovalForAll',
+      args: [normalizedOperator, approved],
+    });
+    await waitForConfirmation(publicClient, txHash);
+    return txHash;
+  }
+
+  async function getApproved(agentId: bigint | number | string): Promise<Hex> {
+    const id = BigInt(agentId);
+    const approved = (await publicClient.readContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'getApproved',
+      args: [id],
+    })) as string;
+    return normalizeAddress(approved);
+  }
+
   return {
     address,
     chainId,
@@ -420,6 +562,11 @@ export function createIdentityRegistryClient<
     setMetadata,
     toRegistrationEntry,
     getVersion,
+    transfer,
+    transferFrom,
+    approve,
+    setApprovalForAll,
+    getApproved,
   };
 }
 

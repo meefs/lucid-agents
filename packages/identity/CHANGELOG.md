@@ -1018,6 +1018,10 @@
 
 ## Unreleased
 
+### Patch Changes
+
+- Added `transfer(to, agentId)`, `transferFrom(from, to, agentId)`, `approve(to, agentId)`, `setApprovalForAll(operator, approved)`, and `getApproved(agentId)` to IdentityRegistryClient. Reject zero/invalid EVM addresses; use normalized addresses in contract args. Enables register-then-transfer and approved-spender flows (EVM-only; Solana addresses invalid).
+
 ### Major - Complete ERC-8004 v1.0 Implementation
 
 **Added full support for all three ERC-8004 registries:**

@@ -162,6 +162,59 @@ await identityClient.setMetadata(
 );
 ```
 
+### Transfer identity
+
+The Identity Registry is ERC-721-like and **EVM-only**. You can transfer an identity token to another EVM address, or allow an approved spender to transfer on your behalf.
+
+**Transfer (owner):** Transfer your identity token to another address. Uses `safeTransferFrom`; the signer must be the current owner.
+
+```typescript
+const { identity: identityClient } = identity.clients;
+
+// Transfer identity to another EVM address (you must be the owner)
+const txHash = await identityClient.transfer(recipientEvmAddress, myAgentId);
+```
+
+**TransferFrom (owner or approved spender):** Transfer a token from one address to another. The signer must be the current owner or an address approved via `approve` or `setApprovalForAll`.
+
+```typescript
+await identityClient.transferFrom(fromAddress, toAddress, agentId);
+```
+
+**Approve / setApprovalForAll:** Allow another address to transfer your identity token(s). After approval, that address can call `transferFrom`.
+
+```typescript
+// Approve a single token
+await identityClient.approve(approvedAddress, myAgentId);
+
+// Approve an operator for all your tokens
+await identityClient.setApprovalForAll(operatorAddress, true);
+
+// Read approved address for a token (no wallet required)
+const approved = await identityClient.getApproved(myAgentId);
+```
+
+Addresses must be valid EVM (0x-prefixed) addresses; Solana addresses are not supported.
+
+**Example A — Register then transfer:** Platform (e.g. server or CDP wallet) registers an identity, then transfers it to a user's EVM address:
+
+```typescript
+const result = await client.register({
+  agentURI: 'https://my-agent.example.com/.well-known/agent-metadata.json',
+});
+if (result.agentId) {
+  await client.transfer(userEvmAddress, result.agentId);
+}
+```
+
+**Example B — Transfer only:** Signer already owns an identity; transfer it to another EVM address:
+
+```typescript
+await client.transfer(recipientEvmAddress, agentId);
+```
+
+For Coinbase CDP (Lucid MCP / xgate), use a viem-compatible `WalletClient` backed by your CDP server account (same interface: `account.address`, `writeContract`). See the xgate-mcp-server adapter for the CDP pattern. Runnable scripts: `examples/register-then-transfer.ts`, `examples/transfer-only.ts`, and `examples/deploy-agent.ts` (register + optional transfer).
+
 ### How to Manage Reputation
 
 Give and receive feedback on agent interactions:
@@ -258,9 +311,9 @@ The package supports multiple EVM-compatible chains. Set `CHAIN_ID` and `RPC_URL
 
 See the [`examples/`](./examples) directory for complete examples:
 
-- [`quick-start.ts`](./examples/quick-start.ts) - Simple registration with environment variables
-- [`full-integration.ts`](./examples/full-integration.ts) - Full integration with core
-- [`test-clients.ts`](./examples/test-clients.ts) - Testing all three registry clients (identity, reputation, validation)
+- [`register-then-transfer.ts`](./examples/register-then-transfer.ts) - Example A: Register an identity, then transfer it to a user's EVM address
+- [`transfer-only.ts`](./examples/transfer-only.ts) - Example B: Transfer an existing identity token to another EVM address
+- [`deploy-agent.ts`](./examples/deploy-agent.ts) - Deploy agent identity (register on ERC-8004 registry, optionally transfer to a user). Required env: `RPC_URL`, `CHAIN_ID`, `PRIVATE_KEY`, `AGENT_URI`. Optional: `TRANSFER_TO`. For CDP wallet, use a WalletClient backed by your CDP server account (see xgate-mcp-server).
 
 ## API Reference
 

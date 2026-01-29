@@ -1,3 +1,4 @@
+import { ZERO_ADDRESS } from '@lucid-agents/wallet';
 import { describe, expect, it } from 'bun:test';
 
 import {
@@ -214,6 +215,287 @@ describe('createIdentityRegistryClient', () => {
       'https://agent.example.com/.well-known/agent-metadata.json',
       metadata,
     ]);
+  });
+
+  it('transfer calls safeTransferFrom with correct args', async () => {
+    let writeArgs: any;
+    const mockWalletClient = {
+      account: {
+        address: '0x0000000000000000000000000000000000001234' as const,
+        async signMessage({ message }: { message: string | Uint8Array }) {
+          return '0xsignature' as const;
+        },
+      },
+      async writeContract(args: any) {
+        writeArgs = args;
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+      async waitForTransactionReceipt() {
+        return { logs: [] };
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    const to = '0x0000000000000000000000000000000000005678' as const;
+    const agentId = 1n;
+    const txHash = await client.transfer(to, agentId);
+
+    expect(txHash).toBe('0xtxhash');
+    expect(writeArgs.functionName).toBe('safeTransferFrom');
+    expect(writeArgs.args).toEqual([
+      '0x0000000000000000000000000000000000001234',
+      '0x0000000000000000000000000000000000005678',
+      1n,
+    ]);
+  });
+
+  it('transfer throws when walletClient is missing', async () => {
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+    } as PublicClientLike;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+    });
+
+    await expect(
+      client.transfer('0x0000000000000000000000000000000000005678', 1n)
+    ).rejects.toThrow('Wallet client required for transfer');
+  });
+
+  it('transfer throws when walletClient has no account', async () => {
+    const mockWalletClient = {
+      account: undefined,
+      async writeContract() {
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+      async waitForTransactionReceipt() {
+        return { logs: [] };
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    await expect(
+      client.transfer('0x0000000000000000000000000000000000005678', 1n)
+    ).rejects.toThrow('Wallet account required for transfer');
+  });
+
+  it('transfer throws when to is zero address', async () => {
+    const mockWalletClient = {
+      account: {
+        address: '0x0000000000000000000000000000000000001234' as const,
+      },
+      async writeContract() {
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+      async waitForTransactionReceipt() {
+        return { logs: [] };
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    await expect(client.transfer(ZERO_ADDRESS, 1n)).rejects.toThrow(
+      'invalid hex address'
+    );
+  });
+
+  it('transfer throws when to is non-EVM (invalid hex)', async () => {
+    const mockWalletClient = {
+      account: {
+        address: '0x0000000000000000000000000000000000001234' as const,
+      },
+      async writeContract() {
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    await expect(
+      client.transfer('not-a-hex-address' as any, 1n)
+    ).rejects.toThrow('invalid hex address');
+  });
+
+  it('transferFrom calls transferFrom with correct args', async () => {
+    let writeArgs: any;
+    const mockWalletClient = {
+      account: {
+        address: '0x0000000000000000000000000000000000001234' as const,
+      },
+      async writeContract(args: any) {
+        writeArgs = args;
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+      async waitForTransactionReceipt() {
+        return { logs: [] };
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    const from = '0x0000000000000000000000000000000000001234' as const;
+    const to = '0x0000000000000000000000000000000000005678' as const;
+    const agentId = 1n;
+    const txHash = await client.transferFrom(from, to, agentId);
+
+    expect(txHash).toBe('0xtxhash');
+    expect(writeArgs.functionName).toBe('transferFrom');
+    expect(writeArgs.args).toEqual([from, to, agentId]);
+  });
+
+  it('approve calls approve with correct args', async () => {
+    let writeArgs: any;
+    const mockWalletClient = {
+      account: {
+        address: '0x0000000000000000000000000000000000001234' as const,
+      },
+      async writeContract(args: any) {
+        writeArgs = args;
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+      async waitForTransactionReceipt() {
+        return { logs: [] };
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    const to = '0x0000000000000000000000000000000000005678' as const;
+    const agentId = 1n;
+    const txHash = await client.approve(to, agentId);
+
+    expect(txHash).toBe('0xtxhash');
+    expect(writeArgs.functionName).toBe('approve');
+    expect(writeArgs.args).toEqual([to, agentId]);
+  });
+
+  it('setApprovalForAll calls setApprovalForAll with correct args', async () => {
+    let writeArgs: any;
+    const mockWalletClient = {
+      account: {
+        address: '0x0000000000000000000000000000000000001234' as const,
+      },
+      async writeContract(args: any) {
+        writeArgs = args;
+        return '0xtxhash' as const;
+      },
+    } as WalletClientLike;
+
+    const mockPublicClient = {
+      async readContract() {
+        return true;
+      },
+      async waitForTransactionReceipt() {
+        return { logs: [] };
+      },
+    } as any;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+      walletClient: mockWalletClient,
+    });
+
+    const operator = '0x0000000000000000000000000000000000005678' as const;
+    const txHash = await client.setApprovalForAll(operator, true);
+
+    expect(txHash).toBe('0xtxhash');
+    expect(writeArgs.functionName).toBe('setApprovalForAll');
+    expect(writeArgs.args).toEqual([operator, true]);
+  });
+
+  it('getApproved returns approved address (no wallet required)', async () => {
+    const mockPublicClient = {
+      async readContract(args: any) {
+        if (args.functionName === 'getApproved') {
+          return '0x0000000000000000000000000000000000005678';
+        }
+        throw new Error(`Unexpected: ${args.functionName}`);
+      },
+    } as PublicClientLike;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
+    });
+
+    const approved = await client.getApproved(1n);
+    expect(approved).toBe('0x0000000000000000000000000000000000005678');
   });
 });
 

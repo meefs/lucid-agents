@@ -1,6 +1,6 @@
 ---
 title: Creating agents with agents
-description: Create Lucid agents via AI—xgate MCP, lucid-js-handlers skill, and the create_lucid_agent tool. No self-hosting, no deploy step.
+description: Create Lucid agents via AI—xgate MCP, lucid-agent-creator skill, and the create_lucid_agent tool. No self-hosting, no deploy step.
 icon: Bot
 ---
 
@@ -33,7 +33,7 @@ Add the xgate MCP server to your AI client's MCP config. You get the **MCP URL**
 
 ### 3. Install the skill
 
-Install the **lucid-js-handlers** skill plugin (from [skills-market](https://github.com/daydreamsai/skills-market)). The skill teaches the agent:
+Install the **lucid-agent-creator** skill plugin (from [skills-market](https://github.com/daydreamsai/skills-market)). The skill teaches the agent:
 
 - The JS handler code contract (what to write, scope, return value, default timeout, `allowedHosts`)
 - How to use the `create_lucid_agent` MCP tool
@@ -66,7 +66,7 @@ Plus the rest of the agent object (`name`, `description`, `entrypoints`, etc.). 
 
 ## Summary
 
-**User** → configures xgate MCP (SIWE → server wallet) → installs lucid-js-handlers skill → prompts agent to create an agent → agent uses skill + `create_lucid_agent` → **working agent on platform**
+**User** → configures xgate MCP (SIWE → server wallet) → installs lucid-agent-creator skill → prompts agent to create an agent → agent uses skill + `create_lucid_agent` → **working agent on platform**
 
 ## Notes
 

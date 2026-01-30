@@ -168,7 +168,14 @@ describe('create-agent-kit CLI', () => {
     ]);
 
     const prompt: PromptApi = {
-      select: async ({ choices }) => choices[0]?.value ?? '',
+      select: async ({ choices, message }) => {
+        // Select 'base' network when asked about payment network
+        if (message?.toLowerCase().includes('network')) {
+          const baseChoice = choices.find(c => c.value === 'base');
+          if (baseChoice) return baseChoice.value;
+        }
+        return choices[0]?.value ?? '';
+      },
       confirm: async ({ defaultValue }) => defaultValue ?? false,
       input: async ({ message, defaultValue = '' }) =>
         inputResponses.get(message) ?? defaultValue,

@@ -248,7 +248,7 @@ PRIVATE_KEY=
 
 Additional variables for ERC-8004:
 
-```bash
+````bash
 AGENT_DOMAIN=agent.example.com
 IDENTITY_AUTO_REGISTER=true
 RPC_URL=https://eth.llamarpc.com
@@ -262,7 +262,7 @@ Additional variables for LLM:
 OPENAI_API_KEY=sk-...
 AX_MODEL=gpt-4o
 AX_PROVIDER=openai
-```
+````
 
 ## Project Structure
 

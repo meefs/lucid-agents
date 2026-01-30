@@ -252,8 +252,7 @@ Additional variables for ERC-8004:
 AGENT_DOMAIN=agent.example.com
 IDENTITY_AUTO_REGISTER=true
 RPC_URL=https://eth.llamarpc.com
-CHAIN_ID=84532
-```
+CHAIN_ID=1
 
 ### AxLLM Templates
 

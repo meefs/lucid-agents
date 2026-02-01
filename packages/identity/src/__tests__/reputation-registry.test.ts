@@ -5,24 +5,35 @@ import type {
   WalletClientLike,
 } from '../registries/identity';
 import { createReputationRegistryClient } from '../registries/reputation';
+import type { PublicClientWithReceipt } from '../registries/utils';
 
 const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000dEaD' as const;
 
 function makeClients() {
-  let writeArgs: any;
+  type WriteContractArgs = Parameters<WalletClientLike['writeContract']>[0];
+  type ReadContractArgs = Parameters<PublicClientLike['readContract']>[0];
+  type ReadContractResult = Awaited<ReturnType<PublicClientLike['readContract']>>;
+  type WaitForTransactionReceiptArgs = Parameters<
+    NonNullable<PublicClientWithReceipt['waitForTransactionReceipt']>
+  >[0];
+  type WaitForTransactionReceiptResult = Awaited<
+    ReturnType<NonNullable<PublicClientWithReceipt['waitForTransactionReceipt']>>
+  >;
 
-  const mockWalletClient = {
+  let writeArgs: WriteContractArgs | undefined;
+
+  const mockWalletClient: WalletClientLike = {
     account: {
       address: '0x0000000000000000000000000000000000001234' as const,
     },
-    async writeContract(args: any) {
+    async writeContract(args: WriteContractArgs) {
       writeArgs = args;
       return '0xtxhash' as const;
     },
-  } as WalletClientLike;
+  };
 
-  const mockPublicClient = {
-    async readContract(args: any) {
+  const mockPublicClient: PublicClientLike & PublicClientWithReceipt = {
+    async readContract(args: ReadContractArgs): ReadContractResult {
       if (args.functionName === 'readFeedback') {
         return [12n, 2, 'tag-a', 'tag-b', false];
       }
@@ -42,10 +53,12 @@ function makeClients() {
       }
       return true;
     },
-    async waitForTransactionReceipt() {
+    async waitForTransactionReceipt(
+      _args: WaitForTransactionReceiptArgs
+    ): WaitForTransactionReceiptResult {
       return { logs: [] };
     },
-  } as any as PublicClientLike;
+  };
 
   const client = createReputationRegistryClient({
     address: REGISTRY_ADDRESS,
@@ -95,6 +108,9 @@ describe('ReputationRegistryClient', () => {
     });
 
     const writeArgs = getWriteArgs();
+    if (!writeArgs) {
+      throw new Error('writeContract was not called');
+    }
     expect(writeArgs.functionName).toBe('giveFeedback');
     expect(writeArgs.args?.[1]).toBe(12n);
     expect(writeArgs.args?.[2]).toBe(2);

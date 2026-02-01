@@ -241,9 +241,9 @@ type WalletConnector = {
 
 ```typescript
 import type {
-  IdentityConfig,
-  IdentityRuntime,
   RegistrationEntry,
+  AgentRegistration,
+  AgentService,
   TrustModel,
 } from '@lucid-agents/types/identity';
 ```
@@ -252,14 +252,38 @@ import type {
 
 ```typescript
 type RegistrationEntry = {
-  agentId: `0x${string}`;
-  domain: string;
-  registeredAt: number;
-  metadata?: {
-    name?: string;
-    description?: string;
-    version?: string;
-  };
+  agentId: number | string;
+  agentRegistry: string; // CAIP-10: namespace:chainId:address
+  agentAddress?: string;
+  signature?: string;
+};
+```
+
+### AgentService
+
+```typescript
+type AgentService = {
+  id?: string;
+  type?: string;
+  serviceEndpoint: string;
+  description?: string;
+};
+```
+
+### AgentRegistration
+
+```typescript
+type AgentRegistration = {
+  type: 'agent';
+  name: string;
+  description?: string;
+  image?: string;
+  domain?: string;
+  url?: string;
+  owner?: string;
+  services?: AgentService[];
+  registrations?: RegistrationEntry[];
+  supportedTrust?: TrustModel[];
 };
 ```
 

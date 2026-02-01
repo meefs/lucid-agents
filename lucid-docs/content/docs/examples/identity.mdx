@@ -42,8 +42,8 @@ async function main() {
     console.log('Agent registered successfully!');
     console.log('Transaction:', identity.transactionHash);
     console.log(
-      'Next step: Host your metadata at:',
-      `https://${identity.domain}/.well-known/agent-metadata.json`
+      'Next step: Host your registration file at:',
+      `https://${identity.domain}/.well-known/agent-registration.json`
     );
   } else if (identity.trust) {
     console.log('Found existing registration');
@@ -176,18 +176,45 @@ Comprehensive example testing all three registries: Identity, Validation, and Re
 
 ```typescript
 // Identity Registry
-const agent = await registry.identity.get(domain);
-const metadata = await registry.identity.getMetadata(agentId);
-await registry.identity.setMetadata(agentId, { name: 'Updated' });
+const record = await registry.identity.get(agentId);
+const metadata = await registry.identity.getMetadata(agentId, 'version');
+await registry.identity.setMetadata(
+  agentId,
+  'version',
+  new TextEncoder().encode('1.0.0')
+);
 
 // Validation Registry
-const summary = await registry.validation.getSummary(agentId);
-await registry.validation.createRequest(agentId, { ... });
-await registry.validation.submitResponse(requestId, { ... });
+// hashValidationRequest is exported from @lucid-agents/identity
+const requestBody = '{"input":"work-data"}';
+const requestHash = hashValidationRequest(requestBody);
+await registry.validation.validationRequest({
+  validatorAddress,
+  agentId,
+  requestUri: 'ipfs://...',
+  requestBody,
+});
+await registry.validation.validationResponse({
+  requestHash,
+  response: 1,
+  responseUri: 'ipfs://...',
+  responseHash,
+  tag: 'validation',
+});
 
 // Reputation Registry
 const reputation = await registry.reputation.getSummary(agentId);
-await registry.reputation.giveFeedback(agentId, { score: 5, comment: '...' });
+const average =
+  reputation.valueDecimals === 0
+    ? Number(reputation.value)
+    : Number(reputation.value) / 10 ** reputation.valueDecimals;
+await registry.reputation.giveFeedback({
+  toAgentId: agentId,
+  value: 5,
+  valueDecimals: 0,
+  tag1: 'quality',
+  tag2: 'speed',
+});
 await registry.reputation.appendResponse(feedbackId, { ... });
 ```
 

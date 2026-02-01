@@ -1,5 +1,12 @@
 # @lucid-agents/types
 
+## Unreleased
+
+### Patch Changes
+
+- Added `AgentRegistration` and `AgentService` types for ERC-8004 registration files.
+- Registration entries now include required `agentRegistry` and optional `agentAddress`.
+
 ## 1.5.6
 
 ### Patch Changes

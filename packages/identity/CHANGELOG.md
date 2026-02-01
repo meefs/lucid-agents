@@ -4,6 +4,11 @@
 
 ### Patch Changes
 
+- Added `agentRegistry` to registration entries and require `registryAddress` when building trust config from identity records.
+- Added agent wallet helpers (`getAgentWallet`, `setAgentWallet`, `unsetAgentWallet`) plus EIP-712 typed data helpers for wallet updates.
+- Reputation registry now uses `value` + `valueDecimals` and validates integer feedback values.
+- Validation requests now hash `requestBody` when provided and fall back to `requestUri` for backward compatibility.
+- Updated tests, examples, and docs for registration file hosting and reputation/validation changes.
 - Updated dependencies [25e480a]
   - @lucid-agents/wallet@0.5.7
 

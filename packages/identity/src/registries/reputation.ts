@@ -112,7 +112,9 @@ function normalizeFeedbackValue(input: GiveFeedbackInput['value']): bigint {
   }
   if (typeof input === 'number') {
     if (!Number.isInteger(input)) {
-      throw new Error('value must be an integer; use valueDecimals for scaling');
+      throw new Error(
+        'value must be an integer; use valueDecimals for scaling'
+      );
     }
     return BigInt(input);
   }
@@ -194,15 +196,7 @@ export function createReputationRegistryClient<
       abi: REPUTATION_REGISTRY_ABI,
       functionName: 'readAllFeedback',
       args: [agentId, clientAddresses, tag1, tag2, includeRevoked],
-    })) as [
-      Hex[],
-      bigint[],
-      bigint[],
-      number[],
-      string[],
-      string[],
-      boolean[],
-    ];
+    })) as [Hex[], bigint[], bigint[], number[], string[], string[], boolean[]];
 
     const [
       clients,

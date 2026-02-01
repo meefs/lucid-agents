@@ -650,7 +650,8 @@ describe('buildTrustConfigFromIdentity', () => {
       {
         agentId: 5n,
         owner: '0x0000000000000000000000000000000000000005',
-        agentURI: 'https://agent.example.com/.well-known/agent-registration.json',
+        agentURI:
+          'https://agent.example.com/.well-known/agent-registration.json',
       },
       { chainId: 84532, registryAddress: REGISTRY_ADDRESS }
     );
@@ -667,7 +668,8 @@ describe('buildTrustConfigFromIdentity', () => {
       {
         agentId: largeId,
         owner: '0x0000000000000000000000000000000000000abc',
-        agentURI: 'https://agent.example.com/.well-known/agent-registration.json',
+        agentURI:
+          'https://agent.example.com/.well-known/agent-registration.json',
       },
       { chainId: 84532, registryAddress: REGISTRY_ADDRESS }
     );

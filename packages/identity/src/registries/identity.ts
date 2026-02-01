@@ -335,7 +335,9 @@ export function createIdentityRegistryClient<
     // Contract register() function takes agentURI parameter (not tokenURI)
     let args: readonly unknown[] = [];
     if (input?.agentURI) {
-      args = input.metadata ? [input.agentURI, input.metadata] : [input.agentURI];
+      args = input.metadata
+        ? [input.agentURI, input.metadata]
+        : [input.agentURI];
     } else if (input?.metadata) {
       throw new Error('agentURI is required when metadata is provided');
     }
@@ -421,7 +423,7 @@ export function createIdentityRegistryClient<
     return txHash;
   }
 
-function toRegistrationEntry(
+  function toRegistrationEntry(
     record: IdentityRecord,
     signature?: string
   ): RegistrationEntry {
@@ -476,9 +478,7 @@ function toRegistrationEntry(
     return txHash;
   }
 
-  async function unsetAgentWallet(
-    input: UnsetAgentWalletInput
-  ): Promise<Hex> {
+  async function unsetAgentWallet(input: UnsetAgentWalletInput): Promise<Hex> {
     return setAgentWallet({
       agentId: input.agentId,
       newWallet: ZERO_ADDRESS,

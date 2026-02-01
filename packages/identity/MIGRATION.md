@@ -116,9 +116,7 @@ await identityClient.setAgentURI(
 
 ```typescript
 const trustConfig = {
-  registrations: [
-    { agentId: '1', agentAddress: 'eip155:84532:0xabc' },
-  ],
+  registrations: [{ agentId: '1', agentAddress: 'eip155:84532:0xabc' }],
 };
 ```
 

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
-import type { PublicClientLike, WalletClientLike } from '../registries/identity';
+import type {
+  PublicClientLike,
+  WalletClientLike,
+} from '../registries/identity';
 import { hashValidationRequest } from '../registries/signatures';
 import { createValidationRegistryClient } from '../registries/validation';
 

@@ -17,6 +17,8 @@ describe('buildAgentWalletTypedData', () => {
     expect(typed.primaryType).toBe('AgentWallet');
     expect(typed.domain.chainId).toBe(84532);
     expect(typed.message.agentId).toBe('42');
-    expect(typed.message.newWallet).toBe('0x000000000000000000000000000000000000beef');
+    expect(typed.message.newWallet).toBe(
+      '0x000000000000000000000000000000000000beef'
+    );
   });
 });

@@ -4,7 +4,10 @@
  */
 
 import type { Hex, SignerWalletClient } from '@lucid-agents/wallet';
-import { signMessageWithViem, signTypedDataWithViem } from '@lucid-agents/wallet';
+import {
+  signMessageWithViem,
+  signTypedDataWithViem,
+} from '@lucid-agents/wallet';
 import { keccak256, stringToBytes } from 'viem';
 
 /**

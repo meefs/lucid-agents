@@ -90,7 +90,8 @@ const registration = generateAgentRegistration(identity, {
     {
       id: 'a2a',
       type: 'a2a',
-      serviceEndpoint: 'https://my-agent.example.com/.well-known/agent-card.json',
+      serviceEndpoint:
+        'https://my-agent.example.com/.well-known/agent-card.json',
     },
   ],
 });
@@ -248,9 +249,7 @@ const average =
   summary.valueDecimals === 0
     ? Number(summary.value)
     : Number(summary.value) / 10 ** summary.valueDecimals;
-console.log(
-  `Agent #42: ${average}/100 (${summary.count} reviews)`
-);
+console.log(`Agent #42: ${average}/100 (${summary.count} reviews)`);
 
 // Get all feedback
 const feedback = await reputation.getAllFeedback(42n);
@@ -435,7 +434,8 @@ const registration = generateAgentRegistration(identity, {
     {
       id: 'a2a',
       type: 'a2a',
-      serviceEndpoint: 'https://my-agent.example.com/.well-known/agent-card.json',
+      serviceEndpoint:
+        'https://my-agent.example.com/.well-known/agent-card.json',
     },
   ],
 });

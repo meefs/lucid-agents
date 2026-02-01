@@ -12,7 +12,8 @@ describe('generateAgentRegistration', () => {
         registrations: [
           {
             agentId: '1',
-            agentRegistry: 'eip155:84532:0x000000000000000000000000000000000000dead',
+            agentRegistry:
+              'eip155:84532:0x000000000000000000000000000000000000dead',
           },
         ],
         trustModels: ['feedback'],
@@ -20,7 +21,8 @@ describe('generateAgentRegistration', () => {
       record: {
         agentId: 1n,
         owner: '0x0000000000000000000000000000000000000001',
-        agentURI: 'https://agent.example.com/.well-known/agent-registration.json',
+        agentURI:
+          'https://agent.example.com/.well-known/agent-registration.json',
       },
     };
 
@@ -32,7 +34,8 @@ describe('generateAgentRegistration', () => {
         {
           id: 'a2a',
           type: 'a2a',
-          serviceEndpoint: 'https://agent.example.com/.well-known/agent-card.json',
+          serviceEndpoint:
+            'https://agent.example.com/.well-known/agent-card.json',
         },
       ],
       x402Support: true,

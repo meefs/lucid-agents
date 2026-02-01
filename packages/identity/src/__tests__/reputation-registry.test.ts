@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
-import type { PublicClientLike, WalletClientLike } from '../registries/identity';
+import type {
+  PublicClientLike,
+  WalletClientLike,
+} from '../registries/identity';
 import { createReputationRegistryClient } from '../registries/reputation';
 
 const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000dEaD' as const;

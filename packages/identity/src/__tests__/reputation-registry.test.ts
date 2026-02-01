@@ -108,7 +108,7 @@ describe('ReputationRegistryClient', () => {
         toAgentId: 1n,
         value: 1.5,
       })
-    ).rejects.toThrow(/value must be an integer/);
+    ).rejects.toThrow(/safe integer number/);
 
     await expect(
       client.giveFeedback({

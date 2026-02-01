@@ -19,7 +19,9 @@ function makeClients() {
     NonNullable<PublicClientWithReceipt['waitForTransactionReceipt']>
   >[0];
   type WaitForTransactionReceiptResult = Awaited<
-    ReturnType<NonNullable<PublicClientWithReceipt['waitForTransactionReceipt']>>
+    ReturnType<
+      NonNullable<PublicClientWithReceipt['waitForTransactionReceipt']>
+    >
   >;
 
   let writeArgs: WriteContractArgs | undefined;

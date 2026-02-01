@@ -324,7 +324,7 @@ describe('createIdentityRegistryClient', () => {
     ]);
   });
 
-  it('unsets agent wallet via helper', async () => {
+  it('unsets agent wallet via direct contract call', async () => {
     let writeArgs: any;
     const mockWalletClient = {
       account: {
@@ -352,14 +352,38 @@ describe('createIdentityRegistryClient', () => {
       walletClient: mockWalletClient,
     });
 
-    await client.unsetAgentWallet({
-      agentId: 1n,
-      deadline: 123n,
-      signature: '0x1234',
+    await client.unsetAgentWallet(1n);
+
+    expect(writeArgs.functionName).toBe('unsetAgentWallet');
+    expect(writeArgs.args).toEqual([1n]);
+  });
+
+  it('isAuthorizedOrOwner checks spender authorization', async () => {
+    const mockPublicClient = {
+      async readContract({ functionName, args }: any) {
+        if (functionName === 'isAuthorizedOrOwner') {
+          // Return true if spender is the owner address
+          return (
+            args[0].toLowerCase() ===
+            '0x000000000000000000000000000000000000beef'
+          );
+        }
+        return false;
+      },
+    } as PublicClientLike;
+
+    const client = createIdentityRegistryClient({
+      address: REGISTRY_ADDRESS,
+      chainId: 84532,
+      publicClient: mockPublicClient,
     });
 
-    expect(writeArgs.functionName).toBe('setAgentWallet');
-    expect(writeArgs.args).toEqual([1n, ZERO_ADDRESS, 123n, '0x1234']);
+    const isAuthorized = await client.isAuthorizedOrOwner(
+      '0x000000000000000000000000000000000000beef',
+      1n
+    );
+
+    expect(isAuthorized).toBe(true);
   });
 
   it('transfer calls safeTransferFrom with correct args', async () => {

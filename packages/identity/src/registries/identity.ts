@@ -148,7 +148,11 @@ export type IdentityRegistryClient = {
     agentURI: string
   ): Promise<Hex>;
   setAgentWallet(input: SetAgentWalletInput): Promise<Hex>;
-  unsetAgentWallet(input: UnsetAgentWalletInput): Promise<Hex>;
+  unsetAgentWallet(agentId: bigint | number | string): Promise<Hex>;
+  isAuthorizedOrOwner(
+    spender: Hex,
+    agentId: bigint | number | string
+  ): Promise<boolean>;
   setMetadata(
     agentId: bigint | number | string,
     key: string,
@@ -220,12 +224,6 @@ export type RegisterAgentResult = {
 export type SetAgentWalletInput = {
   agentId: bigint | number | string;
   newWallet: Hex;
-  deadline: bigint;
-  signature: Hex;
-};
-
-export type UnsetAgentWalletInput = {
-  agentId: bigint | number | string;
   deadline: bigint;
   signature: Hex;
 };
@@ -478,13 +476,41 @@ export function createIdentityRegistryClient<
     return txHash;
   }
 
-  async function unsetAgentWallet(input: UnsetAgentWalletInput): Promise<Hex> {
-    return setAgentWallet({
-      agentId: input.agentId,
-      newWallet: ZERO_ADDRESS,
-      deadline: input.deadline,
-      signature: input.signature,
+  async function unsetAgentWallet(
+    agentId: bigint | number | string
+  ): Promise<Hex> {
+    if (!walletClient) {
+      throw new Error('Wallet client required for unsetAgentWallet');
+    }
+
+    const id = BigInt(agentId);
+    const txHash = await walletClient.writeContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'unsetAgentWallet',
+      args: [id],
     });
+
+    await waitForConfirmation(publicClient, txHash);
+
+    return txHash;
+  }
+
+  async function isAuthorizedOrOwner(
+    spender: Hex,
+    agentId: bigint | number | string
+  ): Promise<boolean> {
+    const normalizedSpender = normalizeAddress(spender);
+    const id = BigInt(agentId);
+
+    const result = (await publicClient.readContract({
+      address,
+      abi: IDENTITY_REGISTRY_ABI,
+      functionName: 'isAuthorizedOrOwner',
+      args: [normalizedSpender, id],
+    })) as boolean;
+
+    return result;
   }
 
   async function getVersion(): Promise<string> {
@@ -624,6 +650,7 @@ export function createIdentityRegistryClient<
     setAgentURI,
     setAgentWallet,
     unsetAgentWallet,
+    isAuthorizedOrOwner,
     setMetadata,
     toRegistrationEntry,
     getVersion,

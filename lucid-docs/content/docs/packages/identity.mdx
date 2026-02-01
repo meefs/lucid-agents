@@ -59,10 +59,11 @@ const config = identityFromEnv();
 
 ```typescript
 type IdentityConfig = {
-  registryAddress?: `0x${string}`;
+  trust?: TrustConfig;
   domain?: string;
   autoRegister?: boolean;
-  trustModels?: TrustModel[];
+  rpcUrl?: string;
+  chainId?: number;
 };
 ```
 
@@ -96,16 +97,42 @@ const identity = await createAgentIdentity({
 });
 ```
 
-### IdentityRuntime
+### Host your registration file
 
-When identity is configured, `agent.identity` provides:
+After registration, host the ERC-8004 registration file at:
+
+```text
+https://my-agent.example.com/.well-known/agent-registration.json
+```
+
+You can generate the file with the helper:
 
 ```typescript
-type IdentityRuntime = {
-  config: IdentityConfig;
-  getRegistration: () => RegistrationEntry | undefined;
-  signDomainProof: (domain: string) => Promise<string>;
-};
+import { generateAgentRegistration } from '@lucid-agents/identity';
+
+const registration = generateAgentRegistration(identity, {
+  name: 'My Agent',
+  description: 'An intelligent assistant',
+  services: [
+    {
+      id: 'a2a',
+      type: 'a2a',
+      serviceEndpoint: 'https://my-agent.example.com/.well-known/agent-card.json',
+    },
+  ],
+});
+```
+
+### TrustConfig helpers
+
+`createAgentIdentity` returns an object that includes `trust` (if available) and optional `clients`.
+Use `getTrustConfig` to normalize the trust configuration for manifests and adapters:
+
+```typescript
+import { createAgentIdentity, getTrustConfig } from '@lucid-agents/identity';
+
+const identity = await createAgentIdentity({ runtime: agent, autoRegister: true });
+const trustConfig = getTrustConfig(identity);
 ```
 
 ## ERC-8004 overview
@@ -114,21 +141,39 @@ ERC-8004 is a standard for on-chain agent identity:
 
 - **Registry**: Smart contract storing agent registrations
 - **Domain binding**: Prove ownership of a domain
-- **Reputation**: Track agent reputation scores
+- **Reputation**: Track agent reputation feedback and scores
 - **Trust models**: Define trust relationships
 
 ### Registration entry
 
 ```typescript
 type RegistrationEntry = {
-  agentId: `0x${string}`;
-  domain: string;
-  registeredAt: number;
-  metadata?: {
-    name?: string;
+  agentId: number | string;
+  agentRegistry: string; // CAIP-10: namespace:chainId:address
+  agentAddress?: string; // optional legacy owner address (CAIP-10)
+  signature?: string;
+};
+```
+
+### Agent registration file
+
+```typescript
+type AgentRegistration = {
+  type: 'agent';
+  name: string;
+  description?: string;
+  image?: string;
+  domain?: string;
+  url?: string;
+  owner?: string;
+  services?: Array<{
+    id?: string;
+    type?: string;
+    serviceEndpoint: string;
     description?: string;
-    version?: string;
-  };
+  }>;
+  registrations?: RegistrationEntry[];
+  supportedTrust?: TrustModel[];
 };
 ```
 
@@ -167,18 +212,12 @@ Identity information is included in the Agent Card:
   "name": "my-agent",
   "registrations": [
     {
-      "agentId": "0x...",
-      "domain": "my-agent.example.com",
-      "registeredAt": 1704067200
+      "agentId": "1",
+      "agentRegistry": "eip155:84532:0xregistry",
+      "agentAddress": "eip155:84532:0xowner"
     }
   ],
-  "trustModels": [
-    {
-      "id": "erc8004",
-      "name": "ERC-8004 Registry",
-      "verificationMethod": "registry"
-    }
-  ],
+  "trustModels": ["feedback", "inference-validation"],
   "ValidationRequestsURI": "https://my-agent.example.com/validation/request",
   "ValidationResponsesURI": "https://my-agent.example.com/validation/response"
 }
@@ -193,16 +232,18 @@ import { createIdentityRegistryClient } from '@lucid-agents/identity';
 
 const registry = createIdentityRegistryClient({
   address: '0x...',
-  client: publicClient,  // viem public client
+  chainId: 84532,
+  publicClient,  // viem public client
+  walletClient,  // viem wallet client (required for writes)
 });
 
-// Lookup agent by domain
-const agent = await registry.getAgentByDomain('my-agent.example.com');
+// Lookup agent by ID
+const agent = await registry.get(1n);
+const metadata = await registry.getMetadata(1n, 'version');
 
 // Register new agent
 await registry.register({
-  domain: 'my-agent.example.com',
-  metadata: { name: 'My Agent', version: '1.0.0' },
+  agentURI: 'https://my-agent.example.com/.well-known/agent-registration.json',
 });
 ```
 
@@ -213,17 +254,25 @@ import { createReputationRegistryClient } from '@lucid-agents/identity';
 
 const reputation = createReputationRegistryClient({
   address: '0x...',
-  client: publicClient,
+  chainId: 84532,
+  publicClient,
+  walletClient,
 });
 
 // Get agent reputation
-const score = await reputation.getReputation('0x...');
+const summary = await reputation.getSummary(1n);
+const score =
+  summary.valueDecimals === 0
+    ? Number(summary.value)
+    : Number(summary.value) / 10 ** summary.valueDecimals;
 
 // Submit feedback
-await reputation.submitFeedback({
-  agentId: '0x...',
-  score: 5,
-  comment: 'Excellent service',
+await reputation.giveFeedback({
+  toAgentId: 1n,
+  value: 5,
+  valueDecimals: 0,
+  tag1: 'quality',
+  tag2: 'speed',
 });
 ```
 

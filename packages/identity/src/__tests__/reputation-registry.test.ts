@@ -12,7 +12,9 @@ const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000dEaD' as const;
 function makeClients() {
   type WriteContractArgs = Parameters<WalletClientLike['writeContract']>[0];
   type ReadContractArgs = Parameters<PublicClientLike['readContract']>[0];
-  type ReadContractResult = Awaited<ReturnType<PublicClientLike['readContract']>>;
+  type ReadContractResult = Awaited<
+    ReturnType<PublicClientLike['readContract']>
+  >;
   type WaitForTransactionReceiptArgs = Parameters<
     NonNullable<PublicClientWithReceipt['waitForTransactionReceipt']>
   >[0];
@@ -33,7 +35,7 @@ function makeClients() {
   };
 
   const mockPublicClient: PublicClientLike & PublicClientWithReceipt = {
-    async readContract(args: ReadContractArgs): ReadContractResult {
+    async readContract(args: ReadContractArgs): Promise<ReadContractResult> {
       if (args.functionName === 'readFeedback') {
         return [12n, 2, 'tag-a', 'tag-b', false];
       }
@@ -55,7 +57,7 @@ function makeClients() {
     },
     async waitForTransactionReceipt(
       _args: WaitForTransactionReceiptArgs
-    ): WaitForTransactionReceiptResult {
+    ): Promise<WaitForTransactionReceiptResult> {
       return { logs: [] };
     },
   };

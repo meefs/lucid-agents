@@ -1,5 +1,5 @@
 ---
-"@lucid-agents/identity": minor
+"@lucid-agents/identity": patch
 ---
 
 Add support for custom `agentURI` parameter in identity registration

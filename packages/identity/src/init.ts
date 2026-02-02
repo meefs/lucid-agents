@@ -146,6 +146,13 @@ export type CreateAgentIdentityOptions = {
   registration?: AgentRegistrationOptions;
 
   /**
+   * Custom agent URI to use for registration.
+   * If not provided, defaults to `https://{domain}/.well-known/agent-registration.json`
+   * Example: `https://api.example.com/agents/ag_xxx/.well-known/agent-card.json`
+   */
+  agentURI?: string;
+
+  /**
    * Custom environment variables object.
    * Defaults to process.env.
    */
@@ -271,6 +278,7 @@ export async function createAgentIdentity(
     rpcUrl,
     trustModels = ['feedback', 'inference-validation'],
     trustOverrides,
+    agentURI,
     env,
     logger,
   } = options;
@@ -313,6 +321,7 @@ export async function createAgentIdentity(
     logger,
     makeClients: viemFactory,
     registerIfMissing: autoRegister,
+    agentURI,
     trustOverrides: {
       trustModels,
       ...trustOverrides,

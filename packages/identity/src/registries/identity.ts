@@ -746,6 +746,11 @@ export type BootstrapTrustOptions = {
   registerIfMissing?: boolean;
   skipRegister?: boolean;
   trustOverrides?: TrustOverridesInput;
+  /**
+   * Custom agent URI to use for registration.
+   * If not provided, defaults to `https://{domain}/.well-known/agent-registration.json`
+   */
+  agentURI?: string;
   onMissing?: (
     context: BootstrapTrustMissingContext
   ) =>
@@ -823,7 +828,7 @@ export async function bootstrapTrust(
   }
 
   if (!record && shouldRegister) {
-    const agentURI = buildRegistrationURI(normalizedDomain);
+    const agentURI = options.agentURI ?? buildRegistrationURI(normalizedDomain);
     const registration = await client.register({ agentURI });
     transactionHash = registration.transactionHash;
     didRegister = true;
@@ -995,6 +1000,11 @@ export type BootstrapIdentityOptions = {
   skipRegister?: boolean;
   signatureNonce?: string;
   trustOverrides?: TrustOverridesInput;
+  /**
+   * Custom agent URI to use for registration.
+   * If not provided, defaults to `https://{domain}/.well-known/agent-registration.json`
+   */
+  agentURI?: string;
   env?: Record<string, string | undefined>;
   logger?: InferLogger;
 };
@@ -1075,6 +1085,7 @@ export async function bootstrapIdentity(
           options.registerIfMissing ?? env.REGISTER_IDENTITY === 'true',
         skipRegister: options.skipRegister,
         trustOverrides: resolvedOverrides,
+        agentURI: options.agentURI,
       });
 
       if (result.trust || result.didRegister || result.transactionHash) {

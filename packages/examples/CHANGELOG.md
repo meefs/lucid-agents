@@ -1,5 +1,17 @@
 # @lucid-agents/examples
 
+## 0.2.15
+
+### Patch Changes
+
+- Updated dependencies [b66cb4d]
+  - @lucid-agents/payments@2.2.2
+  - @lucid-agents/analytics@0.2.6
+  - @lucid-agents/core@2.2.2
+  - @lucid-agents/hono@0.7.19
+  - @lucid-agents/a2a@0.5.5
+  - @lucid-agents/identity@2.2.2
+
 ## 0.2.14
 
 ### Patch Changes

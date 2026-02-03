@@ -1,5 +1,13 @@
 # @lucid-agents/ap2
 
+## 0.4.0
+
+### Minor Changes
+
+- 735dd34: Release packages that were missed in 2.4.0 release
+
+  These packages were not included in the 2.4.0 release and are still depending on @lucid-agents/types@1.5.7. This release brings them up to date so they depend on types@1.6.0 with the CAIP-2 Network type, resolving potential type conflicts in dependency trees.
+
 ## 0.3.9
 
 ### Patch Changes

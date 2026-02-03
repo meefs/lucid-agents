@@ -1,5 +1,12 @@
 # @lucid-agents/express
 
+## 0.5.1
+
+### Patch Changes
+
+- @lucid-agents/core@2.4.1
+- @lucid-agents/payments@2.4.1
+
 ## 0.5.0
 
 ### Minor Changes

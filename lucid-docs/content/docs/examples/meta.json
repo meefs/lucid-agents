@@ -6,6 +6,7 @@
     "core",
     "a2a",
     "---Payments---",
+    "calling-paid-endpoints",
     "payment-policies",
     "scheduler",
     "---Trust---",

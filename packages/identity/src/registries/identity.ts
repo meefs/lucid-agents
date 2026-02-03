@@ -861,25 +861,12 @@ export async function bootstrapTrust(
         signer: options.signer,
         nonce: options.signatureNonce,
       });
-      // Debug: Confirm signature was generated
-      if (signature) {
-        defaultLogger.info?.(
-          `[agent-kit-identity] Generated domain proof signature: ${signature.slice(
-            0,
-            10
-          )}...`
-        );
-      }
     } catch (error) {
       defaultLogger.warn?.(
         '[agent-kit-identity] Failed to generate domain proof signature',
         error
       );
     }
-  } else {
-    defaultLogger.info?.(
-      '[agent-kit-identity] No signer provided - skipping domain proof signature'
-    );
   }
 
   const trust = buildTrustConfigFromIdentity(record, {

@@ -98,7 +98,7 @@
     },
     "packages/api-sdk": {
       "name": "@lucid-agents/api-sdk",
-      "version": "2.2.2",
+      "version": "2.2.3",
       "dependencies": {
         "@hey-api/client-fetch": "^0.10.0",
       },
@@ -116,7 +116,7 @@
     },
     "packages/cli": {
       "name": "@lucid-agents/cli",
-      "version": "2.2.2",
+      "version": "2.2.3",
       "bin": {
         "create-agent-kit": "dist/index.js",
       },
@@ -131,7 +131,7 @@
     },
     "packages/core": {
       "name": "@lucid-agents/core",
-      "version": "2.2.2",
+      "version": "2.2.3",
       "dependencies": {
         "@ax-llm/ax": "^14.0.37",
         "@ax-llm/ax-tools": "^14.0.37",
@@ -165,7 +165,7 @@
     },
     "packages/examples": {
       "name": "@lucid-agents/examples",
-      "version": "0.2.15",
+      "version": "0.2.16",
       "dependencies": {
         "@ax-llm/ax": "^14.0.37",
         "@lucid-agents/a2a": "workspace:*",
@@ -195,7 +195,7 @@
     },
     "packages/express": {
       "name": "@lucid-agents/express",
-      "version": "0.3.19",
+      "version": "0.3.20",
       "dependencies": {
         "@lucid-agents/core": "workspace:*",
         "@lucid-agents/payments": "workspace:*",
@@ -214,7 +214,7 @@
     },
     "packages/hono": {
       "name": "@lucid-agents/hono",
-      "version": "0.7.19",
+      "version": "0.7.20",
       "dependencies": {
         "@lucid-agents/ap2": "workspace:*",
         "@lucid-agents/core": "workspace:*",
@@ -250,7 +250,7 @@
     },
     "packages/identity": {
       "name": "@lucid-agents/identity",
-      "version": "2.2.2",
+      "version": "2.2.3",
       "dependencies": {
         "@lucid-agents/types": "workspace:*",
         "@lucid-agents/wallet": "workspace:*",
@@ -265,14 +265,15 @@
     },
     "packages/payments": {
       "name": "@lucid-agents/payments",
-      "version": "2.2.2",
+      "version": "2.2.3",
       "dependencies": {
         "@ax-llm/ax": "catalog:",
         "@lucid-agents/types": "workspace:*",
+        "@x402/core": "catalog:",
+        "@x402/evm": "catalog:",
+        "@x402/fetch": "catalog:",
         "pg": "^8.13.1",
         "viem": "catalog:",
-        "x402": "catalog:",
-        "x402-fetch": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
@@ -298,7 +299,7 @@
     },
     "packages/tanstack": {
       "name": "@lucid-agents/tanstack",
-      "version": "0.6.19",
+      "version": "0.6.20",
       "dependencies": {
         "@lucid-agents/core": "workspace:*",
         "@lucid-agents/payments": "workspace:*",
@@ -347,6 +348,9 @@
   },
   "catalog": {
     "@ax-llm/ax": "^14.0.31",
+    "@x402/core": "^2.2.0",
+    "@x402/evm": "^2.2.0",
+    "@x402/fetch": "^2.2.0",
     "express": "^4.19.2",
     "hono": "4.10.1",
     "tsup": "^8.5.0",
@@ -1350,6 +1354,12 @@
     "@walletconnect/window-metadata": ["@walletconnect/window-metadata@1.0.1", "", { "dependencies": { "@walletconnect/window-getters": "^1.0.1", "tslib": "1.14.1" } }, "sha512-9koTqyGrM2cqFRW517BPY/iEtUDx2r1+Pwwu5m7sJ7ka79wi3EyqhqcICk/yDmv6jAS1rjKgTKXlEhanYjijcA=="],
 
     "@webgpu/types": ["@webgpu/types@0.1.67", "", {}, "sha512-uk53+2ECGUkWoDFez/hymwpRfdgdIn6y1ref70fEecGMe5607f4sozNFgBk0oxlr7j2CRGWBEc3IBYMmFdGGTQ=="],
+
+    "@x402/core": ["@x402/core@2.2.0", "", { "dependencies": { "zod": "^3.24.2" } }, "sha512-UyPX7UVrqCyFTMeDWAx9cn9LvcaRlUoAknSehuxJ07vXLVhC7Wx5R1h2CV12YkdB+hE6K48Qvfd4qrvbpqqYfw=="],
+
+    "@x402/evm": ["@x402/evm@2.2.0", "", { "dependencies": { "@x402/core": "^2.2.0", "viem": "^2.39.3", "zod": "^3.24.2" } }, "sha512-fJaIS97Ir+ykkxLUdI+/cFiQFyruWukJbZ3PLo8518n6IKP9B7HqsJ1cUMRWd/fHFXNqOEAo6tKFW4wHKOxd2A=="],
+
+    "@x402/fetch": ["@x402/fetch@2.2.0", "", { "dependencies": { "@x402/core": "^2.2.0", "viem": "^2.39.3", "zod": "^3.24.2" } }, "sha512-oSn3jVe03rJaqbgMA33LrKFBbzelVfMtjLcE/9WIaTB0K/NLPo8xWDLMkiI9yRlaEO7sXvpMfSCDrRdkjf33gA=="],
 
     "abitype": ["abitype@1.1.0", "", { "peerDependencies": { "typescript": ">=5.0.4", "zod": "^3.22.0 || ^4.0.0" }, "optionalPeers": ["typescript", "zod"] }, "sha512-6Vh4HcRxNMLA0puzPjM5GBgT4aAcFGKZzSgAXvuZ27shJP6NEpielTuqbBmZILR5/xd0PizkBGy5hReKz9jl5A=="],
 
@@ -3258,6 +3268,12 @@
     "@walletconnect/window-getters/tslib": ["tslib@1.14.1", "", {}, "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg=="],
 
     "@walletconnect/window-metadata/tslib": ["tslib@1.14.1", "", {}, "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg=="],
+
+    "@x402/core/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "@x402/evm/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "@x402/fetch/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "accepts/negotiator": ["negotiator@0.6.3", "", {}, "sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg=="],
 

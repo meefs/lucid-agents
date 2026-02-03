@@ -119,13 +119,46 @@ const client = createClient(
 
 ### Payment-based (x402)
 
-For agent-to-agent communication with x402 payments:
+For calling paid (x402-protected) agent endpoints. See [Calling Paid Endpoints](/docs/examples/calling-paid-endpoints) for a complete example.
+
+#### External client
+
+For scripts, CLIs, or applications calling paid agent endpoints:
+
+```typescript
+import { createClient, createConfig } from '@lucid-agents/api-sdk/client';
+import { createX402Fetch, accountFromPrivateKey } from '@lucid-agents/payments';
+
+// Create payment-enabled fetch with your wallet
+const x402Fetch = createX402Fetch({
+  account: accountFromPrivateKey(process.env.PRIVATE_KEY as `0x${string}`),
+});
+
+// Create SDK client with x402 fetch
+const client = createClient(
+  createConfig({
+    baseUrl: 'https://api-lucid-dev.daydreams.systems',
+    fetch: x402Fetch,
+  })
+);
+
+// Invoke paid endpoint - payments handled automatically
+const { data } = await client.POST('/agents/{agentId}/entrypoints/{key}/invoke', {
+  params: { path: { agentId: 'agent-123', key: 'premium' } },
+  body: { input: { query: 'Hello' } },
+});
+```
+
+#### Agent-to-agent (within runtime)
+
+For agents calling other paid agents from within an entrypoint handler:
 
 ```typescript
 import { createRuntimePaymentContext } from '@lucid-agents/payments';
 
+// Inside an entrypoint handler
 const paymentContext = await createRuntimePaymentContext({
-  runtime: agent,
+  runtime: ctx.runtime,
   network: 'base',
 });
 

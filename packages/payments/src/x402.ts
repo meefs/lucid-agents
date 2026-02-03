@@ -1,44 +1,74 @@
 import { ai } from '@ax-llm/ax';
-import { privateKeyToAccount } from 'viem/accounts';
-import { type Hex, wrapFetchWithPayment } from 'x402-fetch';
+import { privateKeyToAccount, type LocalAccount } from 'viem/accounts';
+import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
+import { ExactEvmScheme, toClientEvmSigner } from '@x402/evm';
+import type { Hex } from './crypto';
 
 const DEFAULT_MODEL = 'gpt-5';
 const DEFAULT_PROVIDER = 'openai';
 const DEFAULT_API_URL = 'https://api-beta.daydreams.systems/v1';
-const MAX_PAYMENT_BASE_UNITS = '10000000';
 
 export type WrappedFetch = typeof fetch & {
   preconnect?: () => Promise<void>;
 };
 
-export type X402Account = Parameters<typeof wrapFetchWithPayment>[1];
+export type X402Account = LocalAccount;
+
+/**
+ * Supported EVM networks for x402 payments.
+ * Maps network names to CAIP-2 chain identifiers.
+ */
+const SUPPORTED_EVM_NETWORKS: Record<string, string> = {
+  base: 'eip155:8453',
+  'base-sepolia': 'eip155:84532',
+  ethereum: 'eip155:1',
+  sepolia: 'eip155:11155111',
+};
 
 export type CreateX402FetchOptions = {
   account: X402Account;
   fetchImpl?: typeof fetch;
+  /** Networks to register. Defaults to all supported EVM networks. */
+  networks?: string[];
 };
 
 export const createX402Fetch = ({
   account,
   fetchImpl,
+  networks,
 }: CreateX402FetchOptions): WrappedFetch => {
   if (!account) {
     throw new Error('[agent-kit-payments] createX402Fetch requires an account');
   }
-  const accountAddress =
-    typeof account === 'object' && account && 'address' in account
-      ? (account as { address?: string }).address
-      : undefined;
+
   console.info(
     '[agent-kit-payments:x402] creating paid fetch',
-    accountAddress ? `for ${accountAddress}` : '(account address unavailable)'
+    account.address ? `for ${account.address}` : '(account address unavailable)'
   );
-  const paymentFetch = wrapFetchWithPayment(
-    (fetchImpl ?? fetch) as Parameters<typeof wrapFetchWithPayment>[0],
-    account,
-    BigInt(MAX_PAYMENT_BASE_UNITS)
-  ) as WrappedFetch;
+
+  // Create EVM signer from the account
+  const signer = toClientEvmSigner(account);
+
+  // Create x402 client and register networks
+  const client = new x402Client();
+  const networksToRegister = networks ?? Object.keys(SUPPORTED_EVM_NETWORKS);
+
+  for (const network of networksToRegister) {
+    const caip2Id = SUPPORTED_EVM_NETWORKS[network];
+    if (caip2Id) {
+      client.register(caip2Id as `${string}:${string}`, new ExactEvmScheme(signer));
+    }
+  }
+
+  console.info(
+    '[agent-kit-payments:x402] registered networks:',
+    networksToRegister.join(', ')
+  );
+
+  // Wrap fetch with payment handling
+  const paymentFetch = wrapFetchWithPayment(fetchImpl ?? fetch, client);
   console.info('[agent-kit-payments:x402] wrapFetchWithPayment initialised');
+
   const describeInput = (input: Parameters<typeof fetch>[0]) => {
     if (typeof input === 'string') return input;
     if (input instanceof URL) return input.toString();
@@ -47,6 +77,7 @@ export const createX402Fetch = ({
     }
     return '[object Request]';
   };
+
   const wrappedFetch: WrappedFetch = Object.assign(
     async (
       input: Parameters<typeof fetch>[0],
@@ -84,7 +115,7 @@ export const createX402Fetch = ({
       }
     },
     {
-      preconnect: paymentFetch.preconnect ?? (async () => {}),
+      preconnect: async () => {},
     }
   );
   return wrappedFetch;
@@ -96,7 +127,7 @@ export const accountFromPrivateKey = (privateKey: Hex): X402Account => {
       '[agent-kit-payments] accountFromPrivateKey requires a non-empty private key'
     );
   }
-  return privateKeyToAccount(privateKey) as X402Account;
+  return privateKeyToAccount(privateKey);
 };
 
 // ============================================================================

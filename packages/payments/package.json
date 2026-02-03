@@ -36,8 +36,9 @@
     "@lucid-agents/types": "workspace:*",
     "pg": "^8.13.1",
     "viem": "catalog:",
-    "x402": "catalog:",
-    "x402-fetch": "catalog:",
+    "@x402/core": "catalog:",
+    "@x402/fetch": "catalog:",
+    "@x402/evm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

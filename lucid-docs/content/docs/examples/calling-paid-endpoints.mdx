@@ -242,11 +242,25 @@ try {
 
 The `createX402Fetch` helper has a default maximum payment limit of $10 USDC to protect against unexpectedly expensive calls. If an endpoint costs more, the payment will be rejected.
 
-When using `wrapFetchWithPayment` directly, you control this limit:
+When using `wrapFetchWithPayment` directly, you can control this limit using policies:
 
 ```typescript
-// Set max payment to $1 USDC
-const x402Fetch = wrapFetchWithPayment(fetch, wallet, BigInt(1_000_000));
+import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
+import { ExactEvmScheme, toClientEvmSigner } from '@x402/evm';
+import { privateKeyToAccount } from 'viem/accounts';
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const signer = toClientEvmSigner(account);
+
+// Create x402 client with a max payment policy
+const client = new x402Client()
+  .register('eip155:84532', new ExactEvmScheme(signer))
+  .registerPolicy((version, requirements) => {
+    // Filter out requirements exceeding $1 USDC (1_000_000 base units)
+    return requirements.filter(r => BigInt(r.amount) <= BigInt(1_000_000));
+  });
+
+const x402Fetch = wrapFetchWithPayment(fetch, client);
 ```
 
 ## Best practices

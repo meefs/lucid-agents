@@ -432,16 +432,37 @@ export async function createRuntimePaymentContext(
   }
 
   const walletAddress = await fetchWalletAddress(wallet.connector);
+
+  // If no valid wallet address is available, we can't create a signer
+  if (!walletAddress || walletAddress === ZERO_ADDRESS) {
+    logWarning(
+      options.logger,
+      '[agent-kit-payments] Wallet address not available; cannot create payment signer'
+    );
+    return {
+      fetchWithPayment: null,
+      signer: null,
+      walletAddress: null,
+      chainId,
+    };
+  }
+
   const runtimeSigner = createRuntimeSigner({
     wallet: wallet.connector,
     initialAddress: walletAddress,
     chainId,
   });
 
-  // Adapt RuntimeSigner to ClientEvmSigner interface
-  const signer: ClientEvmSigner = {
-    address: runtimeSigner.account.address ?? (ZERO_ADDRESS as `0x${string}`),
-    signTypedData: async (message) => {
+  // Adapt RuntimeSigner to ClientEvmSigner interface using a Proxy
+  // to ensure address always reflects the current runtimeSigner.account.address
+  const signerTarget = {
+    address: '' as `0x${string}`,
+    signTypedData: async (message: {
+      domain: unknown;
+      types: unknown;
+      message: unknown;
+      primaryType: string;
+    }) => {
       return runtimeSigner.signTypedData({
         domain: message.domain as Record<string, unknown>,
         types: message.types as Record<
@@ -453,6 +474,16 @@ export async function createRuntimePaymentContext(
       });
     },
   };
+
+  const signer: ClientEvmSigner = new Proxy(signerTarget, {
+    get(target, prop) {
+      if (prop === 'address') {
+        // Always return the current address from runtimeSigner
+        return runtimeSigner.account.address ?? (ZERO_ADDRESS as `0x${string}`);
+      }
+      return Reflect.get(target, prop);
+    },
+  });
 
   // Get CAIP-2 network identifier
   const caip2Network = options.network

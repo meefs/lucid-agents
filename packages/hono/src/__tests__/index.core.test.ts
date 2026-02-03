@@ -59,7 +59,7 @@ afterAll(() => {
 describe('resolvePrice', () => {
   const payments: PaymentsConfig = {
     payTo: '0xabc0000000000000000000000000000000000000',
-    facilitatorUrl: 'https://facilitator.example',
+    facilitatorUrl: 'https://facilitator.daydreams.systems',
     network: 'eip155:84532',
   };
 
@@ -95,7 +95,7 @@ describe('resolvePrice', () => {
 describe('withPayments helper', () => {
   const payments: PaymentsConfig = {
     payTo: '0xabc0000000000000000000000000000000000000',
-    facilitatorUrl: 'https://facilitator.example',
+    facilitatorUrl: 'https://facilitator.daydreams.systems',
     network: 'eip155:84532',
   };
 
@@ -355,7 +355,7 @@ describe('createAgentApp invoke/stream routes', () => {
         payments({
           config: {
             payTo: '0xabc0000000000000000000000000000000000000',
-            facilitatorUrl: 'https://facilitator.example',
+            facilitatorUrl: 'https://facilitator.daydreams.systems',
             network: 'eip155:84532',
           },
         })
@@ -382,7 +382,7 @@ describe('createAgentApp invoke/stream routes', () => {
         payments({
           config: {
             payTo: '0xabc0000000000000000000000000000000000000',
-            facilitatorUrl: 'https://facilitator.example',
+            facilitatorUrl: 'https://facilitator.daydreams.systems',
             network: 'eip155:84532',
           },
         })
@@ -411,7 +411,7 @@ describe('createAgentApp invoke/stream routes', () => {
         payments({
           config: {
             payTo: '0xabc0000000000000000000000000000000000000',
-            facilitatorUrl: 'https://facilitator.example',
+            facilitatorUrl: 'https://facilitator.daydreams.systems',
             network: 'eip155:84532',
           },
         })
@@ -444,7 +444,7 @@ describe('createAgentApp invoke/stream routes', () => {
         payments({
           config: {
             payTo: '0xabc0000000000000000000000000000000000000',
-            facilitatorUrl: 'https://facilitator.example',
+            facilitatorUrl: 'https://facilitator.daydreams.systems',
             network: 'eip155:84532',
           },
         })

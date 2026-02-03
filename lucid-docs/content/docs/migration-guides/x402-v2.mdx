@@ -93,14 +93,14 @@ Replace all old network strings with CAIP-2 format:
 const config: PaymentsConfig = {
   payTo: '0x...',
   network: 'base-sepolia',
-  facilitatorUrl: 'https://facilitator.example.com'
+  facilitatorUrl: 'https://facilitator.daydreams.systems'
 };
 
 // After
 const config: PaymentsConfig = {
   payTo: '0x...',
   network: 'eip155:84532',  // Base Sepolia in CAIP-2 format
-  facilitatorUrl: 'https://facilitator.example.com'
+  facilitatorUrl: 'https://facilitator.daydreams.systems'
 };
 ```
 
@@ -203,7 +203,7 @@ const { invoke, stream } = createTanStackPaywall({
   runtime: agentRuntime,
   basePath: '/api/agent',
   facilitator: {
-    url: 'https://facilitator.example.com'
+    url: 'https://facilitator.daydreams.systems'
   } satisfies FacilitatorConfig
 });
 ```

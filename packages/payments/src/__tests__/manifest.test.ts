@@ -39,7 +39,7 @@ describe('createAgentCardWithPayments', () => {
   const paymentsConfig: PaymentsConfig = {
     payTo: '0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429',
     facilitatorUrl: 'https://facilitator.example.com',
-    network: 'base-sepolia',
+    network: 'eip155:84532',
   };
 
   const entrypoints: EntrypointDef[] = [

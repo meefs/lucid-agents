@@ -187,21 +187,84 @@ Client                          Server
 
 ## Client-side payments
 
-Use `x402-fetch` to make paid requests:
+To call paid agent endpoints, you need a wallet that can sign x402 payment transactions.
+
+### Using helper functions
+
+The simplest approach uses the `createX402Fetch` and `accountFromPrivateKey` helpers:
 
 ```typescript
-import { wrapFetchWithX402 } from 'x402-fetch';
-import { createWalletClient } from 'viem';
+import { createX402Fetch, accountFromPrivateKey } from '@lucid-agents/payments';
 
-const wallet = createWalletClient({ ... });
-const x402Fetch = wrapFetchWithX402(fetch, wallet);
+// Create account from private key
+const account = accountFromPrivateKey(process.env.PRIVATE_KEY as `0x${string}`);
 
-// Automatically handles 402 responses
+// Create payment-enabled fetch
+const x402Fetch = createX402Fetch({ account });
+
+// Automatically handles 402 responses and payments
 const response = await x402Fetch('https://agent.example.com/entrypoints/chat/invoke', {
   method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ input: { message: 'Hello' } }),
 });
 ```
+
+### Using raw @x402 packages
+
+For advanced use cases, you can use the `@x402/*` packages directly:
+
+```typescript
+import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
+import { ExactEvmScheme, toClientEvmSigner } from '@x402/evm';
+import { privateKeyToAccount } from 'viem/accounts';
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const signer = toClientEvmSigner(account);
+
+// Create x402 client and register networks
+const client = new x402Client()
+  .register('eip155:8453', new ExactEvmScheme(signer))      // Base mainnet
+  .register('eip155:84532', new ExactEvmScheme(signer))     // Base Sepolia
+  .register('eip155:1', new ExactEvmScheme(signer))         // Ethereum mainnet
+  .register('eip155:11155111', new ExactEvmScheme(signer)); // Ethereum Sepolia
+
+const x402Fetch = wrapFetchWithPayment(fetch, client);
+
+const response = await x402Fetch('https://agent.example.com/entrypoints/chat/invoke', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ input: { message: 'Hello' } }),
+});
+```
+
+### Using with API SDK
+
+Combine x402 payments with the type-safe SDK client:
+
+```typescript
+import { createClient, createConfig } from '@lucid-agents/api-sdk/client';
+import { createX402Fetch, accountFromPrivateKey } from '@lucid-agents/payments';
+
+const x402Fetch = createX402Fetch({
+  account: accountFromPrivateKey(process.env.PRIVATE_KEY as `0x${string}`),
+});
+
+const client = createClient(
+  createConfig({
+    baseUrl: 'https://api-lucid-dev.daydreams.systems',
+    fetch: x402Fetch,
+  })
+);
+
+// Invoke paid endpoint with full type safety
+const { data, error } = await client.POST('/agents/{agentId}/entrypoints/{key}/invoke', {
+  params: { path: { agentId: 'agent-123', key: 'premium' } },
+  body: { input: { query: 'Analyze this data' } },
+});
+```
+
+See [Calling Paid Endpoints](/docs/examples/calling-paid-endpoints) for a complete example with error handling.
 
 ## Manifest integration
 

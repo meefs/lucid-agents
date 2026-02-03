@@ -1,8 +1,10 @@
 import type { AgentRuntime } from '@lucid-agents/types/core';
 import type { WalletConnector } from '@lucid-agents/types/wallets';
-import type { Signer } from 'x402/types';
-import { createSigner, type Hex, wrapFetchWithPayment } from 'x402-fetch';
-import { sanitizeAddress, ZERO_ADDRESS } from './crypto';
+import { privateKeyToAccount } from 'viem/accounts';
+import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
+import { ExactEvmScheme, toClientEvmSigner } from '@x402/evm';
+import type { ClientEvmSigner } from '@x402/evm';
+import { sanitizeAddress, ZERO_ADDRESS, type Hex } from './crypto';
 import { wrapBaseFetchWithPolicy } from './policy-wrapper';
 import type { PaymentTracker } from './payment-tracker';
 import type { RateLimiter } from './rate-limiter';
@@ -65,7 +67,7 @@ export type RuntimePaymentOptions = {
 
 export type RuntimePaymentContext = {
   fetchWithPayment: FetchLike | null;
-  signer: Signer | null;
+  signer: ClientEvmSigner | null;
   walletAddress: `0x${string}` | null;
   chainId: number | null;
 };
@@ -103,17 +105,35 @@ function attachPreconnect(
   return fetchImpl;
 }
 
+/**
+ * Network configuration for x402 payments.
+ */
+const NETWORK_CONFIG: Record<string, { chainId: number; caip2: string }> = {
+  base: { chainId: 8453, caip2: 'eip155:8453' },
+  'base-sepolia': { chainId: 84532, caip2: 'eip155:84532' },
+  ethereum: { chainId: 1, caip2: 'eip155:1' },
+  sepolia: { chainId: 11155111, caip2: 'eip155:11155111' },
+};
+
 function inferChainId(network?: string): number | undefined {
   if (!network) return undefined;
   const normalized = network.toLowerCase();
-  if (normalized === 'base' || normalized === 'eip155:8453') return 8453;
-  if (
-    normalized === 'base-sepolia' ||
-    normalized === 'eip155:84532' ||
-    normalized === 'base_testnet'
-  )
-    return 84532;
-  return undefined;
+  // Check for CAIP-2 format first (e.g., eip155:8453)
+  const caip2Match = normalized.match(/^eip155:(\d+)$/);
+  if (caip2Match) {
+    return parseInt(caip2Match[1], 10);
+  }
+  // Check for named network
+  return NETWORK_CONFIG[normalized]?.chainId;
+}
+
+function networkToCaip2(network: string): string | undefined {
+  const normalized = network.toLowerCase();
+  // Already CAIP-2 format
+  if (normalized.startsWith('eip155:')) {
+    return normalized;
+  }
+  return NETWORK_CONFIG[normalized]?.caip2;
 }
 
 function normalizeTypedData(input: TypedDataPayload) {
@@ -315,29 +335,41 @@ export async function createRuntimePaymentContext(
       };
     }
 
-    try {
-      const signer = await createSigner(
-        options.network as any,
-        options.privateKey as any
+    const caip2Network = networkToCaip2(options.network);
+    if (!caip2Network) {
+      logWarning(
+        options.logger,
+        `[agent-kit-payments] Unsupported network: ${options.network}`
       );
+      return {
+        fetchWithPayment: null,
+        signer: null,
+        walletAddress: null,
+        chainId: null,
+      };
+    }
+
+    try {
+      // Create account from private key
+      const account = privateKeyToAccount(options.privateKey as Hex);
+      const signer = toClientEvmSigner(account);
+
+      // Create x402 client and register the network
+      const client = new x402Client();
+      client.register(caip2Network as `${string}:${string}`, new ExactEvmScheme(signer));
+
       const fetchWithPayment = attachPreconnect(
-        wrapFetchWithPayment(
-          baseFetch as typeof fetch,
-          signer,
-          resolveMaxPaymentBaseUnits(options.maxPaymentBaseUnits)
-        ) as FetchLike,
+        wrapFetchWithPayment(baseFetch as typeof fetch, client) as FetchLike,
         baseFetch
       );
+
+      const chainId = inferChainId(options.network);
+
       return {
         fetchWithPayment,
         signer,
-        walletAddress: normalizeAddressOrNull(
-          (signer as any)?.account?.address
-        ),
-        chainId:
-          typeof (signer as any)?.chain?.id === 'number'
-            ? (signer as any).chain.id
-            : null,
+        walletAddress: account.address,
+        chainId: chainId ?? null,
       };
     } catch (error) {
       logWarning(
@@ -400,11 +432,45 @@ export async function createRuntimePaymentContext(
   }
 
   const walletAddress = await fetchWalletAddress(wallet.connector);
-  const signer = createRuntimeSigner({
+  const runtimeSigner = createRuntimeSigner({
     wallet: wallet.connector,
     initialAddress: walletAddress,
     chainId,
   });
+
+  // Adapt RuntimeSigner to ClientEvmSigner interface
+  const signer: ClientEvmSigner = {
+    address: runtimeSigner.account.address ?? (ZERO_ADDRESS as `0x${string}`),
+    signTypedData: async (message) => {
+      return runtimeSigner.signTypedData({
+        domain: message.domain as Record<string, unknown>,
+        types: message.types as Record<
+          string,
+          Array<{ name: string; type: string }>
+        >,
+        message: message.message as Record<string, unknown>,
+        primaryType: message.primaryType,
+      });
+    },
+  };
+
+  // Get CAIP-2 network identifier
+  const caip2Network = options.network
+    ? networkToCaip2(options.network)
+    : `eip155:${chainId}`;
+
+  if (!caip2Network) {
+    logWarning(
+      options.logger,
+      `[agent-kit-payments] Unable to derive CAIP-2 network for chainId ${chainId}`
+    );
+    return {
+      fetchWithPayment: null,
+      signer: null,
+      walletAddress: normalizeAddressOrNull(walletAddress),
+      chainId,
+    };
+  }
 
   try {
     // Wrap base fetch with policy checking if policies are configured
@@ -431,18 +497,19 @@ export async function createRuntimePaymentContext(
       );
     }
 
+    // Create x402 client and register the network
+    const client = new x402Client();
+    client.register(caip2Network as `${string}:${string}`, new ExactEvmScheme(signer));
+
     const fetchWithPayment = attachPreconnect(
-      wrapFetchWithPayment(
-        fetchWithPolicy as typeof fetch,
-        signer as unknown as Signer,
-        resolveMaxPaymentBaseUnits(options.maxPaymentBaseUnits)
-      ) as FetchLike,
+      wrapFetchWithPayment(fetchWithPolicy as typeof fetch, client) as FetchLike,
       baseFetch
     );
+
     return {
       fetchWithPayment,
-      signer: signer as unknown as Signer,
-      walletAddress: signer.account.address,
+      signer,
+      walletAddress: runtimeSigner.account.address,
       chainId,
     };
   } catch (error) {

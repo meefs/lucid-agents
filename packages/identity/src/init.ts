@@ -437,21 +437,6 @@ export async function createAgentIdentity(
     clients,
   };
 
-  if (identity.didRegister && identity.domain) {
-    const log = logger ?? { info: console.log };
-    const registration = generateAgentRegistration(
-      identity,
-      options.registration
-    );
-
-    log.info?.('\nHost this registration file at your domain:');
-    log.info?.(
-      `   https://${identity.domain}/.well-known/agent-registration.json\n`
-    );
-    log.info?.(JSON.stringify(registration, null, 2));
-    log.info?.('');
-  }
-
   return identity;
 }
 

@@ -145,7 +145,7 @@ describe('TanStack Solana Payments', () => {
         _facilitator,
         _paywall
       ) => {
-        return (() => Promise.resolve(new Response())) as any;
+        return (() => Promise.resolve(new Response())) as unknown as TanStackRequestMiddleware;
       }) satisfies typeof paymentMiddleware;
 
       const spyingFactory: typeof middlewareFactory = (

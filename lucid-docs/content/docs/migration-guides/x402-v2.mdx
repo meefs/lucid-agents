@@ -269,7 +269,11 @@ let originalFetch: typeof globalThis.fetch;
 beforeAll(() => {
   originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
-    const url = typeof input === "string" ? input : input.toString();
+    const url = typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
 
     if (url.includes("/supported")) {
       return new Response(JSON.stringify(mockFacilitatorResponse), {

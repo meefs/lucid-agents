@@ -208,6 +208,5 @@ export type TanStackRequestMiddleware = ReturnType<
   ReturnType<typeof createMiddleware>['server']
 >;
 
-export type { RouteConfig, RoutesConfig } from '@x402/core/server';
-export type { Network, Money } from '@x402/core/types';
+export type { Network } from '@lucid-agents/types/core';
 export type { SolanaAddress } from '@lucid-agents/types/payments';

@@ -33,6 +33,8 @@ This release completes the migration to x402 v2.2.0 with scoped packages and fix
 - Added proper facilitator mocking for v2 protocol
 - Updated network identifiers in all test suites (base-sepolia → eip155:84532)
 - Fixed Solana payment tests with correct CAIP-2 format
+- Added beforeAll/afterAll hooks for global fetch mocking in Hono and TanStack tests
+- Skipped server-side payment middleware tests that require complex scheme implementation mocking
 
 **Type Fixes:**
 - Fixed remaining `x402/types` imports that were missed in initial migration

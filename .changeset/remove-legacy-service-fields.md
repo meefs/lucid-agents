@@ -1,7 +1,7 @@
 ---
-'@lucid-agents/types': major
-'@lucid-agents/identity': major
-'@lucid-agents/cli': major
+'@lucid-agents/types': minor
+'@lucid-agents/identity': minor
+'@lucid-agents/cli': minor
 ---
 
 **BREAKING CHANGE**: Remove backward compatibility for legacy service field names and registration types.

@@ -22,11 +22,6 @@
       "import": "./dist/utils.js",
       "default": "./dist/utils.js"
     },
-    "./axllm": {
-      "types": "./dist/axllm/index.d.ts",
-      "import": "./dist/axllm/index.js",
-      "default": "./dist/axllm/index.js"
-    },
     "./package.json": "./package.json"
   },
   "sideEffects": false,
@@ -57,9 +52,7 @@
     "@x402/core": "catalog:",
     "@x402/fetch": "catalog:",
     "@x402/evm": "catalog:",
-    "viem": "catalog:",
-    "@ax-llm/ax": "^14.0.37",
-    "@ax-llm/ax-tools": "^14.0.37"
+    "viem": "catalog:"
   },
   "devDependencies": {
     "tsup": "catalog:",

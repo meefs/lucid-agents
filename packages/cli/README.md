@@ -26,26 +26,6 @@ Minimal agent with echo entrypoint. Best starting point for custom agents.
 - Building custom agents from scratch
 - Minimal boilerplate
 
-### AxLLM Template (`axllm`)
-
-Agent with AI/LLM integration using `@ax-llm/ax`.
-
-**Best for:**
-
-- AI-powered agents
-- LLM integration (OpenAI, etc.)
-- Conversational interfaces
-
-### AxLLM Flow Template (`axllm-flow`)
-
-Agent with AxFlow for multi-step AI workflows.
-
-**Best for:**
-
-- Complex AI workflows
-- Multi-step reasoning
-- Orchestrating multiple LLM calls
-
 ### ERC-8004 Identity Template (`identity`)
 
 Full-featured agent with on-chain identity and verifiable attestations.
@@ -56,6 +36,26 @@ Full-featured agent with on-chain identity and verifiable attestations.
 - Trust and reputation tracking
 - Domain-bound agent attestations
 - Decentralized agent networks
+
+### Trading Data Agent (`trading-data-agent`)
+
+Merchant-style agent that exposes paid market data entrypoints.
+
+**Best for:**
+
+- Selling structured data over x402
+- A2A merchant examples
+- Testing monetized entrypoints
+
+### Trading Recommendation Agent (`trading-recommendation-agent`)
+
+Shopper-style agent that buys data from another agent and returns recommendations.
+
+**Best for:**
+
+- A2A composition examples
+- Paid downstream calls
+- Multi-agent workflows
 
 ## How It Works
 
@@ -96,7 +96,7 @@ The adapter provides the runtime skeleton (routing, server setup, build config),
 bunx @lucid-agents/cli <app-name> [options]
 
 Options:
-  -t, --template <id>   Select template (blank, axllm, axllm-flow, identity)
+  -t, --template <id>   Select template (blank, identity, trading-data-agent, trading-recommendation-agent)
   -a, --adapter <id>    Select runtime adapter (hono, express, tanstack-ui, tanstack-headless, next)
   -i, --install         Run bun install after scaffolding
   --no-install          Skip bun install (default)
@@ -176,8 +176,6 @@ bunx @lucid-agents/cli my-agent --network=base --non-interactive
 - For identity template: EVM private key is for identity registration, payment address can be Solana
 - Payment address can be shared across multiple agents
 
-````bash
-
 ### Non-Interactive Mode with Template Arguments
 
 Perfect for CI/CD, automation, or AI coding agents:
@@ -207,13 +205,7 @@ bunx @lucid-agents/cli@latest verified-agent \
   --CHAIN_ID="1" \
   --IDENTITY_AUTO_REGISTER="true"
 
-# AxLLM template
-bunx @lucid-agents/cli@latest ai-agent \
-  --template=axllm \
-  --non-interactive \
-  --AGENT_DESCRIPTION="AI-powered agent" \
-  --PAYMENTS_RECEIVABLE_ADDRESS="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0"
-````
+```
 
 **How it works:**
 
@@ -248,21 +240,12 @@ PRIVATE_KEY=
 
 Additional variables for ERC-8004:
 
-````bash
+```bash
 AGENT_DOMAIN=agent.example.com
 IDENTITY_AUTO_REGISTER=true
 RPC_URL=https://eth.llamarpc.com
 CHAIN_ID=1
-
-### AxLLM Templates
-
-Additional variables for LLM:
-
-```bash
-OPENAI_API_KEY=sk-...
-AX_MODEL=gpt-4o
-AX_PROVIDER=openai
-````
+```
 
 ## Project Structure
 
@@ -330,7 +313,7 @@ bunx tsc --noEmit # Type-check
 
 ### Template not found
 
-Use a valid template ID: `blank`, `axllm`, `axllm-flow`, or `identity`.
+Use a valid template ID: `blank`, `identity`, `trading-data-agent`, or `trading-recommendation-agent`.
 
 ### Directory already exists
 

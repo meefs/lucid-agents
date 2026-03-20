@@ -1,4 +1,6 @@
 import type { AgentRuntime } from '@lucid-agents/types/core';
+import type { AgentAuthContext } from '@lucid-agents/types/siwx';
+import { invoke as httpInvoke, stream as httpStream } from '@lucid-agents/http';
 
 export type TanStackRequestHandler = (ctx: {
   request: Request;
@@ -7,6 +9,7 @@ export type TanStackRequestHandler = (ctx: {
 export type TanStackRouteHandler<P extends Record<string, string>> = (ctx: {
   request: Request;
   params: P;
+  auth?: AgentAuthContext;
 }) => Promise<Response>;
 
 export type TanStackHandlers = {
@@ -75,8 +78,10 @@ export function createTanStackHandlers(
     landing: handlers.landing
       ? adaptRequestHandler(handlers.landing)
       : undefined,
-    invoke: adaptRouteHandler(handlers.invoke),
-    stream: adaptRouteHandler(handlers.stream),
+    invoke: async ({ request, params, auth }) =>
+      httpInvoke(request, params.key, runtime, auth ? { auth } : undefined),
+    stream: async ({ request, params, auth }) =>
+      httpStream(request, params.key, runtime, auth ? { auth } : undefined),
     tasks: adaptRequestHandler(handlers.tasks),
     getTask: adaptRouteHandler(handlers.getTask),
     listTasks: adaptRequestHandler(handlers.listTasks),

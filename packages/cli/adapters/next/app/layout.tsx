@@ -1,19 +1,17 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
 
 import { AppKitProvider } from '@/components/AppKitProvider';
-import Header from '@/components/Header';
 import './globals.css';
 import { headers } from 'next/headers';
 
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-});
-
 export const metadata: Metadata = {
-  title: 'Lucid Agent Platform',
-  description: 'Full-stack agent platform with x402 micropayments',
+  title: 'Agent service',
+  description: 'Inspect and invoke this agent service.',
+};
+
+export const viewport: Viewport = {
+  colorScheme: 'dark',
+  themeColor: '#0b0d0c',
 };
 
 export default async function RootLayout({
@@ -25,11 +23,8 @@ export default async function RootLayout({
   const cookies = headersObj.get('cookie');
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <AppKitProvider cookies={cookies}>
-          <Header />
-          {children}
-        </AppKitProvider>
+      <body>
+        <AppKitProvider cookies={cookies}>{children}</AppKitProvider>
       </body>
     </html>
   );

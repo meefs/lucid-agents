@@ -3,6 +3,9 @@
   "version": "0.4.0",
   "description": "Example implementations for lucid-agents framework",
   "type": "module",
+  "lucidAgents": {
+    "runtime": "examples"
+  },
   "private": true,
   "scripts": {
     "build": "tsup",
@@ -20,27 +23,25 @@
     "@lucid-agents/ap2": "workspace:*",
     "@lucid-agents/catalog": "workspace:*",
     "@lucid-agents/core": "workspace:*",
+    "@lucid-agents/express": "workspace:*",
     "@lucid-agents/hono": "workspace:*",
     "@lucid-agents/http": "workspace:*",
     "@lucid-agents/identity": "workspace:*",
     "@lucid-agents/mpp": "workspace:*",
     "@lucid-agents/payments": "workspace:*",
     "@lucid-agents/scheduler": "workspace:*",
+    "@lucid-agents/tanstack": "workspace:*",
     "@lucid-agents/types": "workspace:*",
     "@lucid-agents/wallet": "workspace:*",
     "@lucid-dreams/agent-auth": "^0.2.24",
     "thirdweb": "^5.113.0",
+    "mppx": "^0.1.0",
     "viem": "catalog:",
-    "@x402/core": "catalog:",
-    "@x402/fetch": "catalog:",
-    "@x402/evm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "tsup": "catalog:",
     "typescript": "catalog:",
-    "@lucid-agents/eslint-config": "workspace:*",
-    "@lucid-agents/prettier-config": "workspace:*",
-    "bun-types": "latest"
+    "@lucid-agents/eslint-config": "workspace:*"
   }
 }

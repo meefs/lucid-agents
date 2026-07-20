@@ -4,13 +4,18 @@ import { payments } from '@lucid-agents/payments';
 import { createAgentApp } from '@lucid-agents/hono';
 import type { AgentAuthContext } from '@lucid-agents/types/siwx';
 import type { SIWxStorage } from '@lucid-agents/payments';
-import { describe, expect, it, beforeAll, afterAll } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 
-const meta = { name: 'siwx-tester', version: '0.0.1', description: 'SIWX test agent' };
+const meta = {
+  name: 'siwx-tester',
+  version: '0.0.1',
+  description: 'SIWX test agent',
+};
 
 const mockFacilitatorResponse = {
   kinds: [
     {
+      x402Version: 2,
       scheme: 'exact',
       network: 'eip155:84532',
       asset: {
@@ -26,10 +31,11 @@ const mockFacilitatorResponse = {
 };
 
 let originalFetch: typeof globalThis.fetch;
+let acceptPayments = false;
 
 beforeAll(() => {
   originalFetch = globalThis.fetch;
-  globalThis.fetch = async (
+  globalThis.fetch = (async (
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> => {
@@ -49,7 +55,14 @@ beforeAll(() => {
 
     if (url.includes('facilitator') && url.includes('/verify')) {
       return new Response(
-        JSON.stringify({ valid: false, reason: 'No payment' }),
+        JSON.stringify(
+          acceptPayments
+            ? {
+                isValid: true,
+                payer: '0x1234567890abcdef1234567890abcdef12345678',
+              }
+            : { isValid: false, invalidReason: 'No payment' }
+        ),
         {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -57,12 +70,25 @@ beforeAll(() => {
       );
     }
 
+    if (url.includes('facilitator') && url.includes('/settle')) {
+      return Response.json({
+        success: true,
+        payer: '0x1234567890abcdef1234567890abcdef12345678',
+        transaction: '0xtest',
+        network: 'eip155:84532',
+      });
+    }
+
     return originalFetch(input, init);
-  };
+  }) as unknown as typeof globalThis.fetch;
 });
 
 afterAll(() => {
   globalThis.fetch = originalFetch;
+});
+
+afterEach(() => {
+  acceptPayments = false;
 });
 
 function createSIWxHeader(overrides?: Record<string, unknown>): string {
@@ -85,7 +111,7 @@ describe('SIWX Integration (Hono)', () => {
     // The x402 middleware performs route validation against the facilitator's /supported endpoint
     // during initialization, which requires a production-compatible mock.
     // Skipped for the same reason as payment tests in index.core.test.ts.
-    it.skip('should return 402 with SIWX extension for unpaid request', async () => {
+    it('should return 402 with SIWX extension for unpaid request', async () => {
       const agent = await createAgent(meta)
         .use(http())
         .use(
@@ -124,12 +150,12 @@ describe('SIWX Integration (Hono)', () => {
 
       expect(res.status).toBe(402);
       const body = await res.json();
-      expect(body.siwx).toBeDefined();
-      expect(body.siwx.scheme).toBe('sign-in-with-x');
-      expect(body.siwx.domain).toBe('localhost');
+      expect(body.extensions.siwx).toBeDefined();
+      expect(body.extensions.siwx.scheme).toBe('sign-in-with-x');
+      expect(body.extensions.siwx.domain).toBe('localhost');
     });
 
-    it.skip('should grant access via SIWX for entitled wallet (bypassing payment)', async () => {
+    it('should grant access via SIWX for entitled wallet (bypassing payment)', async () => {
       const agent = await createAgent(meta)
         .use(http())
         .use(
@@ -157,7 +183,7 @@ describe('SIWX Integration (Hono)', () => {
 
       const siwxStorage = agent.payments!.siwxStorage as SIWxStorage;
       await siwxStorage.recordPayment(
-        'http://localhost/entrypoints/report/invoke',
+        'http://localhost/entrypoints/report/invoke#lucid-entrypoint=report:invoke',
         '0x1234567890abcdef1234567890abcdef12345678',
         'eip155:84532'
       );
@@ -181,7 +207,7 @@ describe('SIWX Integration (Hono)', () => {
       expect(body.output).toEqual({ data: 'secret' });
     });
 
-    it.skip('should reject invalid SIWX header and fall through to payment', async () => {
+    it('should reject invalid SIWX header and fall through to payment', async () => {
       const agent = await createAgent(meta)
         .use(http())
         .use(
@@ -222,7 +248,7 @@ describe('SIWX Integration (Hono)', () => {
       expect(res.status).toBe(402);
     });
 
-    it.skip('should reject replayed nonce', async () => {
+    it('should reject replayed nonce', async () => {
       const agent = await createAgent(meta)
         .use(http())
         .use(
@@ -250,7 +276,7 @@ describe('SIWX Integration (Hono)', () => {
 
       const siwxStorage = agent.payments!.siwxStorage as SIWxStorage;
       await siwxStorage.recordPayment(
-        'http://localhost/entrypoints/report/invoke',
+        'http://localhost/entrypoints/report/invoke#lucid-entrypoint=report:invoke',
         '0x1234567890abcdef1234567890abcdef12345678',
         'eip155:84532'
       );
@@ -285,8 +311,79 @@ describe('SIWX Integration (Hono)', () => {
       expect(res2.status).toBe(402);
     });
 
-    it.skip('should record entitlement after successful payment', async () => {
-      // Requires full x402 payment flow mock
+    it('should record entitlement after successful payment', async () => {
+      const payer = '0x1234567890abcdef1234567890abcdef12345678';
+      const agent = await createAgent(meta)
+        .use(http())
+        .use(
+          payments({
+            config: {
+              payTo: '0xabc0000000000000000000000000000000000000',
+              facilitatorUrl: 'https://facilitator.test',
+              network: 'eip155:84532',
+              siwx: {
+                enabled: true,
+                storage: { type: 'in-memory' },
+                verify: { skipSignatureVerification: true },
+              },
+            },
+          })
+        )
+        .addEntrypoint({
+          key: 'report',
+          price: '100',
+          siwx: { enabled: true },
+          handler: async () => ({ output: { data: 'secret' } }),
+        })
+        .build();
+      const { app } = await createAgentApp(agent);
+      const request = () =>
+        app.request('http://localhost/entrypoints/report/invoke', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ input: {} }),
+        });
+
+      const challengeResponse = await request();
+      const encodedChallenge =
+        challengeResponse.headers.get('PAYMENT-REQUIRED');
+      expect(encodedChallenge).toBeTruthy();
+      const challenge = JSON.parse(
+        Buffer.from(encodedChallenge!, 'base64').toString('utf8')
+      );
+      const payment = Buffer.from(
+        JSON.stringify({
+          x402Version: challenge.x402Version,
+          resource: challenge.resource,
+          accepted: challenge.accepts[0],
+          payload: {
+            signature: 'test-signature',
+            authorization: { from: payer },
+          },
+        })
+      ).toString('base64');
+
+      acceptPayments = true;
+      const paid = await app.request(
+        'http://localhost/entrypoints/report/invoke',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'PAYMENT-SIGNATURE': payment,
+          },
+          body: JSON.stringify({ input: {} }),
+        }
+      );
+      expect(paid.status).toBe(200);
+
+      const storage = agent.payments!.siwxStorage as SIWxStorage;
+      expect(
+        await storage.hasPaid(
+          'http://localhost/entrypoints/report/invoke#lucid-entrypoint=report:invoke',
+          payer
+        )
+      ).toBe(true);
     });
   });
 
@@ -337,7 +434,9 @@ describe('SIWX Integration (Hono)', () => {
       // Should include X-SIWX-EXTENSION header
       const siwxHeader = res.headers.get('X-SIWX-EXTENSION');
       expect(siwxHeader).toBeDefined();
-      const parsedHeader = JSON.parse(Buffer.from(siwxHeader!, 'base64').toString('utf-8'));
+      const parsedHeader = JSON.parse(
+        Buffer.from(siwxHeader!, 'base64').toString('utf-8')
+      );
       expect(parsedHeader.scheme).toBe('sign-in-with-x');
     });
 
@@ -477,17 +576,17 @@ describe('SIWX Integration (Hono)', () => {
     });
 
     it('should throw when authOnly route is mounted without enabled SIWX runtime', async () => {
-      const agent = await createAgent(meta)
-        .use(http())
-        // No payments extension at all
-        .addEntrypoint({
-          key: 'profile',
-          siwx: { authOnly: true },
-          handler: async () => ({ output: {} }),
-        })
-        .build();
-
-      await expect(createAgentApp(agent)).rejects.toThrow('authOnly');
+      await expect(
+        createAgent(meta)
+          .use(http())
+          // No payments extension at all
+          .addEntrypoint({
+            key: 'profile',
+            siwx: { authOnly: true },
+            handler: async () => ({ output: {} }),
+          })
+          .build()
+      ).rejects.toThrow('authOnly');
     });
 
     it('should reject replayed nonce on auth-only route', async () => {
@@ -554,7 +653,7 @@ describe('SIWX Integration (Hono)', () => {
   });
 
   describe('non-SIWX route', () => {
-    it.skip('should behave normally (no SIWX extension in 402)', async () => {
+    it('should behave normally (no SIWX extension in 402)', async () => {
       // Requires full x402 facilitator mock
       const agent = await createAgent(meta)
         .use(http())
@@ -591,7 +690,7 @@ describe('SIWX Integration (Hono)', () => {
   });
 
   describe('handler auth context', () => {
-    it.skip('should provide ctx.auth on SIWX-authenticated paid request', async () => {
+    it('should provide ctx.auth on SIWX-authenticated paid request', async () => {
       // Requires full x402 facilitator mock for paid route setup
       let capturedAuth: AgentAuthContext | undefined;
 
@@ -625,7 +724,7 @@ describe('SIWX Integration (Hono)', () => {
 
       const siwxStorage = agent.payments!.siwxStorage as SIWxStorage;
       await siwxStorage.recordPayment(
-        'http://localhost/entrypoints/report/invoke',
+        'http://localhost/entrypoints/report/invoke#lucid-entrypoint=report:invoke',
         '0x1234567890abcdef1234567890abcdef12345678',
         'eip155:84532'
       );

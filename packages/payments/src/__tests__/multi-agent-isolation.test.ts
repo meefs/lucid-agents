@@ -24,10 +24,10 @@ describeWithDb('Multi-Agent Payment Isolation', () => {
   const agentIdC = 'agent_c';
 
   beforeEach(async () => {
-    storageAgentA = createPostgresPaymentStorage(TEST_DB_URL, agentIdA);
-    storageAgentB = createPostgresPaymentStorage(TEST_DB_URL, agentIdB);
-    storageAgentC = createPostgresPaymentStorage(TEST_DB_URL, agentIdC);
-    storageNoAgent = createPostgresPaymentStorage(TEST_DB_URL);
+    storageAgentA = createPostgresPaymentStorage(TEST_DB_URL!, agentIdA);
+    storageAgentB = createPostgresPaymentStorage(TEST_DB_URL!, agentIdB);
+    storageAgentC = createPostgresPaymentStorage(TEST_DB_URL!, agentIdC);
+    storageNoAgent = createPostgresPaymentStorage(TEST_DB_URL!);
 
     trackerA = createPaymentTracker(storageAgentA);
     trackerB = createPaymentTracker(storageAgentB);
@@ -234,8 +234,6 @@ describeWithDb('Multi-Agent Payment Isolation', () => {
 
   describe('Rate limiting per agent', () => {
     it('should enforce rate limits independently per agent', async () => {
-      const maxPayments = 3;
-      const windowMs = 1000; // 1 second
       const groupName = 'rate-limited-group';
 
       // Agent A makes 3 payments (at limit)

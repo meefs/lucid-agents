@@ -68,9 +68,11 @@ Update your `package.json` to use the new scoped packages:
 # Remove old packages
 bun remove x402 x402-fetch x402-hono x402-express x402-next
 
-# Install new packages
-bun add @x402/core @x402/fetch @x402/evm @x402/hono @x402/express @x402/next
+# Install only the low-level packages your direct integration uses
+bun add @x402/core @x402/fetch @x402/evm
 ```
+
+Lucid Agents applications normally install `@lucid-agents/payments` and let the runtime own server-side verification. Add `@x402/hono`, `@x402/express`, or `@x402/next` only for a separate raw x402 integration; Lucid's adapters do not require them.
 
 Or update your `package.json` directly:
 
@@ -118,6 +120,8 @@ import type { RouteConfig, RoutesConfig } from '@x402/core/server';
 ```
 
 #### Payment Middleware Imports
+
+These import changes apply only when your application uses the raw framework middleware directly. Lucid Agents runtimes should migrate to the unified extension shown below.
 
 **Hono:**
 ```typescript
@@ -187,55 +191,6 @@ const paymentContext = await createRuntimePaymentContext({
 
 // Use the payment-enabled fetch
 const response = await paymentContext.fetchWithPayment(url, options);
-```
-
-## Framework-Specific Changes
-
-### TanStack Start
-
-The TanStack paywall middleware has been rewritten for x402 v2:
-
-```typescript
-import { createTanStackPaywall } from '@lucid-agents/tanstack';
-import type { FacilitatorConfig } from '@x402/core/server';
-
-const { invoke, stream } = createTanStackPaywall({
-  runtime: agentRuntime,
-  basePath: '/api/agent',
-  facilitator: {
-    url: 'https://facilitator.daydreams.systems'
-  } satisfies FacilitatorConfig
-});
-```
-
-### Hono
-
-Update to use the new `@x402/hono` package:
-
-```typescript
-import { createHonoPaywall } from '@lucid-agents/hono';
-
-const paywall = createHonoPaywall({
-  runtime: agentRuntime,
-  basePath: '/api/agent'
-});
-
-app.use('/api/agent/*', paywall);
-```
-
-### Express
-
-Update to use the new `@x402/express` package:
-
-```typescript
-import { createExpressPaywall } from '@lucid-agents/express';
-
-const paywall = createExpressPaywall({
-  runtime: agentRuntime,
-  basePath: '/api/agent'
-});
-
-app.use('/api/agent', paywall);
 ```
 
 ## Test Updates

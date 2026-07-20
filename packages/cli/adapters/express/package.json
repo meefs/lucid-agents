@@ -5,14 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "start": "bun run dist/index.js",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --packages=external",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@lucid-agents/core": "latest",
     "@lucid-agents/express": "latest",
-    "express": "^4.19.2",
     "zod": "^4.1.12"
   },
   "devDependencies": {

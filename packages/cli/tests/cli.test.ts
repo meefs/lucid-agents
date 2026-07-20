@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getAdapterDefinition } from '../src/adapters.js';
 import { runCli, type PromptApi } from '../src/index.js';
 
 const tempPaths: string[] = [];
@@ -110,6 +111,16 @@ const setAdaptersForTemplates = async (
       );
     })
   );
+};
+
+const updateTemplateMetadata = async (
+  root: string,
+  id: string,
+  update: (metadata: Record<string, unknown>) => Record<string, unknown>
+) => {
+  const metaPath = join(root, id, 'template.json');
+  const metadata = await readJson(metaPath);
+  await writeFile(metaPath, JSON.stringify(update(metadata), null, 2), 'utf8');
 };
 
 describe('create-agent-kit CLI', () => {
@@ -315,17 +326,100 @@ describe('create-agent-kit CLI', () => {
       join(projectDir, 'src/lib/agent.ts'),
       'utf8'
     );
+    const canonicalCardRoute = await readFile(
+      join(
+        projectDir,
+        'src/routes/api/agent/[.]well-known/agent-card[.]json.ts'
+      ),
+      'utf8'
+    );
+    const canonicalLegacyCardRoute = await readFile(
+      join(projectDir, 'src/routes/api/agent/[.]well-known/agent[.]json.ts'),
+      'utf8'
+    );
+    const canonicalOasfRoute = await readFile(
+      join(
+        projectDir,
+        'src/routes/api/agent/[.]well-known/oasf-record[.]json.ts'
+      ),
+      'utf8'
+    );
+    const landingRoute = await readFile(
+      join(projectDir, 'src/routes/api/agent/index.ts'),
+      'utf8'
+    );
+    const faviconRoute = await readFile(
+      join(projectDir, 'src/routes/api/agent/favicon[.]svg.ts'),
+      'utf8'
+    );
+    const routeTree = await readFile(
+      join(projectDir, 'src/routeTree.gen.ts'),
+      'utf8'
+    );
+    const dashboardRoute = await readFile(
+      join(projectDir, 'src/routes/index.tsx'),
+      'utf8'
+    );
+    const dashboardLoader = await readFile(
+      join(projectDir, 'src/lib/dashboard-loader.ts'),
+      'utf8'
+    );
+    const paymentApi = await readFile(
+      join(projectDir, 'src/lib/api.ts'),
+      'utf8'
+    );
+    const aboutRoute = await readFile(
+      join(projectDir, 'src/routes/about.tsx'),
+      'utf8'
+    );
     const pkg = (await readJson(join(projectDir, 'package.json'))) as Record<
       string,
       unknown
     >;
     const deps = (pkg.dependencies ?? {}) as Record<string, unknown>;
+    const devDeps = (pkg.devDependencies ?? {}) as Record<string, unknown>;
 
     expect(tanstackAgent).toContain('createAgent');
     expect(tanstackAgent).toContain('createTanStackRuntime');
+    expect(tanstackAgent).toContain('basePath: "/api/agent"');
+    expect(canonicalCardRoute).toContain('handlers.manifest({ request })');
+    expect(canonicalLegacyCardRoute).toContain(
+      'handlers.manifest({ request })'
+    );
+    expect(canonicalOasfRoute).toContain('runtime.http.handlers.oasf(request)');
+    expect(landingRoute).toContain('handlers.landing?.({ request })');
+    expect(faviconRoute).toContain('handlers.favicon({ request })');
+    expect(routeTree).toContain("'/api/agent/'");
+    expect(routeTree).toContain('/api/agent/favicon.svg');
+    expect(routeTree).toContain("'/about'");
+    expect(dashboardRoute).toContain('WalletSummary');
+    expect(dashboardRoute).not.toContain('entrypointLabel');
+    expect(dashboardRoute).not.toContain('setHealthData');
+    expect(dashboardRoute).toMatch(/runtime\.entrypoints\s*\.snapshot\(\)/);
+    expect(dashboardRoute).not.toContain('agent.listEntrypoints()');
+    expect(dashboardRoute).not.toContain('configPayments.defaultPrice');
+    expect(dashboardLoader).toMatch(/runtime\.entrypoints\s*\.snapshot\(\)/);
+    expect(dashboardLoader).toContain('runtime.agent.config.meta');
+    expect(paymentApi).toContain('new mod.x402Client()');
+    expect(paymentApi).toContain('new evm.ExactEvmScheme');
+    expect(paymentApi).not.toContain('wrapFetchWithPayment(fetch, signer)');
+    expect(dashboardRoute).toContain('from "@x402/fetch"');
+    expect(dashboardRoute).toContain('ExactEvmScheme');
+    expect(dashboardRoute).not.toContain('x402-fetch');
+    expect(aboutRoute).not.toContain('x402-fetch');
+    expect(routeTree).toContain('/api/agent/.well-known/agent-card.json');
+    expect(routeTree).toContain('/api/agent/.well-known/agent.json');
+    expect(routeTree).toContain('/api/agent/.well-known/oasf-record.json');
     expect(
       Object.prototype.hasOwnProperty.call(deps, '@lucid-agents/tanstack')
     ).toBe(true);
+    expect(deps['@wagmi/connectors']).toBe('6.2.0');
+    expect(deps['@wagmi/core']).toBe('2.22.1');
+    expect(deps['@tailwindcss/vite']).toBeUndefined();
+    expect(devDeps['@tailwindcss/vite']).toBe('^4.1.16');
+    expect(Object.values(deps)).not.toContain('catalog:');
+    expect(Object.values(deps)).not.toContain('workspace:*');
+    expect(getAdapterDefinition('tanstack-ui').baseFilesDirs).toHaveLength(1);
   });
 
   it('scaffolds projects with the Next.js adapter', async () => {
@@ -341,7 +435,54 @@ describe('create-agent-kit CLI', () => {
 
     const projectDir = join(cwd, 'demo-agent');
     const agentSrc = await readFile(join(projectDir, 'lib/agent.ts'), 'utf8');
-    const proxySrc = await readFile(join(projectDir, 'proxy.ts'), 'utf8');
+    const invokeRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/entrypoints/[key]/invoke/route.ts'),
+      'utf8'
+    );
+    const taskRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/tasks/route.ts'),
+      'utf8'
+    );
+    const cardRouteSrc = await readFile(
+      join(projectDir, 'app/.well-known/agent-card.json/route.ts'),
+      'utf8'
+    );
+    const legacyCardRouteSrc = await readFile(
+      join(projectDir, 'app/.well-known/agent.json/route.ts'),
+      'utf8'
+    );
+    const oasfRouteSrc = await readFile(
+      join(projectDir, 'app/.well-known/oasf-record.json/route.ts'),
+      'utf8'
+    );
+    const canonicalCardRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/.well-known/agent-card.json/route.ts'),
+      'utf8'
+    );
+    const canonicalLegacyCardRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/.well-known/agent.json/route.ts'),
+      'utf8'
+    );
+    const canonicalOasfRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/.well-known/oasf-record.json/route.ts'),
+      'utf8'
+    );
+    const landingRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/route.ts'),
+      'utf8'
+    );
+    const faviconRouteSrc = await readFile(
+      join(projectDir, 'app/api/agent/favicon.svg/route.ts'),
+      'utf8'
+    );
+    const paymentApiSrc = await readFile(
+      join(projectDir, 'lib/api.ts'),
+      'utf8'
+    );
+    const dashboardSrc = await readFile(
+      join(projectDir, 'components/dashboard.tsx'),
+      'utf8'
+    );
     const envFile = await readFile(join(projectDir, '.env'), 'utf8');
     const pkg = (await readJson(join(projectDir, 'package.json'))) as Record<
       string,
@@ -349,9 +490,39 @@ describe('create-agent-kit CLI', () => {
     >;
 
     expect(agentSrc).toContain('createAgent');
-    expect(proxySrc).toContain('createNextPaywall');
+    expect(agentSrc).toContain('basePath: "/api/agent"');
+    expect(agentSrc).toContain('const { handlers } = runtime.http');
+    expect(agentSrc).not.toContain('resolveManifest');
+    expect(invokeRouteSrc).toContain('handlers.invoke');
+    expect(taskRouteSrc).toContain('handlers.tasks');
+    expect(cardRouteSrc).toContain('handlers.manifest(request)');
+    expect(legacyCardRouteSrc).toContain('handlers.manifest(request)');
+    expect(oasfRouteSrc).toContain('handlers.oasf(request)');
+    expect(canonicalCardRouteSrc).toContain('handlers.manifest(request)');
+    expect(canonicalLegacyCardRouteSrc).toContain('handlers.manifest(request)');
+    expect(canonicalOasfRouteSrc).toContain('handlers.oasf(request)');
+    expect(landingRouteSrc).toContain('handlers.landing?.(request)');
+    expect(faviconRouteSrc).toContain('handlers.favicon(request)');
+    expect(paymentApiSrc).toContain('new mod.x402Client()');
+    expect(paymentApiSrc).toContain('new evm.ExactEvmScheme');
+    expect(paymentApiSrc).not.toContain(
+      'wrapFetchWithPayment(baseFetcher, signer)'
+    );
+    expect(dashboardSrc).toContain('from "@x402/fetch"');
+    expect(dashboardSrc).toContain('ExactEvmScheme');
+    expect(dashboardSrc).not.toContain('x402-fetch');
+    await expect(
+      readFile(join(projectDir, 'proxy.ts'), 'utf8')
+    ).rejects.toThrow();
+    await expect(
+      readFile(join(projectDir, 'lib/paywall.ts'), 'utf8')
+    ).rejects.toThrow();
     expect(pkg.dependencies?.next).toBeDefined();
-    expect(pkg.dependencies?.['@x402/next']).toBeDefined();
+    expect(pkg.dependencies?.['@wagmi/connectors']).toBe('6.2.0');
+    expect(pkg.dependencies?.['@wagmi/core']).toBe('2.22.1');
+    expect(pkg.dependencies?.['@x402/next']).toBeUndefined();
+    expect(Object.values(pkg.dependencies ?? {})).not.toContain('catalog:');
+    expect(Object.values(pkg.dependencies ?? {})).not.toContain('workspace:*');
     expect(envFile).toContain('OPENAI_API_KEY=');
     expect(envFile).toContain('NEXT_PUBLIC_PROJECT_ID=');
   });
@@ -481,7 +652,7 @@ describe('create-agent-kit CLI', () => {
     const prompt: PromptApi = {
       select: async ({ choices }) => choices[0]?.value ?? '',
       confirm: async () => false,
-      input: async ({ message, defaultValue = '' }) => {
+      input: async ({ message: _message, defaultValue = '' }) => {
         // Just use defaults for all inputs
         return defaultValue;
       },
@@ -765,6 +936,12 @@ describe('create-agent-kit CLI', () => {
 
     const projectDir = join(cwd, 'identity-agent');
     const envFile = await readFile(join(projectDir, '.env'), 'utf8');
+    const agentSrc = await readFile(
+      join(projectDir, 'src/lib/agent.ts'),
+      'utf8'
+    );
+    const pkg = await readJson(join(projectDir, 'package.json'));
+    const dependencies = pkg.dependencies as Record<string, string>;
 
     expect(envFile).toContain('AGENT_DOMAIN=agent.example.com');
     expect(envFile).toContain('RPC_URL=https://sepolia.base.org');
@@ -794,6 +971,11 @@ describe('create-agent-kit CLI', () => {
     expect(envFile).toContain('IDENTITY_TWITTER=@lucidagents');
     expect(envFile).toContain('IDENTITY_INCLUDE_EMAIL=true');
     expect(envFile).toContain('IDENTITY_EMAIL=ops@agent.example.com');
+    expect(agentSrc).toContain('.use(payments(');
+    expect(agentSrc).toContain('agent.identity?.result');
+    expect(agentSrc).not.toContain('createAgentIdentity(');
+    expect(dependencies['@lucid-agents/http']).toBeDefined();
+    expect(dependencies['@lucid-agents/payments']).toBeDefined();
   });
 
   it('omits gated OASF fields when OASF is disabled', async () => {
@@ -838,8 +1020,8 @@ describe('create-agent-kit CLI', () => {
     );
 
     // Verify AGENTS.md exists and has content
-    expect(agentsMd).toContain('Blank Agent Template - AI Coding Guide');
-    expect(agentsMd).toContain('How to Add Entrypoints');
+    expect(agentsMd).toContain('# Blank agent template guide');
+    expect(agentsMd).toContain('Register entrypoints through');
 
     // Verify template.schema.json exists and is valid JSON
     const schema = JSON.parse(templateSchema);
@@ -977,5 +1159,390 @@ describe('create-agent-kit CLI', () => {
     // Boolean false should be "false", NOT empty string
     expect(envFile).toContain('ANOTHER_FEATURE=false');
     expect(envFile).not.toMatch(/ANOTHER_FEATURE=\s*\n/);
+  });
+
+  it('parses separated template and adapter flags and validates missing values', async () => {
+    const cwd = await createTempDir();
+    const { logger } = createLogger();
+
+    await expect(runCli(['--template'], { cwd, logger })).rejects.toThrow(
+      'Expected value after --template'
+    );
+    await expect(runCli(['--adapter'], { cwd, logger })).rejects.toThrow(
+      'Expected value after --adapter'
+    );
+
+    await runCli(
+      [
+        'flag-agent',
+        '-t',
+        'blank',
+        '--framework',
+        'hono',
+        '--no-install',
+        '--network=base',
+        '--non-interactive',
+      ],
+      { cwd, logger }
+    );
+    const envFile = await readFile(join(cwd, 'flag-agent', '.env'), 'utf8');
+    expect(envFile).toContain('PAYMENTS_NETWORK=base');
+  });
+
+  it('reports empty and malformed template roots', async () => {
+    const cwd = await createTempDir();
+    const emptyRoot = await createTempDir();
+    const malformedRoot = await createTempDir();
+    const malformedTemplate = join(malformedRoot, 'malformed');
+    const { logger } = createLogger();
+    await mkdir(malformedTemplate);
+    await writeFile(
+      join(malformedTemplate, 'template.json'),
+      '{invalid',
+      'utf8'
+    );
+
+    await expect(
+      runCli(['empty-agent'], { cwd, logger, templateRoot: emptyRoot })
+    ).rejects.toThrow('No templates found');
+    await expect(
+      runCli(['bad-agent'], {
+        cwd,
+        logger,
+        templateRoot: malformedRoot,
+      })
+    ).rejects.toThrow();
+  });
+
+  it('supports legacy adapter metadata and ignores invalid wizard entries', async () => {
+    const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(['legacy', 'fallback']);
+    const { logger } = createLogger();
+    await updateTemplateMetadata(templateRoot, 'legacy', metadata => {
+      const { adapters: _adapters, ...rest } = metadata;
+      return {
+        ...rest,
+        adapter: 'HONO',
+        wizard: {
+          prompts: [
+            null,
+            { key: 'MISSING_TYPE', message: 'Missing type' },
+            { key: 'INVALID_TYPE', type: 'date', message: 'Invalid type' },
+          ],
+        },
+      };
+    });
+    await updateTemplateMetadata(templateRoot, 'fallback', metadata => ({
+      ...metadata,
+      adapters: [],
+    }));
+
+    await runCli(['legacy-agent', '--template=legacy', '--wizard=no'], {
+      cwd,
+      logger,
+      templateRoot,
+    });
+    await runCli(
+      [
+        'fallback-agent',
+        '--template=fallback',
+        '--adapter=hono',
+        '--wizard=no',
+      ],
+      { cwd, logger, templateRoot }
+    );
+    expect(await readFile(join(cwd, 'legacy-agent', '.env'), 'utf8')).toBe(
+      'AGENT_NAME=legacy-agent\n'
+    );
+  });
+
+  it('rejects unknown templates and incompatible adapter requests', async () => {
+    const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(['only']);
+    const { logger } = createLogger();
+
+    await expect(
+      runCli(['unknown-agent', '--template=missing'], {
+        cwd,
+        logger,
+        templateRoot,
+      })
+    ).rejects.toThrow('Unknown template "missing"');
+
+    await setAdaptersForTemplates(templateRoot, ['only'], ['hono']);
+    await expect(
+      runCli(['bad-adapter', '--template=only', '--adapter=mystery'], {
+        cwd,
+        logger,
+        templateRoot,
+      })
+    ).rejects.toThrow('Unknown adapter "mystery"');
+    await expect(
+      runCli(['wrong-adapter', '--template=only', '--adapter=express'], {
+        cwd,
+        logger,
+        templateRoot,
+      })
+    ).rejects.toThrow('does not support adapter "express"');
+    await expect(
+      runCli(['unavailable-adapter', '--adapter=express'], {
+        cwd,
+        logger,
+        templateRoot,
+      })
+    ).rejects.toThrow('Adapter "express" is not available');
+
+    await setAdaptersForTemplates(templateRoot, ['only'], ['mystery']);
+    await expect(
+      runCli(['unsupported-template', '--template=only'], {
+        cwd,
+        logger,
+        templateRoot,
+      })
+    ).rejects.toThrow('does not support any known runtime adapters');
+    await expect(
+      runCli(['no-adapters'], { cwd, logger, templateRoot })
+    ).rejects.toThrow('No valid adapters found');
+  });
+
+  it('handles invalid prompt selections and warns once for unknown adapters', async () => {
+    const cwd = await createTempDir();
+    const multiAdapterRoot = await createTemplateRoot(['multi']);
+    const { logger, messages } = createLogger();
+
+    await expect(
+      runCli(['needs-adapter'], {
+        cwd,
+        logger,
+        templateRoot: multiAdapterRoot,
+      })
+    ).rejects.toThrow('Multiple runtime adapters available');
+
+    const invalidAdapterPrompt: PromptApi = {
+      select: async () => 'bogus',
+      confirm: async () => false,
+      input: async ({ defaultValue = '' }) => defaultValue,
+    };
+    await expect(
+      runCli(['invalid-selection'], {
+        cwd,
+        logger,
+        templateRoot: multiAdapterRoot,
+        prompt: invalidAdapterPrompt,
+      })
+    ).rejects.toThrow('No templates found for adapter "bogus"');
+
+    const templateRoot = await createTemplateRoot(['first', 'second']);
+    await setAdaptersForTemplates(
+      templateRoot,
+      ['first', 'second'],
+      ['mystery', 'hono']
+    );
+    const missingTemplatePrompt: PromptApi = {
+      select: async () => 'not-a-template',
+      confirm: async ({ defaultValue }) => defaultValue ?? false,
+      input: async ({ defaultValue = '' }) => defaultValue,
+    };
+    await runCli(['fallback-selection', '--adapter=hono', '--wizard=no'], {
+      cwd,
+      logger,
+      templateRoot,
+      prompt: missingTemplatePrompt,
+    });
+    expect(
+      messages.filter(message => message.includes('unknown adapter'))
+    ).toHaveLength(1);
+    expect(messages).toContain(
+      'Template "not-a-template" not found; falling back to first option.'
+    );
+  });
+
+  it('resolves non-interactive wizard defaults, interpolation, and conditions', async () => {
+    const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(['wizard-edges']);
+    const { logger } = createLogger();
+    await updateTemplateMetadata(templateRoot, 'wizard-edges', metadata => ({
+      ...metadata,
+      adapters: ['hono'],
+      wizard: {
+        prompts: [
+          {
+            key: 'CONFIRM_YES',
+            type: 'confirm',
+            message: 'Confirm yes',
+            defaultValue: 'yes',
+          },
+          {
+            key: 'CONFIRM_NO',
+            type: 'confirm',
+            message: 'Confirm no',
+            defaultValue: 'no',
+          },
+          {
+            key: 'CONFIRM_UNKNOWN',
+            type: 'confirm',
+            message: 'Confirm unknown',
+            defaultValue: 'maybe',
+          },
+          {
+            key: 'INPUT_BOOLEAN',
+            type: 'input',
+            message: 'Boolean input',
+            defaultValue: true,
+          },
+          { key: 'INPUT_EMPTY', type: 'input', message: 'Empty input' },
+          {
+            key: 'SELECT_DEFAULT',
+            type: 'select',
+            message: 'Default select',
+            defaultValue: 'two',
+            choices: [
+              { value: 'one', title: 'One' },
+              { value: 'two', title: 'Two' },
+            ],
+          },
+          {
+            key: 'SELECT_FIRST',
+            type: 'select',
+            message: 'First select',
+            choices: [{ value: 'one', title: 'One' }],
+          },
+          {
+            key: 'INTERPOLATED',
+            type: 'input',
+            message: 'Interpolated',
+            defaultValue: '{{CONFIRM_YES}}/{{AGENT_NAME}}/{{UNKNOWN_TOKEN}}',
+          },
+          {
+            key: 'GATED_IN',
+            type: 'input',
+            message: 'Gated input',
+            defaultValue: 'included',
+            when: { key: 'SELECT_FIRST', in: ['one'] },
+          },
+        ],
+      },
+    }));
+
+    await runCli(
+      ['wizard-edge-agent', '--template=wizard-edges', '--wizard=no'],
+      { cwd, logger, templateRoot }
+    );
+    const envFile = await readFile(
+      join(cwd, 'wizard-edge-agent', '.env'),
+      'utf8'
+    );
+    expect(envFile).toContain('CONFIRM_YES=true');
+    expect(envFile).toContain('CONFIRM_NO=false');
+    expect(envFile).toContain('CONFIRM_UNKNOWN=false');
+    expect(envFile).toContain('INPUT_BOOLEAN=true');
+    expect(envFile).toContain('INPUT_EMPTY=');
+    expect(envFile).toContain('SELECT_DEFAULT=two');
+    expect(envFile).toContain('SELECT_FIRST=one');
+    expect(envFile).toContain('INTERPOLATED=true/wizard-edge-agent/');
+    expect(envFile).toContain('GATED_IN=included');
+  });
+
+  it('fails select wizard prompts that do not define choices', async () => {
+    const cwd = await createTempDir();
+    const templateRoot = await createTemplateRoot(['no-choices']);
+    const { logger } = createLogger();
+    await updateTemplateMetadata(templateRoot, 'no-choices', metadata => ({
+      ...metadata,
+      adapters: ['hono'],
+      wizard: {
+        prompts: [
+          { key: 'CHOICE', type: 'select', message: 'Choose something' },
+        ],
+      },
+    }));
+    const prompt: PromptApi = {
+      select: async () => '',
+      confirm: async () => false,
+      input: async ({ defaultValue = '' }) => defaultValue,
+    };
+
+    await expect(
+      runCli(['interactive-no-choices', '--template=no-choices'], {
+        cwd,
+        logger,
+        templateRoot,
+        prompt,
+      })
+    ).rejects.toThrow('Prompt "CHOICE" is missing choices');
+    await expect(
+      runCli(
+        ['noninteractive-no-choices', '--template=no-choices', '--wizard=no'],
+        { cwd, logger, templateRoot }
+      )
+    ).rejects.toThrow('Prompt "CHOICE" is missing choices');
+  });
+
+  it('reports malformed agent templates and merges dependency conflicts', async () => {
+    const cwd = await createTempDir();
+    const malformedRoot = await createTemplateRoot(['malformed-agent']);
+    const malformedPath = join(malformedRoot, 'malformed-agent');
+    const { logger } = createLogger();
+    await writeFile(
+      join(malformedPath, 'agent.ts.template'),
+      '{{TEMPLATE_IMPORTS}}\n{{TEMPLATE_PRE_SETUP}}',
+      'utf8'
+    );
+
+    await expect(
+      runCli(
+        ['malformed-output', '--template=malformed-agent', '--wizard=no'],
+        { cwd, logger, templateRoot: malformedRoot }
+      )
+    ).rejects.toThrow('Template missing required marker');
+
+    const conflictRoot = await createTemplateRoot(['conflict']);
+    await updateTemplateMetadata(conflictRoot, 'conflict', metadata => ({
+      ...metadata,
+      adapters: ['hono'],
+      package: {
+        dependencies: {
+          '@lucid-agents/core': '0.0.0-conflict',
+        },
+      },
+    }));
+    await runCli(['conflict-agent', '--template=conflict', '--wizard=no'], {
+      cwd,
+      logger,
+      templateRoot: conflictRoot,
+    });
+    const packageJson = await readJson(
+      join(cwd, 'conflict-agent', 'package.json')
+    );
+    expect(
+      (packageJson.dependencies as Record<string, string>)['@lucid-agents/core']
+    ).toBe('0.0.0-conflict');
+  });
+
+  it('allows a marker-only README and falls back to the adapter README', async () => {
+    const cwd = await createTempDir();
+    const plainRoot = await createTemplateRoot(['plain-readme']);
+    const missingRoot = await createTemplateRoot(['missing-readme']);
+    const { logger } = createLogger();
+    await writeFile(
+      join(plainRoot, 'plain-readme', 'README.md'),
+      'No placeholders here.\n',
+      'utf8'
+    );
+    await rm(join(missingRoot, 'missing-readme', 'README.md'));
+
+    await runCli(['plain-agent', '--template=plain-readme', '--wizard=no'], {
+      cwd,
+      logger,
+      templateRoot: plainRoot,
+    });
+    await runCli(
+      ['missing-agent', '--template=missing-readme', '--wizard=no'],
+      { cwd, logger, templateRoot: missingRoot }
+    );
+    expect(await readFile(join(cwd, 'plain-agent', 'README.md'), 'utf8')).toBe(
+      'No placeholders here.\n'
+    );
+    expect(await readdir(join(cwd, 'missing-agent'))).toContain('README.md');
   });
 });

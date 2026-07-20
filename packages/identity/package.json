@@ -8,6 +8,9 @@
     "directory": "packages/identity"
   },
   "type": "module",
+  "lucidAgents": {
+    "runtime": "portable"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -44,7 +47,6 @@
   "devDependencies": {
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
-    "@lucid-agents/eslint-config": "workspace:*",
-    "@lucid-agents/prettier-config": "workspace:*"
+    "@lucid-agents/eslint-config": "workspace:*"
   }
 }

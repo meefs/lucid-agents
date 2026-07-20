@@ -1,5 +1,9 @@
-import type { AgentCardWithEntrypoints, AgentCapabilities } from '@lucid-agents/types/a2a';
-import type { AP2Config, AP2ExtensionDescriptor, AP2Role } from '@lucid-agents/types/ap2';
+import type { AgentManifest } from '@lucid-agents/types/core';
+import type {
+  AP2Config,
+  AP2ExtensionDescriptor,
+  AP2Role,
+} from '@lucid-agents/types/ap2';
 
 import { AP2_EXTENSION_URI } from './types';
 
@@ -7,10 +11,14 @@ import { AP2_EXTENSION_URI } from './types';
  * Creates a new Agent Card with AP2 extension added.
  * Immutable - returns new card, doesn't mutate input.
  */
-export function createAgentCardWithAP2(
-  card: AgentCardWithEntrypoints,
+export function createAgentCardWithAP2<T extends AgentManifest>(
+  card: T,
   ap2Config: AP2Config
-): AgentCardWithEntrypoints {
+): T;
+export function createAgentCardWithAP2(
+  card: AgentManifest,
+  ap2Config: AP2Config
+): AgentManifest {
   if (!ap2Config.roles?.length) {
     return card;
   }
@@ -33,7 +41,7 @@ export function createAgentCardWithAP2(
     ext => !('uri' in ext && ext.uri === AP2_EXTENSION_URI)
   );
 
-  const capabilities: AgentCapabilities = {
+  const capabilities: NonNullable<AgentManifest['capabilities']> = {
     ...card.capabilities,
     extensions: [...withoutAp2, extension],
   };
@@ -43,4 +51,3 @@ export function createAgentCardWithAP2(
     capabilities,
   };
 }
-

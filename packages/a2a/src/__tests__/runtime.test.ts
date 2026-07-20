@@ -1,9 +1,13 @@
 import { describe, expect, it, mock } from 'bun:test';
-import type { AgentRuntime } from '@lucid-agents/types/core';
+import type {
+  AgentManifest,
+  AgentRuntime,
+  BuildContext,
+} from '@lucid-agents/types/core';
 import { z } from 'zod';
 
 import { createA2ARuntime } from '../runtime';
-import { buildAgentCard } from '../card';
+import { a2a as a2aExtension } from '../extension';
 
 describe('createA2ARuntime', () => {
   const mockRuntime: Partial<AgentRuntime> = {
@@ -15,7 +19,6 @@ describe('createA2ARuntime', () => {
           description: 'Test agent',
         },
       },
-      addEntrypoint: () => {},
       getEntrypoint: () => undefined,
       listEntrypoints: () => [
         {
@@ -51,6 +54,27 @@ describe('createA2ARuntime', () => {
     expect(a2a?.client).toBeDefined();
   });
 
+  it('composes the A2A runtime and manifest capability as an extension', async () => {
+    const extension = a2aExtension();
+    const slice = await extension.build({
+      meta: mockRuntime.agent!.config.meta,
+      runtime: mockRuntime as AgentRuntime,
+    } as BuildContext);
+    const card = extension.onManifestBuild!(
+      {
+        name: 'test-agent',
+        version: '1.0.0',
+        entrypoints: {},
+      },
+      mockRuntime as AgentRuntime
+    ) as AgentManifest;
+
+    expect(extension.name).toBe('a2a');
+    expect(slice.a2a.buildCard).toBeFunction();
+    expect(card.capabilities?.stateTransitionHistory).toBe(true);
+    await extension.dispose?.(mockRuntime as AgentRuntime);
+  });
+
   it('buildCard builds base Agent Card', () => {
     const a2a = createA2ARuntime(mockRuntime as AgentRuntime);
 
@@ -73,7 +97,12 @@ describe('createA2ARuntime', () => {
     };
 
     const mockFetch = mock(async (url: string | URL | Request) => {
-      const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.toString() : (url as Request).url;
+      const urlStr =
+        typeof url === 'string'
+          ? url
+          : url instanceof URL
+            ? url.toString()
+            : (url as Request).url;
       if (urlStr.includes('/.well-known/agent-card.json')) {
         return new Response(JSON.stringify(mockCard), {
           headers: { 'Content-Type': 'application/json' },
@@ -84,7 +113,10 @@ describe('createA2ARuntime', () => {
 
     const a2a = createA2ARuntime(mockRuntime as AgentRuntime);
 
-    const card = await a2a?.fetchCard('https://remote.example.com', mockFetch as unknown as typeof fetch);
+    const card = await a2a?.fetchCard(
+      'https://remote.example.com',
+      mockFetch as unknown as typeof fetch
+    );
 
     expect(card).toBeDefined();
     expect(card?.name).toBe('remote-agent');
@@ -99,4 +131,3 @@ describe('createA2ARuntime', () => {
     expect(a2a?.client.fetchAndInvoke).toBeDefined();
   });
 });
-

@@ -5,7 +5,6 @@ import type {
   WalletCapabilities,
   WalletConnector,
   WalletMetadata,
-  ThirdwebWalletOptions,
 } from '@lucid-agents/types/wallets';
 import type { WalletClient } from 'viem';
 
@@ -129,16 +128,20 @@ export class ThirdwebWalletConnector implements WalletConnector {
         getAccount: () => account,
       } as any;
 
-      this.viemWalletClient = await viemAdapter.wallet.toViem({
+      const viemWalletClient = await viemAdapter.wallet.toViem({
         client,
         chain,
         wallet,
       });
+      if (!viemWalletClient) {
+        throw new Error('Thirdweb did not return a viem wallet client');
+      }
+      this.viemWalletClient = viemWalletClient;
       if (serverWalletData.address) {
         this.metadata.address = serverWalletData.address;
       }
 
-      this.signer = createLocalSignerFromWalletClient(this.viemWalletClient);
+      this.signer = createLocalSignerFromWalletClient(viemWalletClient);
     })();
 
     await this.initializationPromise;
@@ -183,7 +186,7 @@ export class ThirdwebWalletConnector implements WalletConnector {
     try {
       await this.initialize();
     } catch {}
-    return this.metadata.address;
+    return this.metadata.address ?? null;
   }
 
   supportsCaip2(caip2: string): boolean {

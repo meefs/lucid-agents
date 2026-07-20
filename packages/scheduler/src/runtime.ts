@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import type {
   Hire,
   InvokeArgs,
@@ -9,9 +8,16 @@ import type {
   SchedulerStore,
 } from '@lucid-agents/types/scheduler';
 import type { AgentRuntime } from '@lucid-agents/types/core';
+import type { A2ARuntime } from '@lucid-agents/types/a2a';
+import type { PaymentsRuntime } from '@lucid-agents/types/payments';
+
+type SchedulerAgentRuntime = AgentRuntime<{
+  a2a: A2ARuntime;
+  payments?: PaymentsRuntime;
+}>;
 
 export type CreateSchedulerRuntimeOptions = {
-  runtime: AgentRuntime;
+  runtime: SchedulerAgentRuntime;
   store: SchedulerStore;
   clock?: () => number;
   defaultMaxRetries?: number;
@@ -43,13 +49,13 @@ export function createSchedulerRuntime(
       | ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>)
       | undefined;
 
-    // Get fetch with payment from payments runtime if available
-    if (options.runtime.payments) {
+    const payments = options.runtime.payments;
+    if (payments) {
       try {
         fetchFn =
-          (await options.runtime.payments.getFetchWithPayment(
+          (await payments.getFetchWithPayment(
             options.runtime,
-            options.runtime.payments.config.network
+            payments.config.network
           )) ?? undefined;
       } catch (error) {
         // Payment context creation failed, continue without payment
@@ -64,7 +70,8 @@ export function createSchedulerRuntime(
       args.manifest,
       args.entrypointKey,
       args.input,
-      fetchFn as typeof fetch | undefined
+      fetchFn as typeof fetch | undefined,
+      { idempotencyKey: args.idempotencyKey }
     );
   };
 
@@ -76,18 +83,33 @@ export function createSchedulerRuntime(
     now: number;
     maxRetries?: number;
     idempotencyKey?: string;
-  }): Job => ({
-    id: randomUUID(),
-    hireId: input.hireId,
-    entrypointKey: input.entrypointKey,
-    input: input.jobInput,
-    schedule: input.schedule,
-    nextRunAt: computeInitialNextRun(input.schedule, input.now),
-    attempts: 0,
-    maxRetries: input.maxRetries ?? defaultMaxRetries,
-    status: 'pending',
-    idempotencyKey: input.idempotencyKey,
-  });
+  }): Job => {
+    const id = crypto.randomUUID();
+    const idempotencyKeySeed =
+      input.idempotencyKey?.trim() ?? `scheduler-job:${id}`;
+    if (idempotencyKeySeed.length < 20 || idempotencyKeySeed.length > 256) {
+      throw new Error('Idempotency key must contain 20 to 256 characters');
+    }
+    const nextRunAt = computeInitialNextRun(input.schedule, input.now);
+    const idempotencyKey =
+      input.schedule.kind === 'interval'
+        ? occurrenceIdempotencyKey(idempotencyKeySeed, nextRunAt)
+        : idempotencyKeySeed;
+    return {
+      id,
+      hireId: input.hireId,
+      entrypointKey: input.entrypointKey,
+      input: input.jobInput,
+      schedule: input.schedule,
+      nextRunAt,
+      attempts: 0,
+      maxRetries: input.maxRetries ?? defaultMaxRetries,
+      status: 'pending',
+      idempotencyKey,
+      ...(input.schedule.kind === 'interval' ? { idempotencyKeySeed } : {}),
+      managedIdempotencyKey: input.idempotencyKey === undefined,
+    };
+  };
 
   async function createHire(input: {
     agentCardUrl: string;
@@ -103,13 +125,13 @@ export function createSchedulerRuntime(
     // Validate schedule early to fail fast
     validateSchedule(input.schedule);
 
-    const card = await options.runtime.a2a!.fetchCardWithEntrypoints(
+    const card = await options.runtime.a2a.fetchCardWithEntrypoints(
       input.agentCardUrl
     );
     validateEntrypoint(card, input.entrypointKey);
 
     const hire: Hire = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       agent: {
         agentCardUrl: input.agentCardUrl,
         card,
@@ -363,6 +385,12 @@ export function createSchedulerRuntime(
             lastError: undefined,
           });
         } else {
+          const idempotencyKeySeed =
+            claimedJob.idempotencyKeySeed ??
+            (claimedJob.managedIdempotencyKey
+              ? `scheduler-job:${claimedJob.id}`
+              : (claimedJob.idempotencyKey ??
+                `scheduler-job:${claimedJob.id}`));
           await options.store.putJob({
             ...claimedJob,
             status: 'pending',
@@ -370,6 +398,11 @@ export function createSchedulerRuntime(
             attempts: 0,
             lastError: undefined,
             nextRunAt,
+            idempotencyKey: occurrenceIdempotencyKey(
+              idempotencyKeySeed,
+              nextRunAt
+            ),
+            idempotencyKeySeed,
           });
         }
       } catch (error) {
@@ -438,7 +471,7 @@ export function createSchedulerRuntime(
       }
     }
 
-    const card = await options.runtime.a2a!.fetchCardWithEntrypoints(
+    const card = await options.runtime.a2a.fetchCardWithEntrypoints(
       hire.agent.agentCardUrl
     );
     const updated: Hire = {
@@ -465,6 +498,15 @@ export function createSchedulerRuntime(
     tick,
     recoverExpiredLeases,
   };
+}
+
+function occurrenceIdempotencyKey(seed: string, nextRunAt: number): string {
+  let hash = 0xcbf29ce484222325n;
+  for (const character of seed) {
+    hash ^= BigInt(character.codePointAt(0) ?? 0);
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return `scheduler-run:${hash.toString(16).padStart(16, '0')}:${nextRunAt}`;
 }
 
 function computeInitialNextRun(schedule: Schedule, now: number): number {

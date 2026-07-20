@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getSummary } from '@lucid-agents/analytics';
+import type { AnalyticsRuntime } from '@lucid-agents/types/analytics';
 import type { AgentRuntime, EntrypointDef } from '@lucid-agents/types/core';
+import type { SchedulerRuntime } from '@lucid-agents/types/scheduler';
 import { z } from 'zod';
+
+import type { KitchenSinkProfile } from './agent';
 
 // Minimal interface covering the Anthropic API surface we use.
 // Accepting this interface (rather than the concrete Anthropic class) lets
@@ -39,8 +42,11 @@ type AddEntrypoint = <
  */
 export function registerEntrypoints(
   addEntrypoint: AddEntrypoint,
-  runtime: AgentRuntime,
-  options?: { anthropic?: AnthropicLike }
+  runtime: AgentRuntime<{
+    analytics?: AnalyticsRuntime;
+    scheduler?: SchedulerRuntime;
+  }>,
+  options?: { anthropic?: AnthropicLike; profile?: KitchenSinkProfile }
 ): void {
   // Lazily resolve the Anthropic client: use the injected mock (for tests) or
   // defer construction until the ask handler is actually invoked so that a
@@ -94,7 +100,13 @@ export function registerEntrypoints(
       charCount: z.number(),
       preview: z.string(),
     }),
-    // price: '1000', // Uncomment in production: 0.001 USDC via x402 payments
+    ...(options?.profile === 'x402' || options?.profile === 'mpp'
+      ? {
+          price: '1000',
+          paymentProtocol: options.profile,
+          ...(options.profile === 'x402' ? { siwx: { enabled: true } } : {}),
+        }
+      : {}),
     async handler({ input }) {
       const words = input.text.trim().split(/\s+/).filter(Boolean);
       const preview =
@@ -112,8 +124,8 @@ export function registerEntrypoints(
   // ------------------------------------------------------------------
   // 3. stream — demonstrates: streaming entrypoint (SSE / delta chunks)
   //    Shows how to use the `stream` handler and `emit` helper to push
-  //    incremental StreamDeltaEnvelope chunks over SSE. The `streaming`
-  //    flag advertises streaming support in the agent card.
+  //    incremental StreamDeltaEnvelope chunks over SSE. The handler itself
+  //    advertises streaming support in the agent card.
   // ------------------------------------------------------------------
   addEntrypoint({
     key: 'stream',
@@ -122,7 +134,6 @@ export function registerEntrypoints(
       prompt: z.string(),
     }),
     output: z.object({ done: z.boolean() }),
-    streaming: true,
     async stream({ input }, emit) {
       for (const char of input.prompt) {
         await emit({ kind: 'delta', delta: char, mime: 'text/plain' });
@@ -133,7 +144,7 @@ export function registerEntrypoints(
 
   // ------------------------------------------------------------------
   // 4. analytics-report — demonstrates: analytics extension
-  //    Reads from runtime.analytics.paymentTracker via getSummary() to
+  //    Reads from the analytics runtime's bound summary API to
   //    return aggregated payment totals. Falls back to zeros when the
   //    tracker is unavailable (e.g. no payment history yet).
   // ------------------------------------------------------------------
@@ -149,9 +160,7 @@ export function registerEntrypoints(
       transactionCount: z.number(),
     }),
     async handler() {
-      const tracker = runtime.analytics?.paymentTracker;
-
-      if (!tracker) {
+      if (!runtime.analytics) {
         // Graceful fallback: analytics extension present but no tracker yet
         return {
           output: {
@@ -163,7 +172,7 @@ export function registerEntrypoints(
         };
       }
 
-      const summary = await getSummary(tracker);
+      const summary = await runtime.analytics.getSummary();
       return {
         output: {
           outgoingTotal: summary.outgoingTotal.toString(),

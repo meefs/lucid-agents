@@ -1,6 +1,6 @@
-import type { AgentMeta } from '@lucid-agents/types/a2a';
+import type { AgentMeta } from '@lucid-agents/types/core';
 import type { PaymentsConfig } from '@lucid-agents/types/payments';
-import { html } from 'hono/html';
+import { html, raw } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
 import { z } from 'zod';
@@ -11,7 +11,10 @@ type LandingPageOptions = {
   origin: string;
   entrypoints: EntrypointDef[];
   activePayments?: PaymentsConfig;
-  resolvePrice?: (entrypoint: EntrypointDef, which: 'invoke' | 'stream') => string | null;
+  resolvePrice?: (
+    entrypoint: EntrypointDef,
+    which: 'invoke' | 'stream'
+  ) => string | null;
   manifestPath: string;
   faviconDataUrl: string;
   x402ClientExample: string;
@@ -177,6 +180,16 @@ export const renderLandingPage = ({
   const entrypointLabel = entrypointCount === 1 ? 'Entrypoint' : 'Entrypoints';
   const hasPayments = Boolean(activePayments);
   const defaultNetwork = activePayments?.network;
+  const basePath = manifestPath.replace(
+    /\/\.well-known\/agent-card\.json$/,
+    ''
+  );
+  const normalizedOrigin = origin.replace(/\/+$/, '');
+  const publicBaseUrl =
+    basePath && !normalizedOrigin.endsWith(basePath)
+      ? `${normalizedOrigin}${basePath}`
+      : normalizedOrigin;
+  const entrypointsPath = `${basePath}/entrypoints`;
 
   return html`<!DOCTYPE html>
     <html lang="en">
@@ -722,15 +735,15 @@ export const renderLandingPage = ({
                   </li>
                 </ul>
               </div>
-              <a class="hero-domain" href="${origin}" target="_blank"
-                >${origin.replace(/^https?:\/\//, '')}</a
+              <a class="hero-domain" href="${publicBaseUrl}" target="_blank"
+                >${publicBaseUrl.replace(/^https?:\/\//, '')}</a
               >
             </div>
             <div class="hero-actions">
-              <a class="button" href="/.well-known/agent.json">
+              <a class="button" href="${manifestPath}">
                 <span>View Manifest</span>
               </a>
-              <a class="button button--outline" href="/entrypoints">
+              <a class="button button--outline" href="${entrypointsPath}">
                 <span>List Entrypoints</span>
               </a>
             </div>
@@ -748,14 +761,13 @@ export const renderLandingPage = ({
             <div class="entrypoint-grid">
               ${entrypoints.length
                 ? entrypoints.map(entrypoint => {
-                    const streaming = Boolean(
-                      entrypoint.stream ?? entrypoint.streaming
-                    );
+                    const streaming = Boolean(entrypoint.stream);
                     const description =
                       entrypoint.description ?? 'No description provided yet.';
-                    const invokePrice = resolvePrice?.(entrypoint, 'invoke') ?? null;
+                    const invokePrice =
+                      resolvePrice?.(entrypoint, 'invoke') ?? null;
                     const streamPrice = streaming
-                      ? resolvePrice?.(entrypoint, 'stream') ?? null
+                      ? (resolvePrice?.(entrypoint, 'stream') ?? null)
                       : undefined;
                     const hasPricing = Boolean(invokePrice || streamPrice);
                     const network = entrypoint.network ?? defaultNetwork;
@@ -770,8 +782,14 @@ export const renderLandingPage = ({
                       : 'Free';
                     const invokePath = `/entrypoints/${entrypoint.key}/invoke`;
                     const streamPath = `/entrypoints/${entrypoint.key}/stream`;
-                    const inputSchema = entrypoint.input ? z.toJSONSchema(entrypoint.input) : undefined;
-                    const outputSchema = entrypoint.output ? z.toJSONSchema(entrypoint.output) : undefined;
+                    const invokeHref = `${basePath}${invokePath}`;
+                    const streamHref = `${basePath}${streamPath}`;
+                    const inputSchema = entrypoint.input
+                      ? z.toJSONSchema(entrypoint.input)
+                      : undefined;
+                    const outputSchema = entrypoint.output
+                      ? z.toJSONSchema(entrypoint.output)
+                      : undefined;
                     const exampleInputValue = inputSchema
                       ? buildExampleFromJsonSchema(inputSchema)
                       : undefined;
@@ -792,7 +810,7 @@ export const renderLandingPage = ({
                       : undefined;
                     const invokeCurl = [
                       'curl -s -X POST \\',
-                      `  '${origin}${invokePath}' \\`,
+                      `  '${publicBaseUrl}${invokePath}' \\`,
                       "  -H 'Content-Type: application/json' \\",
                       "  -d '",
                       payloadIndented,
@@ -801,7 +819,7 @@ export const renderLandingPage = ({
                     const streamCurl = streaming
                       ? [
                           'curl -sN -X POST \\',
-                          `  '${origin}${streamPath}' \\`,
+                          `  '${publicBaseUrl}${streamPath}' \\`,
                           "  -H 'Content-Type: application/json' \\",
                           "  -H 'X-Payment: {{paymentHeader}}' \\",
                           "  -H 'Accept: text/event-stream' \\",
@@ -833,26 +851,26 @@ export const renderLandingPage = ({
                         <div class="meta-item">
                           <span class="meta-label">Invoke Endpoint</span>
                           <span class="meta-value"
-                            ><code>POST ${invokePath}</code></span
+                            ><code>POST ${invokeHref}</code></span
                           >
                         </div>
                         ${streaming
                           ? html`<div class="meta-item">
                               <span class="meta-label">Stream Endpoint</span>
                               <span class="meta-value"
-                                ><code>POST ${streamPath}</code></span
+                                ><code>POST ${streamHref}</code></span
                               >
                             </div>`
                           : ''}
                       </div>
                       <div class="card-actions">
-                        <a class="button button--small" href="${invokePath}">
+                        <a class="button button--small" href="${invokeHref}">
                           Invoke
                         </a>
                         ${streaming
                           ? html`<a
                               class="button button--small button--outline"
-                              href="${streamPath}"
+                              href="${streamHref}"
                             >
                               Stream
                             </a>`
@@ -935,7 +953,9 @@ export const renderLandingPage = ({
           </footer>
         </main>
         <script>
-          const manifestUrl = ${JSON.stringify(manifestPath)};
+          const manifestUrl = ${raw(
+            JSON.stringify(manifestPath).replace(/</gu, '\\u003c')
+          )};
           document.addEventListener('DOMContentLoaded', () => {
             const pre = document.getElementById('agent-manifest');
             const status = document.getElementById('manifest-status');

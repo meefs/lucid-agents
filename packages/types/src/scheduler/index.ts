@@ -1,6 +1,5 @@
 import type { AgentCardWithEntrypoints } from '../a2a';
 import type { WalletConnector, WalletMetadata } from '../wallets';
-import type { AgentRuntime } from '../core';
 import type { FetchFunction } from '../http';
 
 export type JsonValue =
@@ -82,6 +81,10 @@ export type Job = {
   maxRetries: number;
   status: JobStatus;
   idempotencyKey?: string;
+  /** @internal Stable seed used to derive a distinct key for each interval occurrence. */
+  idempotencyKeySeed?: string;
+  /** @internal True when the scheduler should rotate the key per interval run. */
+  managedIdempotencyKey?: boolean;
   lease?: {
     workerId: string;
     expiresAt: number;
@@ -104,6 +107,8 @@ export type SchedulerStore = {
     now: number
   ): Promise<boolean>;
   getExpiredLeases?(now: number): Promise<Job[]>;
+  /** Release persistent store resources. */
+  close?(): Promise<void> | void;
 };
 
 /**
@@ -169,6 +174,7 @@ export type SchedulerRuntime = {
     /** Optional wallet metadata for auditing. Payment is handled by paymentContext. */
     wallet?: WalletRef;
     maxRetries?: number;
+    /** 20–256 character key; interval schedules treat it as a per-job seed. */
     idempotencyKey?: string;
     metadata?: Record<string, JsonValue>;
   }): Promise<{ hire: Hire; job: Job }>;
@@ -178,6 +184,7 @@ export type SchedulerRuntime = {
     schedule: Schedule;
     jobInput: JsonValue;
     maxRetries?: number;
+    /** 20–256 character key; interval schedules treat it as a per-job seed. */
     idempotencyKey?: string;
   }): Promise<Job>;
   pauseHire(hireId: string): Promise<OperationResult>;
@@ -198,4 +205,3 @@ export type PaymentContext = {
   walletAddress: `0x${string}` | null;
   chainId: number | null;
 };
-

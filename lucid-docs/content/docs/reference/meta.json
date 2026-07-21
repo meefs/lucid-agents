@@ -1,0 +1,12 @@
+{
+  "title": "Reference",
+  "pages": [
+    "index",
+    "release-channels",
+    "configuration",
+    "environment",
+    "errors",
+    "glossary",
+    "docs-telemetry"
+  ]
+}

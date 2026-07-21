@@ -2,17 +2,23 @@
 title: x402 v2 Migration Guide
 description: Complete guide for migrating from x402 v1 to x402 v2 protocol
 icon: ArrowRight
+status: deprecated
+verifiedVersion: 2.5.0
+verifiedAt: 2026-07-20
+product: sdk
 ---
 
 This guide covers migrating from x402 v1 to x402 v2 in Lucid Agents.
 
 **Versions:**
+
 - **Migrating from:** Lucid Agents v2.2.x (using x402 v1)
 - **Migrating to:** Lucid Agents v2.4.0+ (using x402 v2)
 
 ## Overview
 
 The x402 protocol has been upgraded from v1 to v2, bringing:
+
 - **Scoped packages** - New `@x402/*` package naming
 - **CAIP-2 network format** - Standard network identifiers (e.g., `eip155:8453`)
 - **Improved verification** - Enhanced payment protocol and facilitator support
@@ -23,27 +29,27 @@ The x402 protocol has been upgraded from v1 to v2, bringing:
 
 All x402-related packages have been migrated to scoped `@x402/*` packages:
 
-| Old Package | New Package | Version |
-|------------|-------------|---------|
-| `x402` | `@x402/core` | ^2.2.0 |
-| `x402-fetch` | `@x402/fetch` | ^2.2.0 |
-| N/A | `@x402/evm` | ^2.2.0 |
-| `x402-hono` | `@x402/hono` | ^2.2.0 |
-| `x402-express` | `@x402/express` | ^2.2.0 |
-| `x402-next` | `@x402/next` | ^2.2.0 |
+| Old Package    | New Package     | Version |
+| -------------- | --------------- | ------- |
+| `x402`         | `@x402/core`    | ^2.2.0  |
+| `x402-fetch`   | `@x402/fetch`   | ^2.2.0  |
+| N/A            | `@x402/evm`     | ^2.2.0  |
+| `x402-hono`    | `@x402/hono`    | ^2.2.0  |
+| `x402-express` | `@x402/express` | ^2.2.0  |
+| `x402-next`    | `@x402/next`    | ^2.2.0  |
 
 ### Network Format (CAIP-2)
 
 Network identifiers now use the [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) standard:
 
-| Old Format | New Format (CAIP-2) | Network |
-|-----------|---------------------|---------|
-| `"base"` | `"eip155:8453"` | Base Mainnet |
-| `"base-sepolia"` | `"eip155:84532"` | Base Sepolia |
-| `"ethereum"` | `"eip155:1"` | Ethereum Mainnet |
-| `"sepolia"` | `"eip155:11155111"` | Ethereum Sepolia |
-| `"solana"` | `"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"` | Solana Mainnet |
-| `"solana-devnet"` | `"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"` | Solana Devnet |
+| Old Format        | New Format (CAIP-2)                         | Network          |
+| ----------------- | ------------------------------------------- | ---------------- |
+| `"base"`          | `"eip155:8453"`                             | Base Mainnet     |
+| `"base-sepolia"`  | `"eip155:84532"`                            | Base Sepolia     |
+| `"ethereum"`      | `"eip155:1"`                                | Ethereum Mainnet |
+| `"sepolia"`       | `"eip155:11155111"`                         | Ethereum Sepolia |
+| `"solana"`        | `"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"` | Solana Mainnet   |
+| `"solana-devnet"` | `"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"` | Solana Devnet    |
 
 ### Import Path Changes
 
@@ -95,14 +101,14 @@ Replace all old network strings with CAIP-2 format:
 const config: PaymentsConfig = {
   payTo: '0x...',
   network: 'base-sepolia',
-  facilitatorUrl: 'https://facilitator.daydreams.systems'
+  facilitatorUrl: 'https://YOUR_FACILITATOR_URL',
 };
 
 // After
 const config: PaymentsConfig = {
   payTo: '0x...',
-  network: 'eip155:84532',  // Base Sepolia in CAIP-2 format
-  facilitatorUrl: 'https://facilitator.daydreams.systems'
+  network: 'eip155:84532', // Base Sepolia in CAIP-2 format
+  facilitatorUrl: 'https://YOUR_FACILITATOR_URL',
 };
 ```
 
@@ -114,9 +120,9 @@ const config: PaymentsConfig = {
 // Before
 import type { Network, Money, RouteConfig, RoutesConfig } from 'x402/types';
 
-// After
-import type { Network, Money } from '@x402/core/types';
-import type { RouteConfig, RoutesConfig } from '@x402/core/server';
+// After: import each type from the scoped package that owns it.
+import type { Network } from '@x402/core/types';
+import type { RouteConfig } from '@x402/core/server';
 ```
 
 #### Payment Middleware Imports
@@ -124,6 +130,7 @@ import type { RouteConfig, RoutesConfig } from '@x402/core/server';
 These import changes apply only when your application uses the raw framework middleware directly. Lucid Agents runtimes should migrate to the unified extension shown below.
 
 **Hono:**
+
 ```typescript
 // Before
 import { paymentMiddleware } from 'x402-hono';
@@ -133,6 +140,7 @@ import { paymentMiddleware } from '@x402/hono';
 ```
 
 **Express:**
+
 ```typescript
 // Before
 import { paymentMiddleware } from 'x402-express';
@@ -142,6 +150,7 @@ import { paymentMiddleware } from '@x402/express';
 ```
 
 **Next.js:**
+
 ```typescript
 // Before
 import { paymentMiddleware } from 'x402-next';
@@ -162,16 +171,16 @@ const wallet = createWallet(privateKey, 'base');
 const x402Fetch = wrapFetchWithX402(fetch, wallet);
 
 // After
-import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
-import { ExactEvmScheme, toClientEvmSigner } from '@x402/evm';
+import { x402Client } from '@x402/core/client';
+import { registerExactEvmScheme } from '@x402/evm/exact/client';
+import { wrapFetchWithPayment } from '@x402/fetch';
 import { privateKeyToAccount } from 'viem/accounts';
 
-const account = privateKeyToAccount(privateKey);
-const signer = toClientEvmSigner(account);
-const client = new x402Client()
-  .register('eip155:8453', new ExactEvmScheme(signer))     // Base
-  .register('eip155:84532', new ExactEvmScheme(signer))   // Base Sepolia
-  .register('eip155:1', new ExactEvmScheme(signer));      // Ethereum
+const client = new x402Client();
+registerExactEvmScheme(client, {
+  signer: privateKeyToAccount(privateKey),
+  networks: ['eip155:84532'],
+});
 
 const x402Fetch = wrapFetchWithPayment(fetch, client);
 ```
@@ -186,10 +195,13 @@ import { createRuntimePaymentContext } from '@lucid-agents/payments';
 // The helpers now use @x402/* packages internally
 const paymentContext = await createRuntimePaymentContext({
   runtime,
-  network: 'eip155:84532'  // Just update to CAIP-2 format
+  network: 'eip155:84532', // Just update to CAIP-2 format
 });
 
 // Use the payment-enabled fetch
+if (!paymentContext.fetchWithPayment) {
+  throw new Error('No compatible buyer wallet is configured');
+}
 const response = await paymentContext.fetchWithPayment(url, options);
 ```
 
@@ -205,18 +217,18 @@ import { beforeAll, afterAll } from 'bun:test';
 const mockFacilitatorResponse = {
   kinds: [
     {
-      scheme: "exact",
-      network: "eip155:84532",  // CAIP-2 format
+      scheme: 'exact',
+      network: 'eip155:84532', // CAIP-2 format
       asset: {
-        address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
         decimals: 6,
         eip712: {
-          name: "USDC",
-          version: "2"
-        }
-      }
-    }
-  ]
+          name: 'USDC',
+          version: '2',
+        },
+      },
+    },
+  ],
 };
 
 let originalFetch: typeof globalThis.fetch;
@@ -224,16 +236,17 @@ let originalFetch: typeof globalThis.fetch;
 beforeAll(() => {
   originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
-    const url = typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.toString()
-        : input.url;
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
 
-    if (url.includes("/supported")) {
+    if (url.includes('/supported')) {
       return new Response(JSON.stringify(mockFacilitatorResponse), {
         status: 200,
-        headers: { "Content-Type": "application/json" }
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -253,16 +266,16 @@ Update all network strings in test fixtures:
 ```typescript
 // Before
 const payments: PaymentsConfig = {
-  payTo: "0x...",
-  network: "base-sepolia",
-  facilitatorUrl: "https://facilitator.test"
+  payTo: '0x...',
+  network: 'base-sepolia',
+  facilitatorUrl: 'https://facilitator.test',
 };
 
 // After
 const payments: PaymentsConfig = {
-  payTo: "0x...",
-  network: "eip155:84532",
-  facilitatorUrl: "https://facilitator.test"
+  payTo: '0x...',
+  network: 'eip155:84532',
+  facilitatorUrl: 'https://facilitator.test',
 };
 ```
 
@@ -275,7 +288,7 @@ If you're using environment variables for network configuration, update them:
 NETWORK=base-sepolia
 
 # After
-NETWORK=eip155:84532
+PAYMENTS_NETWORK=eip155:84532
 ```
 
 Update your environment variable documentation:
@@ -283,7 +296,7 @@ Update your environment variable documentation:
 ```typescript
 /**
  * Required environment variables:
- *   - NETWORK - Network identifier in CAIP-2 format (e.g., eip155:84532 for Base Sepolia)
+ *   - PAYMENTS_NETWORK - CAIP-2 identifier (for example, eip155:84532)
  */
 ```
 
@@ -291,27 +304,33 @@ Update your environment variable documentation:
 
 ### Required Changes
 
-1. ✅ **Update packages**: Replace all `x402*` packages with `@x402/*`
-2. ✅ **Update networks**: Convert to CAIP-2 format (e.g., `"base"` → `"eip155:8453"`)
-3. ✅ **Update imports**: Change import paths from `x402/types` to `@x402/core/*`
-4. ✅ **Update tests**: Mock v2 facilitator responses and use CAIP-2 networks
+1. **Update packages**: Replace all `x402*` packages with `@x402/*`.
+2. **Update networks**: Convert to CAIP-2 format (for example,
+   `"base"` → `"eip155:8453"`).
+3. **Update imports**: Change import paths from `x402/types` to the owning
+   scoped package.
+4. **Update tests**: Mock v2 facilitator responses and use CAIP-2 networks.
 
 ### Optional (If Using Raw x402 Client)
 
-5. ✅ **Update client creation**: Use new `x402Client` API with `register()` method
-6. ✅ **Update signers**: Use `toClientEvmSigner` from `@x402/evm`
+5. **Update client creation**: Create `x402Client`, then register the selected
+   exact scheme helper.
+6. **Update signer**: Supply the chain-compatible signer required by that
+   scheme helper.
 
 ## Supported Networks
 
 After migration, these networks are supported:
 
 ### EVM Networks
+
 - `eip155:8453` - Base Mainnet
 - `eip155:84532` - Base Sepolia
 - `eip155:1` - Ethereum Mainnet
 - `eip155:11155111` - Ethereum Sepolia
 
 ### Solana Networks
+
 - `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` - Solana Mainnet
 - `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` - Solana Devnet
 
@@ -322,13 +341,15 @@ After migration, these networks are supported:
 **Error**: `Type '"base-sepolia"' is not assignable to type '${string}:${string}'`
 
 **Solution**: Update the network string to CAIP-2 format:
+
 ```typescript
-network: 'eip155:84532'  // Instead of 'base-sepolia'
+network: 'eip155:84532'; // Instead of 'base-sepolia'
 ```
 
 **Error**: `Cannot find module 'x402/types'`
 
 **Solution**: Update import to use scoped package:
+
 ```typescript
 import type { Network } from '@x402/core/types';
 ```
@@ -338,9 +359,13 @@ import type { Network } from '@x402/core/types';
 **Error**: `Network 'base' is not supported`
 
 **Solution**: Register the network in CAIP-2 format:
+
 ```typescript
-const client = new x402Client()
-  .register('eip155:8453', new ExactEvmScheme(signer));
+const client = new x402Client();
+registerExactEvmScheme(client, {
+  signer,
+  networks: ['eip155:8453'],
+});
 ```
 
 ### Test Failures
@@ -353,12 +378,13 @@ const client = new x402Client()
 
 - [x402 Protocol Documentation](https://x402.org)
 - [CAIP-2 Specification](https://chainagnostic.org/CAIPs/caip-2)
-- [Lucid Agents Examples](/docs/examples/calling-paid-endpoints)
-- [Payment Policies Guide](/docs/examples/payment-policies)
+- [Call a Paid Service](/docs/buy/call-paid-service)
+- [Payment Policies and Budgets](/docs/buy/policies-budgets)
 
 ## Need Help?
 
 If you encounter issues:
+
 - Check [GitHub Issues](https://github.com/daydreamsai/lucid-agents/issues)
 - Join our [Discord](https://discord.gg/daydreams)
-- Review the [changelog](https://github.com/daydreamsai/lucid-agents/blob/master/CHANGELOG.md)
+- Review the [payments changelog](https://github.com/daydreamsai/lucid-agents/blob/master/packages/payments/CHANGELOG.md)

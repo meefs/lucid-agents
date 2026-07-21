@@ -16,7 +16,8 @@ Thank you for your interest in contributing to Lucid Agents! This document provi
 
 ### Prerequisites
 
-- **Bun** >= 20.9.0 (install from [bun.sh](https://bun.sh))
+- **Bun** 1.3 or newer (install from [bun.sh](https://bun.sh))
+- **Node.js** 20.9 or newer when running Node-targeted adapters and checks
 - **Git** for version control
 - A code editor (VS Code recommended)
 
@@ -25,7 +26,7 @@ Thank you for your interest in contributing to Lucid Agents! This document provi
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/lucid-dreams-ai/lucid-agents.git
+git clone https://github.com/daydreamsai/lucid-agents.git
 cd lucid-agents
 ```
 
@@ -228,6 +229,28 @@ SDK exports and generated route trees are excluded from export analysis; edit
 their generators rather than generated output when a generated artifact needs to
 change. Build output and local `.context` artifacts are excluded entirely.
 
+### Documentation contracts
+
+Run the documentation contract suite before changing SDK examples, workspace
+packages, or the documentation navigation:
+
+```bash
+bun run test:docs
+```
+
+In addition to content metadata, redirects, internal links, and executable
+golden paths, this command checks three repository-derived drift contracts:
+
+- every page and nested group is represented exactly once by its local
+  `meta.json` navigation;
+- every public `@lucid-agents/*` workspace has a package reference or an
+  explicit product relocation, with no references left for removed packages;
+- every Lucid repository file linked as example source or a changelog exists in
+  the current checkout.
+
+Run only the structural drift checker with `bun run docs:drift`. Pull requests
+run the complete documentation contract suite in the documentation CI job.
+
 ### Writing Tests
 
 Tests are located in `__tests__/` directories within each package.
@@ -265,8 +288,8 @@ Aim for good test coverage, especially for:
 - Edge cases and error handling
 - Breaking changes
 
-`bun run test:coverage` enforces aggregate source coverage of at least 70% of
-lines and 78% of functions. Compiled output and test files are excluded.
+`bun run test:coverage` enforces aggregate source coverage of at least 90% of
+lines and 90% of functions. Compiled output and test files are excluded.
 
 ## Pull Requests
 

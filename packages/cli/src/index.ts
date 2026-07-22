@@ -9,6 +9,8 @@ import process, {
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
+import type { ServiceUiPreset } from '@lucid-agents/types/http';
+
 import {
   type AdapterDefinition,
   getAdapterDefinition,
@@ -21,6 +23,7 @@ type CliOptions = {
   deploy: boolean;
   templateId?: string;
   adapterId?: string;
+  serviceUiPreset?: string;
   skipWizard?: boolean;
   templateArgs?: Map<string, string>;
 };
@@ -138,6 +141,11 @@ const PAYMENTS_DESTINATION_KEY = 'PAYMENTS_DESTINATION';
 const PAYMENTS_NETWORK_KEY = 'PAYMENTS_NETWORK';
 const STRIPE_DESTINATION = 'stripe';
 const BASE_NETWORK = 'base';
+const SERVICE_UI_PRESETS = [
+  'dossier',
+  'folio',
+  'console',
+] as const satisfies readonly ServiceUiPreset[];
 
 const defaultLogger: RunLogger = {
   log: message => console.log(message),
@@ -211,6 +219,14 @@ export async function runCli(
       ? parsed.options.templateArgs
       : undefined,
   });
+  const serviceUiPreset = await resolveServiceUiPreset({
+    adapter: adapterDefinition,
+    requestedPreset: parsed.options.serviceUiPreset,
+    prompt: parsed.options.skipWizard ? undefined : prompt,
+  });
+  if (serviceUiPreset) {
+    logger.log(`Using service UI preset: ${serviceUiPreset}`);
+  }
   const replacements = buildTemplateReplacements({
     projectDirName,
     packageName,
@@ -241,6 +257,7 @@ export async function runCli(
     templateRoot: template.path,
     templateMeta,
     includeDeployment,
+    serviceUiPreset,
   });
 
   await setupEnvironment({
@@ -319,6 +336,15 @@ function parseArgs(args: string[]): ParsedArgs {
       options.adapterId = arg.slice('--adapter='.length).toLowerCase();
     } else if (arg?.startsWith('--framework=')) {
       options.adapterId = arg.slice('--framework='.length).toLowerCase();
+    } else if (arg === '--ui-preset') {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error('Expected value after --ui-preset');
+      }
+      options.serviceUiPreset = value.toLowerCase();
+      i += 1;
+    } else if (arg?.startsWith('--ui-preset=')) {
+      options.serviceUiPreset = arg.slice('--ui-preset='.length).toLowerCase();
     } else if (arg?.startsWith('--network=')) {
       // Special handling for --network flag (maps to PAYMENTS_NETWORK)
       const value = arg.slice('--network='.length);
@@ -357,6 +383,9 @@ function printHelp(logger: RunLogger) {
   logger.log('  --wizard=no           Skip wizard, use template defaults');
   logger.log('  --non-interactive     Same as --wizard=no');
   logger.log(
+    '  --ui-preset <id>      Select storefront design (dossier, folio, console)'
+  );
+  logger.log(
     '  --network=<network>   Set payment network (base-sepolia, base, solana-devnet, solana)'
   );
   logger.log(
@@ -369,6 +398,9 @@ function printHelp(logger: RunLogger) {
   logger.log('  bunx @lucid-agents/cli my-agent --network=solana-devnet');
   logger.log('  bunx @lucid-agents/cli my-agent --template=identity --install');
   logger.log('  bunx @lucid-agents/cli my-agent --wizard=no');
+  logger.log(
+    '  bunx @lucid-agents/cli my-agent --adapter=next --ui-preset=folio'
+  );
   logger.log('');
   logger.log('Non-interactive with template arguments:');
   logger.log('  bunx @lucid-agents/cli my-agent --template=identity \\');
@@ -440,6 +472,59 @@ async function loadTemplates(
 
 function formatAdapterName(adapter: string): string {
   return getAdapterDisplayName(adapter);
+}
+
+function isServiceUiPreset(value: string): value is ServiceUiPreset {
+  return SERVICE_UI_PRESETS.includes(value as ServiceUiPreset);
+}
+
+async function resolveServiceUiPreset(params: {
+  adapter: AdapterDefinition;
+  requestedPreset?: string;
+  prompt?: PromptApi;
+}): Promise<ServiceUiPreset | undefined> {
+  const { adapter, requestedPreset, prompt } = params;
+  if (!adapter.serviceUi) {
+    if (requestedPreset) {
+      throw new Error(
+        `Adapter "${adapter.id}" is API-only and does not support --ui-preset.`
+      );
+    }
+    return undefined;
+  }
+
+  const selected =
+    requestedPreset ??
+    (prompt
+      ? await prompt.select({
+          message: 'Choose a public service storefront:',
+          choices: [
+            {
+              value: 'dossier',
+              title: 'Dossier',
+              description: 'Dark, restrained technical reference.',
+            },
+            {
+              value: 'folio',
+              title: 'Folio',
+              description: 'Light editorial service catalog.',
+            },
+            {
+              value: 'console',
+              title: 'Console',
+              description: 'Dense dark developer workbench.',
+            },
+          ],
+        })
+      : 'dossier');
+
+  const normalized = selected.trim().toLowerCase();
+  if (!isServiceUiPreset(normalized)) {
+    throw new Error(
+      `Unknown service UI preset "${selected}". Expected dossier, folio, or console.`
+    );
+  }
+  return normalized;
 }
 
 function normalizeWizardConfig(
@@ -970,15 +1055,24 @@ function mergeAdapterAndTemplate(
 ): string {
   const adapterSnippets = adapter.snippets;
   const templatePreSetup = templateSections['{{TEMPLATE_PRE_SETUP}}'] || '';
-  const configuredPreSetup = adapter.httpBasePath
-    ? templatePreSetup.replace(
-        /\.use\(http\(\)\)/g,
-        `.use(http({ basePath: "${adapter.httpBasePath}" }))`
-      )
-    : templatePreSetup;
+  const httpOptions = [
+    ...(adapter.httpBasePath
+      ? [`basePath: ${JSON.stringify(adapter.httpBasePath)}`]
+      : []),
+    ...(adapter.serviceUi ? ['servicePage: serviceUi'] : []),
+    ...(adapter.disableServicePage ? ['servicePage: false'] : []),
+  ];
+  const configuredPreSetup =
+    httpOptions.length > 0
+      ? configureHttpExtension(templatePreSetup, httpOptions)
+      : templatePreSetup;
+  const serviceUiImport = adapter.serviceUi
+    ? `import serviceUi from ${JSON.stringify(adapter.serviceUi.configImport)};`
+    : '';
   const parts: string[] = [
     'import { z } from "zod";',
     adapterSnippets.imports, // Adapter-specific imports
+    serviceUiImport,
     templateSections['{{TEMPLATE_IMPORTS}}'] || '', // Template imports (createAgent, http, etc.)
     '',
     adapterSnippets.preSetup,
@@ -995,6 +1089,23 @@ function mergeAdapterAndTemplate(
   ];
 
   return parts.filter(p => p.trim().length > 0).join('\n\n');
+}
+
+function configureHttpExtension(
+  templatePreSetup: string,
+  httpOptions: string[]
+): string {
+  const emptyHttpExtension = /\.use\(\s*http\(\s*\)\s*\)/u;
+  if (!emptyHttpExtension.test(templatePreSetup)) {
+    throw new TemplateError(
+      'Template must register .use(http()) so adapter HTTP options can be applied',
+      'MISSING_HTTP_EXTENSION'
+    );
+  }
+  return templatePreSetup.replace(
+    /\.use\(\s*http\(\s*\)\s*\)/gu,
+    `.use(http({ ${httpOptions.join(', ')} }))`
+  );
 }
 
 function mergePackageJson(
@@ -1237,6 +1348,7 @@ async function applyTemplateTransforms(
     templateRoot: string;
     templateMeta: TemplateMetadata;
     includeDeployment: boolean;
+    serviceUiPreset?: ServiceUiPreset;
   }
 ) {
   const packageJsonPath = join(targetDir, 'package.json');
@@ -1297,8 +1409,33 @@ async function applyTemplateTransforms(
       );
     }
   }
+  if (params.serviceUiPreset) {
+    await writeServiceUiConfig(targetDir, params.serviceUiPreset);
+  }
 
   await removeTemplateArtifacts(targetDir);
+}
+
+async function writeServiceUiConfig(
+  targetDir: string,
+  preset: ServiceUiPreset
+): Promise<void> {
+  const contents = `import { defineServiceUi } from "@lucid-agents/http/service-ui";
+
+export default defineServiceUi({
+  preset: "${preset}",
+
+  // Optional brand overrides are type checked and validated for safe contrast.
+  // tokens: {
+  //   colors: { accent: "#7EE2A8" },
+  //   fonts: {
+  //     body: ["Your Font", "sans-serif"],
+  //     stylesheetUrl: "/fonts/service-ui.css",
+  //   },
+  // },
+});
+`;
+  await fs.writeFile(join(targetDir, 'service-ui.config.ts'), contents, 'utf8');
 }
 
 async function replaceTemplatePlaceholders(

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.daydreams.systems/skills/lucid-agents/eval-results.schema.json",
+  "title": "Lucid Agents skill evaluation results",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "skillVersion",
+    "skillTreeSha256",
+    "evalSuiteSha256",
+    "runs"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "skillVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "skillTreeSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "evalSuiteSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "model", "baseline", "withSkill"],
+        "properties": {
+          "caseId": { "type": "string", "pattern": "^\\S(?:.*\\S)?$" },
+          "model": { "type": "string", "pattern": "^\\S(?:.*\\S)?$" },
+          "baseline": { "$ref": "#/$defs/scores" },
+          "withSkill": { "$ref": "#/$defs/scores" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemScores", "criticalFailures"],
+      "properties": {
+        "itemScores": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 4 }
+        },
+        "criticalFailures": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
